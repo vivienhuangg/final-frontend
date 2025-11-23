@@ -367,11 +367,11 @@ function handleLogout() {
   background: white;
   padding: 2rem;
   border-bottom: 1px solid #e0e0e0;
+  width: 100%;
 }
 
 .header-content {
-  max-width: 1200px;
-  margin: 0 auto;
+  width: 100%;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -437,8 +437,7 @@ function handleLogout() {
 }
 
 .dashboard-content {
-  max-width: 1200px;
-  margin: 0 auto;
+  width: 100%;
   padding: 2rem;
 }
 
@@ -455,9 +454,10 @@ function handleLogout() {
 }
 
 .trips-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 1.5rem;
+  width: 100%;
 }
 
 .trip-card {
@@ -467,6 +467,7 @@ function handleLogout() {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   cursor: pointer;
   transition: transform 0.2s, box-shadow 0.2s;
+  width: 100%;
 }
 
 .trip-card:hover {
@@ -624,9 +625,10 @@ function handleLogout() {
 }
 
 .invitations-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 1.5rem;
+  width: 100%;
 }
 
 .invitation-card {
@@ -636,6 +638,7 @@ function handleLogout() {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   border: 2px solid #42b983;
   position: relative;
+  width: 100%;
 }
 
 .invitation-card-image {
