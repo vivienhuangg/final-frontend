@@ -19,15 +19,21 @@
         My Events
       </button>
       <button
-        :class="['toggle', { active: activeView === 'group' }]"
-        @click="activeView = 'group'"
+        :class="['toggle', { active: activeView === 'proposals' }]"
+        @click="activeView = 'proposals'"
       >
         Group Event Proposals
       </button>
+      <button
+        :class="['toggle', { active: activeView === 'group' }]"
+        @click="activeView = 'group'"
+      >
+        Current Group Events
+      </button>
     </div>
 
-    <!-- Recommended Section (only in Group Events) -->
-    <div v-if="activeView === 'group' && recommendedEvents.length > 0" class="recommended-section">
+    <!-- Recommended Section (only in Proposals) -->
+    <div v-if="activeView === 'proposals' && recommendedEvents.length > 0" class="recommended-section">
       <div class="section-header">
         <h3 class="section-title">
           <span class="icon">⭐</span>
@@ -177,31 +183,156 @@
       </div>
     </div>
 
-    <!-- Other Group Events Section -->
-    <div v-if="activeView === 'group' && otherGroupEvents.length > 0" class="other-events-section">
+    <!-- Other Proposals Section (not recommended) -->
+    <div v-if="activeView === 'proposals' && otherProposals.length > 0" class="other-events-section">
       <div class="section-header">
         <h3 class="section-title">
-          <span class="icon">👥</span>
-          Other Group Events
+          <span class="icon">📋</span>
+          Other Proposals
         </h3>
       </div>
       <div class="timeline-container">
         <div class="timeline">
           <div
-            v-for="(activity, index) in otherGroupEvents"
+            v-for="(activity, index) in otherProposals"
             :key="activity.id"
             class="timeline-item"
           >
             <!-- Timeline Line -->
-            <div class="timeline-line" v-if="index < otherGroupEvents.length - 1"></div>
+            <div class="timeline-line" v-if="index < otherProposals.length - 1"></div>
             
             <!-- Timeline Dot -->
             <div class="timeline-dot"></div>
 
-             <!-- Activity Card -->
-             <div class="activity-card" :class="{ 'opted-out-card': optedOutEvents.has(activity.id) }">
-               <div class="opted-out-badge" v-if="optedOutEvents.has(activity.id)">Opted Out</div>
-               <div class="activity-image-container" v-if="activity.image">
+            <!-- Activity Card -->
+            <div class="activity-card" :class="{ 'opted-out-card': optedOutEvents.has(activity.id) }">
+              <div class="opted-out-badge" v-if="optedOutEvents.has(activity.id)">Opted Out</div>
+              <div class="activity-image-container" v-if="activity.image">
+                <img :src="activity.image" :alt="activity.title" class="activity-image" />
+              </div>
+              
+              <div class="activity-content">
+                <div class="activity-header">
+                  <div class="activity-title-section">
+                    <h3>{{ activity.title }}</h3>
+                    <div class="activity-meta">
+                      <span v-if="activity.location" class="meta-item">
+                        <span class="icon">📍</span> {{ activity.location }}
+                      </span>
+                      <span v-if="activity.start" class="meta-item">
+                        <span class="icon">🕐</span> {{ formatTime(activity.start) }}
+                      </span>
+                      <span v-if="activity.duration" class="meta-item">
+                        <span class="icon">⏱</span> {{ activity.duration }}
+                      </span>
+                      <span v-if="activity.pricePerPerson" class="meta-item">
+                        <span class="icon">💰</span> ${{ activity.pricePerPerson }}/person
+                      </span>
+                    </div>
+                  </div>
+                  <div class="activity-badge group">
+                    Proposal
+                  </div>
+                </div>
+
+                <p v-if="activity.description" class="activity-description">
+                  {{ activity.description }}
+                </p>
+
+                <div class="activity-tags" v-if="activity.tags && activity.tags.length > 0">
+                  <span
+                    v-for="tag in activity.tags"
+                    :key="tag"
+                    class="tag"
+                  >
+                    {{ tag }}
+                  </span>
+                </div>
+
+                <div class="activity-stats">
+                  <div class="stat">
+                    <span class="stat-icon">⭐</span>
+                    <span class="stat-value">{{ activity.rating?.toFixed(1) || 'N/A' }}/10</span>
+                    <span class="stat-label">Rating</span>
+                  </div>
+                  <div class="stat">
+                    <span class="stat-icon">👥</span>
+                    <span class="stat-value">{{ activity.attendees?.length || 0 }}</span>
+                    <span class="stat-label">Attending</span>
+                  </div>
+                  <div class="stat">
+                    <span class="stat-icon">🗳️</span>
+                    <span class="stat-value">{{ activity.votes || 0 }}</span>
+                    <span class="stat-label">Votes</span>
+                  </div>
+                </div>
+
+                <div class="activity-actions">
+                  <div class="rating-section" v-if="!isSoloEvent(activity)">
+                    <label>Your Rating:</label>
+                    <div class="rating-bar">
+                      <button
+                        v-for="i in 10"
+                        :key="i"
+                        :class="['rating-btn', { active: userRatings[activity.id] === i }]"
+                        @click="rateActivity(activity.id, i)"
+                      >
+                        {{ i }}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="proposal-actions">
+                    <button
+                      v-if="!isGroupEvent(activity)"
+                      class="make-group-event-btn"
+                      @click="makeGroupEvent(activity.id)"
+                    >
+                      <span class="btn-icon">✓</span>
+                      Make Group Event
+                    </button>
+                    <button
+                      class="delete-proposal-btn"
+                      @click="deleteProposal(activity.id)"
+                    >
+                      <span class="btn-icon">🗑</span>
+                      Delete Proposal
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Current Group Events Section -->
+    <div v-if="activeView === 'group' && currentGroupEvents.length > 0" class="current-group-events-section">
+      <div class="section-header">
+        <h3 class="section-title">
+          <span class="icon">👥</span>
+          Current Group Events
+        </h3>
+        <p class="section-subtitle">Events that have been committed to by the group</p>
+      </div>
+      <div class="timeline-container">
+        <div class="timeline">
+          <div
+            v-for="(activity, index) in currentGroupEvents"
+            :key="activity.id"
+            class="timeline-item"
+          >
+            <!-- Timeline Line -->
+            <div class="timeline-line" v-if="index < currentGroupEvents.length - 1"></div>
+            
+            <!-- Timeline Dot -->
+            <div class="timeline-dot" :class="{ 'opted-out': optedOutEvents.has(activity.id) }"></div>
+
+            <!-- Activity Card -->
+            <div class="activity-card" :class="{ 'opted-out-card': optedOutEvents.has(activity.id) }">
+              <div class="opted-out-badge" v-if="optedOutEvents.has(activity.id)">Opted Out</div>
+              <div class="activity-image-container" v-if="activity.image">
                 <img :src="activity.image" :alt="activity.title" class="activity-image" />
               </div>
               
@@ -277,15 +408,7 @@
                   </div>
 
                   <div class="proposal-actions">
-                    <button
-                      v-if="!isGroupEvent(activity)"
-                      class="make-group-event-btn"
-                      @click="makeGroupEvent(activity.id)"
-                    >
-                      <span class="btn-icon">✓</span>
-                      Make Group Event
-                    </button>
-                    <div v-else class="group-event-actions">
+                    <div class="group-event-actions">
                       <button
                         v-if="!optedOutEvents.has(activity.id)"
                         class="opt-out-btn"
@@ -304,19 +427,12 @@
                       </button>
                       <button
                         class="unmake-group-event-btn"
-                        @click="unmakeGroupEvent(activity.id)"
+                        @click="confirmUnmakeGroupEvent(activity.id)"
                       >
                         <span class="btn-icon">↩</span>
                         Remove from Group Events
                       </button>
                     </div>
-                    <button
-                      class="delete-proposal-btn"
-                      @click="deleteProposal(activity.id)"
-                    >
-                      <span class="btn-icon">🗑</span>
-                      Delete Proposal
-                    </button>
                   </div>
                 </div>
               </div>
@@ -436,12 +552,17 @@
     </div>
 
     <!-- Empty State -->
-    <div v-if="(activeView === 'mine' && displayedActivities.length === 0) || (activeView === 'group' && recommendedEvents.length === 0 && otherGroupEvents.length === 0)" class="empty-state">
+    <div v-if="(activeView === 'mine' && displayedActivities.length === 0) || (activeView === 'proposals' && recommendedEvents.length === 0 && otherProposals.length === 0) || (activeView === 'group' && currentGroupEvents.length === 0)" class="empty-state">
       <div class="empty-icon">📅</div>
-      <p class="empty-title">No {{ activeView === 'mine' ? 'personal' : 'group' }} events yet</p>
+      <p class="empty-title">
+        <span v-if="activeView === 'mine'">No personal events yet</span>
+        <span v-else-if="activeView === 'proposals'">No proposals yet</span>
+        <span v-else>No group events yet</span>
+      </p>
       <p class="empty-subtitle">
         <span v-if="activeView === 'mine'">Add activities you're planning to attend</span>
-        <span v-else>Activities others are considering will appear here</span>
+        <span v-else-if="activeView === 'proposals'">Activities that can be made into group events will appear here</span>
+        <span v-else>Group events that have been committed to will appear here</span>
       </p>
     </div>
 
@@ -572,7 +693,7 @@ const { currentUser } = useAuth();
 const currentUserId = computed(() => currentUser.value?.id || '1');
 const userRatings = ref<Record<string, number>>({});
 const showAddActivityDialog = ref(false);
-const activeView = ref<'mine' | 'group'>('mine');
+const activeView = ref<'mine' | 'proposals' | 'group'>('mine');
 const showConfirmDialog = ref(false);
 const confirmDialogConfig = ref<{
   message: string;
@@ -693,11 +814,12 @@ const activityScores = computed(() => {
   return scores;
 });
 
-// Recommended events: Top scoring group activities (including opted out, excluding solo events)
+// Recommended events: Top scoring proposals (not yet group events, excluding solo events)
 const recommendedEvents = computed(() => {
   return [...groupEvents.value]
     .filter(activity => 
       !isSoloEvent(activity) &&
+      !isGroupEvent(activity) && // Only show proposals (not yet group events)
       activityScores.value[activity.id] >= 0.5
     ) // Threshold for recommendation
     .sort((a, b) => {
@@ -719,13 +841,34 @@ const recommendedEvents = computed(() => {
     });
 });
 
-// Other group events: Not recommended (including opted out, excluding solo events)
-const otherGroupEvents = computed(() => {
+// Other proposals: Not recommended (proposals that don't meet recommendation threshold)
+const otherProposals = computed(() => {
   const recommendedIds = new Set(recommendedEvents.value.map(a => a.id));
   return groupEvents.value
     .filter(activity => 
       !isSoloEvent(activity) &&
+      !isGroupEvent(activity) && // Only show proposals (not group events)
       !recommendedIds.has(activity.id)
+    )
+    .sort((a, b) => {
+      // Sort opted-out events to the bottom
+      const aOptedOut = optedOutEvents.value.has(a.id);
+      const bOptedOut = optedOutEvents.value.has(b.id);
+      if (aOptedOut !== bOptedOut) {
+        return aOptedOut ? 1 : -1;
+      }
+      
+      if (!a.start || !b.start) return 0;
+      return new Date(a.start).getTime() - new Date(b.start).getTime();
+    });
+});
+
+// Current group events: Actual group events that have been committed to
+const currentGroupEvents = computed(() => {
+  return groupEvents.value
+    .filter(activity => 
+      !isSoloEvent(activity) &&
+      isGroupEvent(activity) // Only show actual group events
     )
     .sort((a, b) => {
       // Sort opted-out events to the bottom
@@ -765,6 +908,20 @@ function makeGroupEvent(activityId: string) {
   
   // Remove from opted out if it was there
   optedOutEvents.value.delete(activityId);
+}
+
+function confirmUnmakeGroupEvent(activityId: string) {
+  showConfirmDialog.value = true;
+  confirmDialogConfig.value = {
+    message: 'This will remove this event from everyone\'s calendar and convert it back to a proposal. Are you sure?',
+    confirmText: 'Remove from Group Events',
+    cancelText: 'Cancel',
+    onConfirm: () => {
+      unmakeGroupEvent(activityId);
+      showConfirmDialog.value = false;
+      confirmDialogConfig.value = null;
+    },
+  };
 }
 
 function unmakeGroupEvent(activityId: string) {
