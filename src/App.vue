@@ -1,162 +1,94 @@
 <template>
   <div class="app">
-    <h1>Travel Planner</h1>
-    <p class="subtitle">Collaborative travel planning made easy</p>
-    
-    <div class="api-status">
-      <p>API Base URL: {{ apiBaseUrl }}</p>
-      <p>Status: <span :class="apiStatus">{{ apiStatusText }}</span></p>
-    </div>
-
-    <div class="demo-section">
-      <h2>Quick Demo</h2>
-      <div class="demo-controls">
-        <button @click="testAuth" :disabled="loading">
-          Test Authentication API
-        </button>
-      </div>
+    <LoginPage
+      v-if="!isAuthenticated"
+      @authenticated="handleAuthenticated"
+    />
+    <div v-else class="app-content">
+      <Dashboard
+        v-if="!selectedTripId"
+        @select-trip="handleSelectTrip"
+        @logout="handleLogout"
+      />
+      <TripView
+        v-else
+        :trip="selectedTrip"
+        @back="handleBack"
+      />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import { authService } from './api';
-import type { AuthenticateRequest } from './types/api';
+import { ref, computed, onMounted } from 'vue';
+import LoginPage from './components/LoginPage.vue';
+import Dashboard from './components/Dashboard.vue';
+import TripView from './components/TripView.vue';
+import { useAuth } from './composables/useAuth';
+import { mockTrips } from './data/mockData';
+import type { Trip } from './types/trip';
 
-const apiBaseUrl = computed(() => {
-  return import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+const { isAuthenticated, initializeAuth } = useAuth();
+const trips = ref<Trip[]>([...mockTrips]);
+const selectedTripId = ref<string | null>(null);
+
+const selectedTrip = computed(() => {
+  if (!selectedTripId.value) return null;
+  return trips.value.find(t => t.id === selectedTripId.value) || null;
 });
 
-const loading = ref(false);
-const apiStatus = ref<'connected' | 'disconnected' | 'testing'>('disconnected');
-const apiStatusText = computed(() => {
-  switch (apiStatus.value) {
-    case 'connected':
-      return 'Connected';
-    case 'testing':
-      return 'Testing...';
-    default:
-      return 'Not tested';
-  }
+onMounted(() => {
+  initializeAuth();
 });
 
-async function testAuth() {
-  loading.value = true;
-  apiStatus.value = 'testing';
-  
-  try {
-    // Example: Test authentication (this will fail if backend isn't running, but shows the setup works)
-    const testRequest: AuthenticateRequest = {
-      username: 'test',
-      password: 'test',
-    };
-    
-    await authService.authenticate(testRequest);
-    apiStatus.value = 'connected';
-  } catch (error) {
-    console.error('API test failed (this is expected if backend is not running):', error);
-    // Even if it fails, we know the API client is set up correctly
-    apiStatus.value = 'disconnected';
-  } finally {
-    loading.value = false;
-  }
+function handleAuthenticated() {
+  // User is now authenticated, app will show dashboard
+}
+
+function handleSelectTrip(tripId: string) {
+  selectedTripId.value = tripId;
+}
+
+function handleBack() {
+  selectedTripId.value = null;
+}
+
+function handleLogout() {
+  const { logout } = useAuth();
+  logout();
+  selectedTripId.value = null;
 }
 </script>
 
-<style scoped>
-.app {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: #f5f5f5;
+}
+
+#app {
+  width: 100%;
   min-height: 100vh;
-  padding: 2rem;
-  max-width: 1200px;
-  margin: 0 auto;
 }
 
-h1 {
-  color: #42b983;
-  margin-bottom: 0.5rem;
-  font-size: 2.5rem;
-}
-
-.subtitle {
-  color: #666;
-  font-size: 1.1rem;
-  margin-bottom: 2rem;
-}
-
-.api-status {
-  background: #f5f5f5;
-  padding: 1rem;
-  border-radius: 8px;
-  margin-bottom: 2rem;
+.app {
   width: 100%;
-  max-width: 600px;
+  min-height: 100vh;
 }
 
-.api-status p {
-  margin: 0.5rem 0;
-  color: #333;
-}
-
-.api-status span {
-  font-weight: bold;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-}
-
-.api-status span.connected {
-  color: #42b983;
-  background: #e8f5e9;
-}
-
-.api-status span.disconnected {
-  color: #666;
-  background: #f5f5f5;
-}
-
-.api-status span.testing {
-  color: #ff9800;
-  background: #fff3e0;
-}
-
-.demo-section {
+.app-content {
   width: 100%;
-  max-width: 600px;
-}
-
-.demo-section h2 {
-  color: #333;
-  margin-bottom: 1rem;
-}
-
-.demo-controls {
-  display: flex;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-button {
-  background: #42b983;
-  color: white;
-  border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 1rem;
-  transition: background 0.2s;
-}
-
-button:hover:not(:disabled) {
-  background: #35a372;
-}
-
-button:disabled {
-  background: #ccc;
-  cursor: not-allowed;
+  min-height: 100vh;
 }
 </style>
-
