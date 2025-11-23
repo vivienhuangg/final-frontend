@@ -485,6 +485,24 @@
                 {{ activity.description }}
               </p>
 
+              <!-- Conflict Warning for My Events -->
+              <div v-if="getMyEventsConflicts(activity).length > 0" class="conflict-warning">
+                <div class="conflict-header">
+                  <span class="conflict-icon">⚠</span>
+                  <span class="conflict-title">Time Conflict</span>
+                </div>
+                <div class="conflict-list">
+                  <div
+                    v-for="conflict in getMyEventsConflicts(activity)"
+                    :key="conflict.id"
+                    class="conflict-item"
+                  >
+                    <span class="conflict-event-name">{{ conflict.title }}</span>
+                    <span class="conflict-event-type">({{ conflict.isSolo ? 'Solo Event' : 'Group Event' }})</span>
+                  </div>
+                </div>
+              </div>
+
               <div class="activity-tags" v-if="activity.tags && activity.tags.length > 0">
                 <span
                   v-for="tag in activity.tags"
@@ -911,6 +929,28 @@ function getConflicts(proposal: ActivityWithDetails): Array<{ id: string; title:
         id: committedEvent.id,
         title: committedEvent.title,
         isSolo: isSoloEvent(committedEvent),
+      });
+    }
+  });
+  
+  return conflicts;
+}
+
+// Get conflicts for an activity in "My Events" - checks against other events in "My Events"
+function getMyEventsConflicts(activity: ActivityWithDetails): Array<{ id: string; title: string; isSolo: boolean }> {
+  const conflicts: Array<{ id: string; title: string; isSolo: boolean }> = [];
+  
+  displayedActivities.value.forEach(otherActivity => {
+    // Don't check against itself
+    if (otherActivity.id === activity.id) {
+      return;
+    }
+    
+    if (hasTimeConflict(activity, otherActivity)) {
+      conflicts.push({
+        id: otherActivity.id,
+        title: otherActivity.title,
+        isSolo: isSoloEvent(otherActivity),
       });
     }
   });
