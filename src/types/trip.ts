@@ -93,8 +93,12 @@ export interface ActivityWithDetails extends Activity {
   tags?: string[];
   attendees?: string[]; // User IDs who accepted invitation
   invitations?: Invitation[]; // All invitations for this activity
+  description?: string; // Activity description
+  image?: string; // Image URL for the activity
 }
 
 export interface PackingItem extends ChecklistItem {
   category: string;
 }
+
+

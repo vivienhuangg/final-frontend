@@ -3,174 +3,378 @@
     <div class="itinerary-header">
       <div>
         <h2>Itinerary</h2>
-        <p class="subtitle">Rate and opt into activities for your trip</p>
+        <p class="subtitle">Plan and track activities for your trip</p>
       </div>
       <button class="btn-primary" @click="showAddActivityDialog = true">
         + Add Activity
       </button>
     </div>
 
-    <!-- Personal Events Section -->
-    <div class="section" v-if="personalEvents.length > 0">
+    <!-- Tab Toggles -->
+    <div class="tab-toggles">
+      <button
+        :class="['toggle', { active: activeView === 'mine' }]"
+        @click="activeView = 'mine'"
+      >
+        My Events
+      </button>
+      <button
+        :class="['toggle', { active: activeView === 'group' }]"
+        @click="activeView = 'group'"
+      >
+        Group Events
+      </button>
+    </div>
+
+    <!-- Recommended Section (only in Group Events) -->
+    <div v-if="activeView === 'group' && recommendedEvents.length > 0" class="recommended-section">
       <div class="section-header">
         <h3 class="section-title">
-          <span class="icon">✓</span>
-          My Events
+          <span class="icon">⭐</span>
+          Recommended for You
         </h3>
-        <p class="section-subtitle">Activities you're attending</p>
+        <p class="section-subtitle">Based on group ratings and preferences</p>
       </div>
-      <div class="activities-grid">
-        <div
-          v-for="activity in personalEvents"
-          :key="activity.id"
-          class="activity-card personal"
-        >
-          <div class="activity-badge personal-badge">My Event</div>
-          <div class="activity-header">
-            <h3>{{ activity.title }}</h3>
-            <div class="activity-tags" v-if="activity.tags">
-              <span
-                v-for="tag in activity.tags"
-                :key="tag"
-                class="tag"
-              >
-                {{ tag }}
-              </span>
-            </div>
-          </div>
+      <div class="timeline-container">
+        <div class="timeline">
+          <div
+            v-for="(activity, index) in recommendedEvents"
+            :key="activity.id"
+            class="timeline-item"
+          >
+            <!-- Timeline Line -->
+            <div class="timeline-line" v-if="index < recommendedEvents.length - 1"></div>
+            
+             <!-- Timeline Dot -->
+             <div class="timeline-dot recommended" :class="{ 'opted-out': optedOutEvents.has(activity.id) }"></div>
 
-          <div class="activity-details">
-            <p v-if="activity.location">📍 {{ activity.location }}</p>
-            <p v-if="activity.duration">⏱ {{ activity.duration }}</p>
-            <p v-if="activity.pricePerPerson">💰 ${{ activity.pricePerPerson }}/person</p>
-            <p v-if="activity.start">📅 {{ formatTime(activity.start) }}</p>
-          </div>
+             <!-- Activity Card -->
+             <div class="activity-card recommended-card" :class="{ 'opted-out-card': optedOutEvents.has(activity.id) }">
+               <div class="recommended-badge" v-if="!optedOutEvents.has(activity.id)">Recommended</div>
+               <div class="opted-out-badge" v-else>Opted Out</div>
+              <div class="activity-image-container" v-if="activity.image">
+                <img :src="activity.image" :alt="activity.title" class="activity-image" />
+              </div>
+              
+              <div class="activity-content">
+                <div class="activity-header">
+                  <div class="activity-title-section">
+                    <h3>{{ activity.title }}</h3>
+                    <div class="activity-meta">
+                      <span v-if="activity.location" class="meta-item">
+                        <span class="icon">📍</span> {{ activity.location }}
+                      </span>
+                      <span v-if="activity.start" class="meta-item">
+                        <span class="icon">🕐</span> {{ formatTime(activity.start) }}
+                      </span>
+                      <span v-if="activity.duration" class="meta-item">
+                        <span class="icon">⏱</span> {{ activity.duration }}
+                      </span>
+                      <span v-if="activity.pricePerPerson" class="meta-item">
+                        <span class="icon">💰</span> ${{ activity.pricePerPerson }}/person
+                      </span>
+                    </div>
+                  </div>
+                  <div class="activity-badge group">
+                    Group Event
+                  </div>
+                </div>
 
-          <div class="activity-stats">
-            <div class="stat">
-              <span class="stat-label">Rating:</span>
-              <span class="stat-value">{{ activity.rating?.toFixed(1) || 'N/A' }}/10</span>
-            </div>
-            <div class="stat">
-              <span class="stat-label">Votes:</span>
-              <span class="stat-value">{{ activity.votes || 0 }}</span>
-            </div>
-            <div class="stat">
-              <span class="stat-label">Attending:</span>
-              <span class="stat-value">{{ activity.attendees?.length || 0 }}</span>
-            </div>
-          </div>
+                <p v-if="activity.description" class="activity-description">
+                  {{ activity.description }}
+                </p>
 
-          <div class="activity-actions">
-            <div class="rating-section">
-              <label>Your Rating:</label>
-              <div class="rating-bar">
-                <button
-                  v-for="i in 10"
-                  :key="i"
-                  :class="['rating-btn', { active: userRatings[activity.id] === i }]"
-                  @click="rateActivity(activity.id, i)"
-                >
-                  {{ i }}
-                </button>
+                <div class="activity-tags" v-if="activity.tags && activity.tags.length > 0">
+                  <span
+                    v-for="tag in activity.tags"
+                    :key="tag"
+                    class="tag"
+                  >
+                    {{ tag }}
+                  </span>
+                </div>
+
+                <div class="activity-stats">
+                  <div class="stat">
+                    <span class="stat-icon">⭐</span>
+                    <span class="stat-value">{{ activity.rating?.toFixed(1) || 'N/A' }}/10</span>
+                    <span class="stat-label">Rating</span>
+                  </div>
+                  <div class="stat">
+                    <span class="stat-icon">👥</span>
+                    <span class="stat-value">{{ activity.attendees?.length || 0 }}</span>
+                    <span class="stat-label">Attending</span>
+                  </div>
+                  <div class="stat">
+                    <span class="stat-icon">🗳️</span>
+                    <span class="stat-value">{{ activity.votes || 0 }}</span>
+                    <span class="stat-label">Votes</span>
+                  </div>
+                </div>
+
+              <div class="activity-actions">
+                <div class="rating-section" v-if="!isSoloEvent(activity)">
+                  <label>Your Rating:</label>
+                  <div class="rating-bar">
+                    <button
+                      v-for="i in 10"
+                      :key="i"
+                      :class="['rating-btn', { active: userRatings[activity.id] === i }]"
+                      @click="rateActivity(activity.id, i)"
+                    >
+                      {{ i }}
+                    </button>
+                  </div>
+                </div>
+
+                <label class="opt-out-toggle">
+                  <input
+                    type="checkbox"
+                    :checked="optedOutEvents.has(activity.id)"
+                    @change="toggleOptOut(activity.id)"
+                  />
+                  <span>Opt out of this event</span>
+                </label>
+              </div>
               </div>
             </div>
-
-            <label class="attendance-toggle">
-              <input
-                type="checkbox"
-                :checked="isAttending(activity.id)"
-                @change="toggleAttendance(activity.id)"
-              />
-              I'm attending this activity
-            </label>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Group Potential Events Section -->
-    <div class="section" v-if="groupEvents.length > 0">
+    <!-- Other Group Events Section -->
+    <div v-if="activeView === 'group' && otherGroupEvents.length > 0" class="other-events-section">
       <div class="section-header">
         <h3 class="section-title">
           <span class="icon">👥</span>
-          Group Potential Events
+          Other Group Events
         </h3>
-        <p class="section-subtitle">Activities others are considering</p>
       </div>
-      <div class="activities-grid">
-        <div
-          v-for="activity in groupEvents"
-          :key="activity.id"
-          class="activity-card group"
-        >
-          <div class="activity-badge group-badge">Group Event</div>
-          <div class="activity-header">
-            <h3>{{ activity.title }}</h3>
-            <div class="activity-tags" v-if="activity.tags">
-              <span
-                v-for="tag in activity.tags"
-                :key="tag"
-                class="tag"
-              >
-                {{ tag }}
-              </span>
-            </div>
-          </div>
+      <div class="timeline-container">
+        <div class="timeline">
+          <div
+            v-for="(activity, index) in otherGroupEvents"
+            :key="activity.id"
+            class="timeline-item"
+          >
+            <!-- Timeline Line -->
+            <div class="timeline-line" v-if="index < otherGroupEvents.length - 1"></div>
+            
+            <!-- Timeline Dot -->
+            <div class="timeline-dot"></div>
 
-          <div class="activity-details">
-            <p v-if="activity.location">📍 {{ activity.location }}</p>
-            <p v-if="activity.duration">⏱ {{ activity.duration }}</p>
-            <p v-if="activity.pricePerPerson">💰 ${{ activity.pricePerPerson }}/person</p>
-            <p v-if="activity.start">📅 {{ formatTime(activity.start) }}</p>
-          </div>
+             <!-- Activity Card -->
+             <div class="activity-card" :class="{ 'opted-out-card': optedOutEvents.has(activity.id) }">
+               <div class="opted-out-badge" v-if="optedOutEvents.has(activity.id)">Opted Out</div>
+               <div class="activity-image-container" v-if="activity.image">
+                <img :src="activity.image" :alt="activity.title" class="activity-image" />
+              </div>
+              
+              <div class="activity-content">
+                <div class="activity-header">
+                  <div class="activity-title-section">
+                    <h3>{{ activity.title }}</h3>
+                    <div class="activity-meta">
+                      <span v-if="activity.location" class="meta-item">
+                        <span class="icon">📍</span> {{ activity.location }}
+                      </span>
+                      <span v-if="activity.start" class="meta-item">
+                        <span class="icon">🕐</span> {{ formatTime(activity.start) }}
+                      </span>
+                      <span v-if="activity.duration" class="meta-item">
+                        <span class="icon">⏱</span> {{ activity.duration }}
+                      </span>
+                      <span v-if="activity.pricePerPerson" class="meta-item">
+                        <span class="icon">💰</span> ${{ activity.pricePerPerson }}/person
+                      </span>
+                    </div>
+                  </div>
+                  <div class="activity-badge group">
+                    Group Event
+                  </div>
+                </div>
 
-          <div class="activity-stats">
-            <div class="stat">
-              <span class="stat-label">Rating:</span>
-              <span class="stat-value">{{ activity.rating?.toFixed(1) || 'N/A' }}/10</span>
-            </div>
-            <div class="stat">
-              <span class="stat-label">Votes:</span>
-              <span class="stat-value">{{ activity.votes || 0 }}</span>
-            </div>
-            <div class="stat">
-              <span class="stat-label">Attending:</span>
-              <span class="stat-value">{{ activity.attendees?.length || 0 }}</span>
-            </div>
-          </div>
+                <p v-if="activity.description" class="activity-description">
+                  {{ activity.description }}
+                </p>
 
-          <div class="activity-actions">
-            <div class="rating-section">
-              <label>Your Rating:</label>
-              <div class="rating-bar">
-                <button
-                  v-for="i in 10"
-                  :key="i"
-                  :class="['rating-btn', { active: userRatings[activity.id] === i }]"
-                  @click="rateActivity(activity.id, i)"
-                >
-                  {{ i }}
-                </button>
+                <div class="activity-tags" v-if="activity.tags && activity.tags.length > 0">
+                  <span
+                    v-for="tag in activity.tags"
+                    :key="tag"
+                    class="tag"
+                  >
+                    {{ tag }}
+                  </span>
+                </div>
+
+                <div class="activity-stats">
+                  <div class="stat">
+                    <span class="stat-icon">⭐</span>
+                    <span class="stat-value">{{ activity.rating?.toFixed(1) || 'N/A' }}/10</span>
+                    <span class="stat-label">Rating</span>
+                  </div>
+                  <div class="stat">
+                    <span class="stat-icon">👥</span>
+                    <span class="stat-value">{{ activity.attendees?.length || 0 }}</span>
+                    <span class="stat-label">Attending</span>
+                  </div>
+                  <div class="stat">
+                    <span class="stat-icon">🗳️</span>
+                    <span class="stat-value">{{ activity.votes || 0 }}</span>
+                    <span class="stat-label">Votes</span>
+                  </div>
+                </div>
+
+              <div class="activity-actions">
+                <div class="rating-section" v-if="!isSoloEvent(activity)">
+                  <label>Your Rating:</label>
+                  <div class="rating-bar">
+                    <button
+                      v-for="i in 10"
+                      :key="i"
+                      :class="['rating-btn', { active: userRatings[activity.id] === i }]"
+                      @click="rateActivity(activity.id, i)"
+                    >
+                      {{ i }}
+                    </button>
+                  </div>
+                </div>
+
+                <label class="opt-out-toggle">
+                  <input
+                    type="checkbox"
+                    :checked="optedOutEvents.has(activity.id)"
+                    @change="toggleOptOut(activity.id)"
+                  />
+                  <span>Opt out of this event</span>
+                </label>
+              </div>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
-            <label class="attendance-toggle">
-              <input
-                type="checkbox"
-                :checked="isAttending(activity.id)"
-                @change="toggleAttendance(activity.id)"
-              />
-              I'm attending this activity
-            </label>
+    <!-- My Events Timeline View -->
+    <div class="timeline-container" v-if="activeView === 'mine' && displayedActivities.length > 0">
+      <div class="timeline">
+        <div
+          v-for="(activity, index) in displayedActivities"
+          :key="activity.id"
+          class="timeline-item"
+        >
+          <!-- Timeline Line -->
+          <div class="timeline-line" v-if="index < displayedActivities.length - 1"></div>
+          
+          <!-- Timeline Dot -->
+          <div class="timeline-dot"></div>
+
+          <!-- Activity Card -->
+          <div class="activity-card">
+            <!-- Remove Button for My Events -->
+            <button 
+              v-if="activeView === 'mine'"
+              class="remove-btn"
+              @click="removeFromMyEvents(activity.id)"
+              title="Remove from my events"
+            >
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </button>
+            
+            <div class="activity-image-container" v-if="activity.image">
+              <img :src="activity.image" :alt="activity.title" class="activity-image" />
+            </div>
+            
+            <div class="activity-content">
+              <div class="activity-header">
+                <div class="activity-title-section">
+                  <h3>{{ activity.title }}</h3>
+                  <div class="activity-meta">
+                    <span v-if="activity.location" class="meta-item">
+                      <span class="icon">📍</span> {{ activity.location }}
+                    </span>
+                    <span v-if="activity.start" class="meta-item">
+                      <span class="icon">🕐</span> {{ formatTime(activity.start) }}
+                    </span>
+                    <span v-if="activity.duration" class="meta-item">
+                      <span class="icon">⏱</span> {{ activity.duration }}
+                    </span>
+                    <span v-if="activity.pricePerPerson" class="meta-item">
+                      <span class="icon">💰</span> ${{ activity.pricePerPerson }}/person
+                    </span>
+                  </div>
+                </div>
+                <div class="activity-badge" :class="isSoloEvent(activity) ? 'solo' : 'group'">
+                  {{ isSoloEvent(activity) ? 'Solo Event' : 'Group Event' }}
+                </div>
+              </div>
+
+              <p v-if="activity.description" class="activity-description">
+                {{ activity.description }}
+              </p>
+
+              <div class="activity-tags" v-if="activity.tags && activity.tags.length > 0">
+                <span
+                  v-for="tag in activity.tags"
+                  :key="tag"
+                  class="tag"
+                >
+                  {{ tag }}
+                </span>
+              </div>
+
+              <div class="activity-stats" v-if="!isSoloEvent(activity)">
+                <div class="stat">
+                  <span class="stat-icon">⭐</span>
+                  <span class="stat-value">{{ activity.rating?.toFixed(1) || 'N/A' }}/10</span>
+                  <span class="stat-label">Rating</span>
+                </div>
+                <div class="stat">
+                  <span class="stat-icon">👥</span>
+                  <span class="stat-value">{{ activity.attendees?.length || 0 }}</span>
+                  <span class="stat-label">Attending</span>
+                </div>
+                <div class="stat">
+                  <span class="stat-icon">🗳️</span>
+                  <span class="stat-value">{{ activity.votes || 0 }}</span>
+                  <span class="stat-label">Votes</span>
+                </div>
+              </div>
+
+              <div class="activity-actions">
+                <div class="rating-section" v-if="!isSoloEvent(activity)">
+                  <label>Your Rating:</label>
+                  <div class="rating-bar">
+                    <button
+                      v-for="i in 10"
+                      :key="i"
+                      :class="['rating-btn', { active: userRatings[activity.id] === i }]"
+                      @click="rateActivity(activity.id, i)"
+                    >
+                      {{ i }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
     <!-- Empty State -->
-    <div v-if="personalEvents.length === 0 && groupEvents.length === 0" class="empty-state">
-      <p>No activities yet. Add your first activity to get started!</p>
+    <div v-if="(activeView === 'mine' && displayedActivities.length === 0) || (activeView === 'group' && recommendedEvents.length === 0 && otherGroupEvents.length === 0)" class="empty-state">
+      <div class="empty-icon">📅</div>
+      <p class="empty-title">No {{ activeView === 'mine' ? 'personal' : 'group' }} events yet</p>
+      <p class="empty-subtitle">
+        <span v-if="activeView === 'mine'">Add activities you're planning to attend</span>
+        <span v-else>Activities others are considering will appear here</span>
+      </p>
     </div>
 
     <!-- Add Activity Dialog -->
@@ -179,8 +383,20 @@
         <h2>Add Activity</h2>
         <form @submit.prevent="addActivity">
           <div class="form-group">
-            <label>Title</label>
+            <label>Title *</label>
             <input v-model="newActivity.title" type="text" required placeholder="e.g., Visit Art Museum" />
+          </div>
+          <div class="form-group">
+            <label>Description</label>
+            <textarea
+              v-model="newActivity.description"
+              rows="3"
+              placeholder="Add a description for this activity..."
+            ></textarea>
+          </div>
+          <div class="form-group">
+            <label>Image URL (optional)</label>
+            <input v-model="newActivity.image" type="url" placeholder="https://example.com/image.jpg" />
           </div>
           <div class="form-group">
             <label>Location</label>
@@ -188,11 +404,11 @@
           </div>
           <div class="form-row">
             <div class="form-group">
-              <label>Start Date & Time</label>
+              <label>Start Date & Time *</label>
               <input v-model="newActivity.start" type="datetime-local" required />
             </div>
             <div class="form-group">
-              <label>End Date & Time</label>
+              <label>End Date & Time *</label>
               <input v-model="newActivity.end" type="datetime-local" required />
             </div>
           </div>
@@ -203,6 +419,39 @@
           <div class="form-group">
             <label>Duration (optional)</label>
             <input v-model="newActivity.duration" type="text" placeholder="e.g., 2 hours" />
+          </div>
+          <div class="form-group">
+            <label>Event Type</label>
+            <div class="event-type-toggle">
+              <label class="event-type-option">
+                <input
+                  type="radio"
+                  :value="true"
+                  v-model="newActivity.isPersonal"
+                />
+                <span class="option-content">
+                  <span class="option-icon">👤</span>
+                  <div>
+                    <div class="option-title">Personal Event</div>
+                    <div class="option-description">Just for you</div>
+                  </div>
+                </span>
+              </label>
+              <label class="event-type-option">
+                <input
+                  type="radio"
+                  :value="false"
+                  v-model="newActivity.isPersonal"
+                />
+                <span class="option-content">
+                  <span class="option-icon">👥</span>
+                  <div>
+                    <div class="option-title">Group Event</div>
+                    <div class="option-description">For everyone in the trip</div>
+                  </div>
+                </span>
+              </label>
+            </div>
           </div>
           <div class="form-actions">
             <button type="button" class="btn-secondary" @click="showAddActivityDialog = false">
@@ -237,26 +486,163 @@ const { currentUser } = useAuth();
 const currentUserId = computed(() => currentUser.value?.id || '1');
 const userRatings = ref<Record<string, number>>({});
 const showAddActivityDialog = ref(false);
+const activeView = ref<'mine' | 'group'>('mine');
 const newActivity = ref({
   title: '',
+  description: '',
+  image: '',
   location: '',
   start: '',
   end: '',
   cost: 0,
   duration: '',
+  isPersonal: true, // true = personal/solo event, false = group event
 });
 
-// Separate activities into personal (user is attending) and group (user is not attending)
+// Track which events user has explicitly opted out of
+const optedOutEvents = ref<Set<string>>(new Set());
+
+// Helper: Check if activity is a solo event (personal event - only creator attends)
+function isSoloEvent(activity: ActivityWithDetails): boolean {
+  // Solo events are manually created activities where ONLY the creator is in attendees
+  return activity.source === 'manual' && 
+         activity.attendees?.length === 1 &&
+         activity.attendees.includes(currentUserId.value);
+}
+
+// My Events: Shows solo events you created + group events you haven't opted out of
 const personalEvents = computed(() => {
-  return props.activities.filter(activity => 
-    activity.attendees?.includes(currentUserId.value)
-  );
+  return props.activities.filter(activity => {
+    const isOptedOut = optedOutEvents.value.has(activity.id);
+    if (isOptedOut) return false;
+    
+    // Solo events: you're always attending (you created them)
+    if (isSoloEvent(activity)) {
+      return true;
+    }
+    
+    // Group events: default to attending unless opted out
+    return true;
+  }).sort((a, b) => {
+    if (!a.start || !b.start) return 0;
+    return new Date(a.start).getTime() - new Date(b.start).getTime();
+  });
 });
 
+// Group Events: All activities that are not solo events (or solo events you opted out of)
 const groupEvents = computed(() => {
-  return props.activities.filter(activity => 
-    !activity.attendees?.includes(currentUserId.value)
-  );
+  return props.activities.filter(activity => {
+    // If it's a solo event and you haven't opted out, don't show in group events
+    if (isSoloEvent(activity) && !optedOutEvents.value.has(activity.id)) {
+      return false;
+    }
+    // Show all other activities (discover events, or opted-out solo events)
+    return true;
+  });
+});
+
+// Calculate recommendation scores based on ranking algorithm
+const activityScores = computed(() => {
+  const scores: Record<string, number> = {};
+  
+  // Calculate how many activities each user is attending (for fairness)
+  // Count activities they haven't opted out of
+  const userActivityCounts: Record<string, number> = {};
+  props.travelers.forEach(traveler => {
+    userActivityCounts[traveler.id] = props.activities.filter(a => {
+      if (optedOutEvents.value.has(a.id)) return false;
+      if (isSoloEvent(a) && a.attendees?.includes(traveler.id)) return true;
+      if (!isSoloEvent(a)) return true; // Group events default to attending
+      return false;
+    }).length;
+  });
+  
+  const maxUserActivities = Math.max(...Object.values(userActivityCounts), 1);
+  
+  // Only calculate scores for group events (not solo events)
+  groupEvents.value.filter(a => !isSoloEvent(a)).forEach(activity => {
+    let score = 0;
+    
+    // Base score: Average rating (0-10 scale, normalized to 0-1)
+    const avgRating = activity.rating || 0;
+    score += (avgRating / 10) * 0.4; // 40% weight
+    
+    // Vote count boost (more votes = more consensus)
+    const voteCount = activity.votes || 0;
+    const groupEventsOnly = groupEvents.value.filter(a => !isSoloEvent(a));
+    const maxVotes = Math.max(...groupEventsOnly.map(a => a.votes || 0), 1);
+    score += (voteCount / maxVotes) * 0.2; // 20% weight
+    
+    // Hidden gem boost: High rating but low attendance
+    const attendanceCount = activity.attendees?.length || 0;
+    const maxAttendance = Math.max(...groupEventsOnly.map(a => a.attendees?.length || 0), 1);
+    const isHiddenGem = activity.tags?.includes('Hidden Gem') || false;
+    if (isHiddenGem && avgRating >= 7 && attendanceCount < maxAttendance * 0.5) {
+      score += 0.2; // 20% boost for hidden gems
+    }
+    
+    // Fairness boost: Activities rated highly by underrepresented users
+    // (users who have fewer activities they're attending)
+    const underrepresentedBoost = props.travelers
+      .filter(t => userActivityCounts[t.id] < maxUserActivities * 0.7)
+      .length / props.travelers.length;
+    score += underrepresentedBoost * 0.2; // 20% weight
+    
+    scores[activity.id] = score;
+  });
+  
+  return scores;
+});
+
+// Recommended events: Top scoring group activities (including opted out, excluding solo events)
+const recommendedEvents = computed(() => {
+  return [...groupEvents.value]
+    .filter(activity => 
+      !isSoloEvent(activity) &&
+      activityScores.value[activity.id] >= 0.5
+    ) // Threshold for recommendation
+    .sort((a, b) => {
+      // Sort opted-out events to the bottom
+      const aOptedOut = optedOutEvents.value.has(a.id);
+      const bOptedOut = optedOutEvents.value.has(b.id);
+      if (aOptedOut !== bOptedOut) {
+        return aOptedOut ? 1 : -1;
+      }
+      
+      const scoreA = activityScores.value[a.id] || 0;
+      const scoreB = activityScores.value[b.id] || 0;
+      if (Math.abs(scoreB - scoreA) > 0.01) {
+        return scoreB - scoreA; // Sort by score descending
+      }
+      // If scores are similar, sort by date
+      if (!a.start || !b.start) return 0;
+      return new Date(a.start).getTime() - new Date(b.start).getTime();
+    });
+});
+
+// Other group events: Not recommended (including opted out, excluding solo events)
+const otherGroupEvents = computed(() => {
+  const recommendedIds = new Set(recommendedEvents.value.map(a => a.id));
+  return groupEvents.value
+    .filter(activity => 
+      !isSoloEvent(activity) &&
+      !recommendedIds.has(activity.id)
+    )
+    .sort((a, b) => {
+      // Sort opted-out events to the bottom
+      const aOptedOut = optedOutEvents.value.has(a.id);
+      const bOptedOut = optedOutEvents.value.has(b.id);
+      if (aOptedOut !== bOptedOut) {
+        return aOptedOut ? 1 : -1;
+      }
+      
+      if (!a.start || !b.start) return 0;
+      return new Date(a.start).getTime() - new Date(b.start).getTime();
+    });
+});
+
+const displayedActivities = computed(() => {
+  return activeView.value === 'mine' ? personalEvents.value : [];
 });
 
 function rateActivity(activityId: string, rating: number) {
@@ -264,18 +650,59 @@ function rateActivity(activityId: string, rating: number) {
   emit('rate', activityId, rating);
 }
 
+function toggleOptOut(activityId: string) {
+  const activity = props.activities.find(a => a.id === activityId);
+  
+  if (optedOutEvents.value.has(activityId)) {
+    // User is opting back in
+    optedOutEvents.value.delete(activityId);
+    // Ensure user is in attendees list
+    if (activity && !activity.attendees?.includes(currentUserId.value)) {
+      emit('toggle-attendance', activityId, currentUserId.value);
+    }
+  } else {
+    // User is opting out
+    optedOutEvents.value.add(activityId);
+    // Remove user from attendees list
+    if (activity?.attendees?.includes(currentUserId.value)) {
+      emit('toggle-attendance', activityId, currentUserId.value);
+    }
+  }
+}
+
 function toggleAttendance(activityId: string) {
+  // This is used for the X button in My Events
+  emit('toggle-attendance', activityId, currentUserId.value);
+  optedOutEvents.value.add(activityId);
+}
+
+function removeFromMyEvents(activityId: string) {
+  // Remove user from attending this event
   emit('toggle-attendance', activityId, currentUserId.value);
 }
 
 function isAttending(activityId: string): boolean {
   const activity = props.activities.find(a => a.id === activityId);
-  return activity?.attendees?.includes(currentUserId.value) || false;
+  if (!activity) return false;
+  
+  // If user has explicitly opted out, they're not attending
+  if (optedOutEvents.value.has(activityId)) {
+    return false;
+  }
+  
+  // Solo events: you're always attending (you created them)
+  if (isSoloEvent(activity)) {
+    return true;
+  }
+  
+  // Group events: default to attending (unless opted out)
+  return true;
 }
 
 function formatTime(timeString: string): string {
   const date = new Date(timeString);
   return date.toLocaleString('en-US', {
+    weekday: 'short',
     month: 'short',
     day: 'numeric',
     hour: 'numeric',
@@ -284,6 +711,12 @@ function formatTime(timeString: string): string {
 }
 
 function addActivity() {
+  // For personal events: only current user attends
+  // For group events: all travelers attend by default (they can opt out later)
+  const attendees = newActivity.value.isPersonal
+    ? [currentUserId.value] // Personal: just you
+    : props.travelers.map(t => t.id); // Group: everyone by default
+
   const activity: ActivityWithDetails = {
     id: Date.now().toString(),
     title: newActivity.value.title,
@@ -294,21 +727,26 @@ function addActivity() {
     location: newActivity.value.location,
     duration: newActivity.value.duration,
     pricePerPerson: newActivity.value.cost,
+    description: newActivity.value.description,
+    image: newActivity.value.image || undefined,
     source: 'manual',
     rating: 0,
     votes: 0,
-    attendees: [currentUserId.value], // User automatically attends their own activity
+    attendees: attendees,
   };
 
   emit('add-activity', activity);
   showAddActivityDialog.value = false;
   newActivity.value = {
     title: '',
+    description: '',
+    image: '',
     location: '',
     start: '',
     end: '',
     cost: 0,
     duration: '',
+    isPersonal: true,
   };
 }
 </script>
@@ -326,9 +764,10 @@ function addActivity() {
 }
 
 .itinerary-header h2 {
-  font-size: 1.5rem;
+  font-size: 2rem;
   color: #333;
   margin-bottom: 0.5rem;
+  font-weight: 600;
 }
 
 .subtitle {
@@ -336,8 +775,214 @@ function addActivity() {
   font-size: 1rem;
 }
 
-.section {
+.tab-toggles {
+  display: flex;
+  gap: 0;
+  margin-bottom: 2rem;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.toggle {
+  padding: 1rem 2rem;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.toggle:hover {
+  color: #333;
+  background: #f9f9f9;
+}
+
+.toggle.active {
+  color: #42b983;
+  border-bottom-color: #42b983;
+}
+
+.timeline-container {
+  position: relative;
+  padding: 2rem 0;
+}
+
+.timeline {
+  position: relative;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.timeline-item {
+  position: relative;
+  padding-left: 3rem;
   margin-bottom: 3rem;
+}
+
+.timeline-line {
+  position: absolute;
+  left: 0.5rem;
+  top: 2.5rem;
+  width: 2px;
+  height: calc(100% + 1rem);
+  background: linear-gradient(to bottom, #42b983, #e0e0e0);
+}
+
+.timeline-dot {
+  position: absolute;
+  left: 0;
+  top: 0.5rem;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  background: #42b983;
+  border: 3px solid white;
+  box-shadow: 0 0 0 2px #42b983;
+  z-index: 2;
+}
+
+.timeline-dot.recommended {
+  background: #ffd700;
+  box-shadow: 0 0 0 2px #ffd700;
+}
+
+.timeline-dot.opted-out {
+  background: #ccc;
+  box-shadow: 0 0 0 2px #ccc;
+  opacity: 0.6;
+}
+
+.activity-card {
+  background: white;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  transition: transform 0.2s, box-shadow 0.2s;
+  position: relative;
+}
+
+.activity-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+}
+
+.remove-btn {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.95);
+  border: 2px solid #e0e0e0;
+  color: #666;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  transition: all 0.2s;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.remove-btn:hover {
+  background: #fee;
+  border-color: #fcc;
+  color: #c33;
+  transform: scale(1.1) rotate(90deg);
+  box-shadow: 0 4px 12px rgba(204, 51, 51, 0.2);
+}
+
+.remove-btn:active {
+  transform: scale(0.95) rotate(90deg);
+}
+
+.activity-image-container {
+  width: 100%;
+  height: 250px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.activity-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.activity-content {
+  padding: 2rem;
+}
+
+.activity-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.activity-title-section {
+  flex: 1;
+}
+
+.activity-title-section h3 {
+  font-size: 1.5rem;
+  color: #333;
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+}
+
+.activity-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.meta-item .icon {
+  font-size: 1rem;
+}
+
+.activity-badge {
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.activity-badge.solo {
+  background: #e8f5e9;
+  color: #42b983;
+}
+
+.activity-badge.personal {
+  background: #e8f5e9;
+  color: #42b983;
+}
+
+.activity-badge.group {
+  background: #f3e8ff;
+  color: #667eea;
+}
+
+.recommended-section {
+  margin-bottom: 3rem;
+}
+
+.other-events-section {
+  margin-bottom: 2rem;
 }
 
 .section-header {
@@ -345,142 +990,124 @@ function addActivity() {
 }
 
 .section-title {
-  font-size: 1.25rem;
+  font-size: 1.5rem;
   color: #333;
   margin-bottom: 0.5rem;
   display: flex;
   align-items: center;
   gap: 0.5rem;
-}
-
-.icon {
-  font-size: 1.5rem;
+  font-weight: 600;
 }
 
 .section-subtitle {
   color: #666;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
+  margin-left: 2rem;
 }
 
-.activities-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-  gap: 1.5rem;
-}
-
-.activity-card {
-  background: white;
-  border-radius: 12px;
-  padding: 1.5rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+.recommended-card {
   position: relative;
-  transition: transform 0.2s, box-shadow 0.2s;
+  border: 2px solid #ffd700;
+  box-shadow: 0 4px 20px rgba(255, 215, 0, 0.2);
 }
 
-.activity-card.personal {
-  border-left: 4px solid #42b983;
-  background: linear-gradient(to right, #f0fdf4 0%, white 10%);
-}
-
-.activity-card.group {
-  border-left: 4px solid #667eea;
-  background: linear-gradient(to right, #f5f3ff 0%, white 10%);
-}
-
-.activity-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-}
-
-.activity-badge {
+.recommended-badge {
   position: absolute;
   top: 1rem;
   right: 1rem;
-  padding: 0.25rem 0.75rem;
-  border-radius: 12px;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.personal-badge {
-  background: #42b983;
-  color: white;
-}
-
-.group-badge {
-  background: #667eea;
-  color: white;
-}
-
-.activity-header {
-  margin-bottom: 1rem;
-  padding-right: 80px;
-}
-
-.activity-header h3 {
-  font-size: 1.25rem;
+  background: linear-gradient(135deg, #ffd700, #ffed4e);
   color: #333;
-  margin-bottom: 0.75rem;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  z-index: 10;
+  box-shadow: 0 2px 8px rgba(255, 215, 0, 0.4);
+}
+
+.opted-out-badge {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: #fee;
+  color: #c33;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  z-index: 10;
+  border: 1px solid #fcc;
+}
+
+.opted-out-card {
+  opacity: 0.7;
+  border: 2px solid #ddd;
+}
+
+.opted-out-card:hover {
+  opacity: 0.9;
+}
+
+.activity-description {
+  color: #555;
+  line-height: 1.6;
+  margin-bottom: 1rem;
+  font-size: 0.95rem;
 }
 
 .activity-tags {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+  margin-bottom: 1.5rem;
 }
 
 .tag {
-  background: #e8f5e9;
-  color: #42b983;
-  padding: 0.25rem 0.75rem;
+  background: #f0f0f0;
+  color: #666;
+  padding: 0.4rem 0.8rem;
   border-radius: 12px;
   font-size: 0.85rem;
   font-weight: 500;
 }
 
-.activity-details {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid #e0e0e0;
-}
-
-.activity-details p {
-  font-size: 0.9rem;
-  color: #666;
-}
-
 .activity-stats {
   display: flex;
-  gap: 1.5rem;
-  margin-bottom: 1.5rem;
-  padding-bottom: 1rem;
+  gap: 2rem;
+  padding: 1.5rem 0;
+  border-top: 1px solid #e0e0e0;
   border-bottom: 1px solid #e0e0e0;
+  margin-bottom: 1.5rem;
 }
 
 .stat {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.stat-icon {
+  font-size: 1.5rem;
+}
+
+.stat-value {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #333;
 }
 
 .stat-label {
   font-size: 0.85rem;
   color: #666;
-}
-
-.stat-value {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #333;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .activity-actions {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.5rem;
 }
 
 .rating-section {
@@ -502,12 +1129,12 @@ function addActivity() {
 }
 
 .rating-btn {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border: 2px solid #e0e0e0;
   background: white;
   border-radius: 8px;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: 500;
   color: #666;
   cursor: pointer;
@@ -517,33 +1144,70 @@ function addActivity() {
 .rating-btn:hover {
   border-color: #42b983;
   color: #42b983;
+  transform: scale(1.1);
 }
 
 .rating-btn.active {
   background: #42b983;
   border-color: #42b983;
   color: white;
+  transform: scale(1.1);
 }
 
-.attendance-toggle {
+.opt-out-toggle {
   display: flex;
   align-items: center;
   gap: 0.75rem;
   font-size: 0.9rem;
   color: #333;
   cursor: pointer;
+  padding: 0.75rem;
+  background: #fff5f5;
+  border: 1px solid #fee;
+  border-radius: 8px;
+  transition: all 0.2s;
 }
 
-.attendance-toggle input[type="checkbox"] {
+.opt-out-toggle:hover {
+  background: #fee;
+  border-color: #fcc;
+}
+
+.opt-out-toggle input[type="checkbox"] {
   width: 20px;
   height: 20px;
   cursor: pointer;
+  accent-color: #c33;
+}
+
+.opt-out-toggle:has(input:checked) {
+  background: #fee;
+  border-color: #fcc;
+  color: #c33;
 }
 
 .empty-state {
   text-align: center;
-  padding: 4rem 2rem;
+  padding: 6rem 2rem;
   color: #888;
+}
+
+.empty-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+
+.empty-title {
+  font-size: 1.25rem;
+  font-weight: 500;
+  color: #666;
+  margin-bottom: 0.5rem;
+}
+
+.empty-subtitle {
+  font-size: 1rem;
+  color: #999;
 }
 
 .btn-primary {
@@ -593,17 +1257,19 @@ function addActivity() {
 
 .dialog {
   background: white;
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 2rem;
   width: 90%;
-  max-width: 500px;
+  max-width: 600px;
   max-height: 90vh;
   overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
 }
 
 .dialog h2 {
   margin-bottom: 1.5rem;
   color: #333;
+  font-size: 1.5rem;
 }
 
 .form-group {
@@ -617,12 +1283,26 @@ function addActivity() {
   font-weight: 500;
 }
 
-.form-group input {
+.form-group input,
+.form-group textarea {
   width: 100%;
   padding: 0.75rem;
-  border: 1px solid #ddd;
+  border: 2px solid #e0e0e0;
   border-radius: 8px;
   font-size: 1rem;
+  font-family: inherit;
+  transition: border-color 0.2s;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: #42b983;
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 80px;
 }
 
 .form-row {
@@ -636,5 +1316,56 @@ function addActivity() {
   gap: 1rem;
   justify-content: flex-end;
   margin-top: 2rem;
+}
+
+.event-type-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.event-type-option {
+  display: block;
+  cursor: pointer;
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 1rem;
+  transition: all 0.2s;
+  background: white;
+}
+
+.event-type-option:hover {
+  border-color: #42b983;
+  background: #f9f9f9;
+}
+
+.event-type-option input[type="radio"] {
+  display: none;
+}
+
+.event-type-option:has(input:checked) {
+  border-color: #42b983;
+  background: #e8f5e9;
+}
+
+.option-content {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.option-icon {
+  font-size: 2rem;
+}
+
+.option-title {
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 0.25rem;
+}
+
+.option-description {
+  font-size: 0.85rem;
+  color: #666;
 }
 </style>

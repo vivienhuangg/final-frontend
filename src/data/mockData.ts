@@ -48,6 +48,44 @@ export const mockTrips: Trip[] = [
 
 // Mock activities (matching Activity concept structure)
 export const mockActivities: ActivityWithDetails[] = [
+  // Solo Events (manually created by user)
+  {
+    id: 'solo-1',
+    title: 'Morning Coffee at Local Café',
+    event: '1', // Trip ID
+    start: '2025-03-20T08:00:00',
+    end: '2025-03-20T09:30:00',
+    cost: 8,
+    location: 'Little Havana',
+    duration: '1.5 hours',
+    pricePerPerson: 8,
+    rating: 0,
+    votes: 0,
+    tags: ['Food & Drink'],
+    source: 'manual',
+    attendees: ['1'], // Only the creator (Alex)
+    description: 'Start the day with authentic Cuban coffee and pastries at a local café. A perfect way to experience Miami\'s vibrant culture.',
+    image: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=800&h=400&fit=crop',
+  },
+  {
+    id: 'solo-2',
+    title: 'Sunset Photography Session',
+    event: '1',
+    start: '2025-03-21T18:00:00',
+    end: '2025-03-21T19:30:00',
+    cost: 0,
+    location: 'Key Biscayne',
+    duration: '1.5 hours',
+    pricePerPerson: 0,
+    rating: 0,
+    votes: 0,
+    tags: ['Photography', 'Nature'],
+    source: 'manual',
+    attendees: ['1'], // Only the creator (Alex)
+    description: 'Capture the beautiful Miami sunset with a photography session at Key Biscayne. Bring your camera and enjoy the golden hour.',
+    image: 'https://images.unsplash.com/photo-1505142468610-359e7d316be0?w=800&h=400&fit=crop',
+  },
+  // Group Events (from discover or shared)
   {
     id: '1',
     title: 'Art Deco Walking Tour',
@@ -64,6 +102,8 @@ export const mockActivities: ActivityWithDetails[] = [
     tags: ['Hidden Gem'],
     source: 'discover',
     attendees: ['1', '2', '3'],
+    description: 'Explore the iconic Art Deco architecture of South Beach with a knowledgeable local guide. Discover the history and stories behind these beautiful buildings from the 1920s and 1930s.',
+    image: 'https://images.unsplash.com/photo-1514214246283-d427a95c5d2f?w=800&h=400&fit=crop',
   },
   {
     id: '2',
@@ -80,6 +120,8 @@ export const mockActivities: ActivityWithDetails[] = [
     tags: ['Beach'],
     source: 'manual',
     attendees: ['1', '2', '3', '4'],
+    description: 'Spend a relaxing day at the world-famous South Beach. Enjoy the white sand, turquoise waters, and vibrant atmosphere. Perfect for swimming, sunbathing, and people-watching.',
+    image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&h=400&fit=crop',
   },
   {
     id: '3',
@@ -96,6 +138,8 @@ export const mockActivities: ActivityWithDetails[] = [
     tags: ['Art', 'Hidden Gem'],
     source: 'manual',
     attendees: ['1', '3'],
+    description: 'Immerse yourself in Miami\'s vibrant street art scene at Wynwood Walls. This outdoor museum features large-scale murals by world-renowned artists, transforming the neighborhood into a colorful canvas.',
+    image: 'https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?w=800&h=400&fit=crop',
   },
   {
     id: '4',
@@ -113,6 +157,8 @@ export const mockActivities: ActivityWithDetails[] = [
     tags: ['Nightlife'],
     source: 'discover',
     attendees: ['2', '3', '4'],
+    description: 'Join an exciting boat party on Biscayne Bay with music, drinks, and stunning views of the Miami skyline. Dance the night away as you cruise along the coast.',
+    image: 'https://images.unsplash.com/photo-1505142468610-359e7d316be0?w=800&h=400&fit=crop',
   },
 ];
 
