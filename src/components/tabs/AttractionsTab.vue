@@ -37,7 +37,6 @@
     <div v-if="activeView === 'proposals' && recommendedEvents.length > 0" class="recommended-section">
       <div class="section-header">
         <h3 class="section-title">
-          <span class="icon">⭐</span>
           Recommended for You
         </h3>
         <p class="section-subtitle">Based on group ratings and preferences</p>
@@ -69,16 +68,16 @@
                     <h3>{{ activity.title }}</h3>
                     <div class="activity-meta">
                       <span v-if="activity.location" class="meta-item">
-                        <span class="icon">📍</span> {{ activity.location }}
+                        Location: {{ activity.location }}
                       </span>
                       <span v-if="activity.start" class="meta-item">
-                        <span class="icon">🕐</span> {{ formatTime(activity.start) }}
+                        Time: {{ formatTime(activity.start) }}
                       </span>
                       <span v-if="activity.duration" class="meta-item">
-                        <span class="icon">⏱</span> {{ activity.duration }}
+                        Duration: {{ activity.duration }}
                       </span>
                       <span v-if="activity.pricePerPerson" class="meta-item">
-                        <span class="icon">💰</span> ${{ activity.pricePerPerson }}/person
+                        Cost: ${{ activity.pricePerPerson }}/person
                       </span>
                     </div>
                   </div>
@@ -103,17 +102,14 @@
 
                 <div class="activity-stats">
                   <div class="stat">
-                    <span class="stat-icon">⭐</span>
                     <span class="stat-value">{{ activity.rating?.toFixed(1) || 'N/A' }}/10</span>
                     <span class="stat-label">Rating</span>
                   </div>
                   <div class="stat">
-                    <span class="stat-icon">👥</span>
                     <span class="stat-value">{{ activity.attendees?.length || 0 }}</span>
                     <span class="stat-label">Attending</span>
                   </div>
                   <div class="stat">
-                    <span class="stat-icon">🗳️</span>
                     <span class="stat-value">{{ activity.votes || 0 }}</span>
                     <span class="stat-label">Votes</span>
                   </div>
@@ -140,7 +136,6 @@
                       class="make-group-event-btn"
                       @click="makeGroupEvent(activity.id)"
                     >
-                      <span class="btn-icon">✓</span>
                       Make Group Event
                     </button>
                     <div v-else class="group-event-actions">
@@ -149,7 +144,6 @@
                         class="opt-out-btn"
                         @click="toggleOptOut(activity.id)"
                       >
-                        <span class="btn-icon">✗</span>
                         Opt Out
                       </button>
                       <button
@@ -157,14 +151,12 @@
                         class="opt-in-btn"
                         @click="toggleOptOut(activity.id)"
                       >
-                        <span class="btn-icon">✓</span>
                         Opt Back In
                       </button>
                       <button
                         class="unmake-group-event-btn"
                         @click="unmakeGroupEvent(activity.id)"
                       >
-                        <span class="btn-icon">↩</span>
                         Remove from Group Events
                       </button>
                     </div>
@@ -172,7 +164,6 @@
                       class="delete-proposal-btn"
                       @click="deleteProposal(activity.id)"
                     >
-                      <span class="btn-icon">🗑</span>
                       Delete Proposal
                     </button>
                   </div>
@@ -186,12 +177,7 @@
 
     <!-- Other Proposals Section (not recommended) -->
     <div v-if="activeView === 'proposals' && otherProposals.length > 0" class="other-events-section">
-      <div class="section-header">
-        <h3 class="section-title">
-          <span class="icon">📋</span>
-          Other Proposals
-        </h3>
-      </div>
+      
       <div class="timeline-container">
         <div class="timeline">
           <div
@@ -218,16 +204,16 @@
                     <h3>{{ activity.title }}</h3>
                     <div class="activity-meta">
                       <span v-if="activity.location" class="meta-item">
-                        <span class="icon">📍</span> {{ activity.location }}
+                        Location: {{ activity.location }}
                       </span>
                       <span v-if="activity.start" class="meta-item">
-                        <span class="icon">🕐</span> {{ formatTime(activity.start) }}
+                        Time: {{ formatTime(activity.start) }}
                       </span>
                       <span v-if="activity.duration" class="meta-item">
-                        <span class="icon">⏱</span> {{ activity.duration }}
+                        Duration: {{ activity.duration }}
                       </span>
                       <span v-if="activity.pricePerPerson" class="meta-item">
-                        <span class="icon">💰</span> ${{ activity.pricePerPerson }}/person
+                        Cost: ${{ activity.pricePerPerson }}/person
                       </span>
                     </div>
                   </div>
@@ -252,17 +238,14 @@
 
                 <div class="activity-stats">
                   <div class="stat">
-                    <span class="stat-icon">⭐</span>
                     <span class="stat-value">{{ activity.rating?.toFixed(1) || 'N/A' }}/10</span>
                     <span class="stat-label">Rating</span>
                   </div>
                   <div class="stat">
-                    <span class="stat-icon">👥</span>
                     <span class="stat-value">{{ activity.attendees?.length || 0 }}</span>
                     <span class="stat-label">Attending</span>
                   </div>
                   <div class="stat">
-                    <span class="stat-icon">🗳️</span>
                     <span class="stat-value">{{ activity.votes || 0 }}</span>
                     <span class="stat-label">Votes</span>
                   </div>
@@ -289,14 +272,12 @@
                       class="make-group-event-btn"
                       @click="makeGroupEvent(activity.id)"
                     >
-                      <span class="btn-icon">✓</span>
                       Make Group Event
                     </button>
                     <button
                       class="delete-proposal-btn"
                       @click="deleteProposal(activity.id)"
                     >
-                      <span class="btn-icon">🗑</span>
                       Delete Proposal
                     </button>
                   </div>
@@ -310,13 +291,7 @@
 
     <!-- Current Group Events Section -->
     <div v-if="activeView === 'group' && currentGroupEvents.length > 0" class="current-group-events-section">
-      <div class="section-header">
-        <h3 class="section-title">
-          <span class="icon">👥</span>
-          Current Group Events
-        </h3>
-        <p class="section-subtitle">Events that have been committed to by the group</p>
-      </div>
+
       <div class="timeline-container">
         <div class="timeline">
           <div
@@ -343,16 +318,16 @@
                     <h3>{{ activity.title }}</h3>
                     <div class="activity-meta">
                       <span v-if="activity.location" class="meta-item">
-                        <span class="icon">📍</span> {{ activity.location }}
+                        Location: {{ activity.location }}
                       </span>
                       <span v-if="activity.start" class="meta-item">
-                        <span class="icon">🕐</span> {{ formatTime(activity.start) }}
+                        Time: {{ formatTime(activity.start) }}
                       </span>
                       <span v-if="activity.duration" class="meta-item">
-                        <span class="icon">⏱</span> {{ activity.duration }}
+                        Duration: {{ activity.duration }}
                       </span>
                       <span v-if="activity.pricePerPerson" class="meta-item">
-                        <span class="icon">💰</span> ${{ activity.pricePerPerson }}/person
+                        Cost: ${{ activity.pricePerPerson }}/person
                       </span>
                     </div>
                   </div>
@@ -382,7 +357,6 @@
                         class="see-attendees-btn"
                         @click="openAttendeesDialog(activity.id)"
                       >
-                        <span class="btn-icon">👥</span>
                         See Attendees ({{ activity.attendees?.length || 0 }})
                       </button>
                       <button
@@ -390,7 +364,6 @@
                         class="opt-out-btn"
                         @click="toggleOptOut(activity.id)"
                       >
-                        <span class="btn-icon">✗</span>
                         Opt Out
                       </button>
                       <button
@@ -398,14 +371,12 @@
                         class="opt-in-btn"
                         @click="toggleOptOut(activity.id)"
                       >
-                        <span class="btn-icon">✓</span>
                         Opt Back In
                       </button>
                       <button
                         class="unmake-group-event-btn"
                         @click="confirmUnmakeGroupEvent(activity.id)"
                       >
-                        <span class="btn-icon">↩</span>
                         Remove from Group Events
                       </button>
                     </div>
@@ -456,16 +427,16 @@
                   <h3>{{ activity.title }}</h3>
                   <div class="activity-meta">
                     <span v-if="activity.location" class="meta-item">
-                      <span class="icon">📍</span> {{ activity.location }}
+                      Location: {{ activity.location }}
                     </span>
                     <span v-if="activity.start" class="meta-item">
-                      <span class="icon">🕐</span> {{ formatTime(activity.start) }}
+                      Time: {{ formatTime(activity.start) }}
                     </span>
                     <span v-if="activity.duration" class="meta-item">
-                      <span class="icon">⏱</span> {{ activity.duration }}
+                      Duration: {{ activity.duration }}
                     </span>
                     <span v-if="activity.pricePerPerson" class="meta-item">
-                      <span class="icon">💰</span> ${{ activity.pricePerPerson }}/person
+                      Cost: ${{ activity.pricePerPerson }}/person
                     </span>
                   </div>
                 </div>
@@ -496,7 +467,7 @@
 
     <!-- Empty State -->
     <div v-if="(activeView === 'mine' && displayedActivities.length === 0) || (activeView === 'proposals' && recommendedEvents.length === 0 && otherProposals.length === 0) || (activeView === 'group' && currentGroupEvents.length === 0)" class="empty-state">
-      <div class="empty-icon">📅</div>
+      <div class="empty-icon"></div>
       <p class="empty-title">
         <span v-if="activeView === 'mine'">No personal events yet</span>
         <span v-else-if="activeView === 'proposals'">No proposals yet</span>
@@ -512,7 +483,7 @@
     <!-- Confirmation Dialog -->
     <div v-if="showConfirmDialog" class="dialog-overlay" @click="cancelConfirm">
       <div class="confirm-dialog" @click.stop>
-        <div class="confirm-icon">⚠️</div>
+        <div class="confirm-icon"></div>
         <h3 class="confirm-title">Confirm Action</h3>
         <p class="confirm-message">{{ confirmDialogConfig?.message }}</p>
         <div class="confirm-actions">
@@ -608,7 +579,6 @@
                   v-model="newActivity.isPersonal"
                 />
                 <span class="option-content">
-                  <span class="option-icon">👤</span>
                   <div>
                     <div class="option-title">Personal Event</div>
                     <div class="option-description">Just for you</div>
@@ -622,7 +592,6 @@
                   v-model="newActivity.isPersonal"
                 />
                 <span class="option-content">
-                  <span class="option-icon">👥</span>
                   <div>
                     <div class="option-title">Group Event</div>
                     <div class="option-description">For everyone in the trip</div>
@@ -1417,9 +1386,6 @@ function addActivity() {
   gap: 0.5rem;
 }
 
-.stat-icon {
-  font-size: 1.5rem;
-}
 
 .stat-value {
   font-size: 1.25rem;
@@ -1677,9 +1643,12 @@ function addActivity() {
 }
 
 .empty-icon {
-  font-size: 4rem;
-  margin-bottom: 1rem;
-  opacity: 0.5;
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 1rem;
+  opacity: 0.3;
+  background: #e0e0e0;
+  border-radius: 8px;
 }
 
 .empty-title {
@@ -1762,8 +1731,21 @@ function addActivity() {
 }
 
 .confirm-icon {
-  font-size: 3rem;
-  margin-bottom: 1rem;
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 1rem;
+  background: #fff3cd;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #ffc107;
+}
+.confirm-icon::before {
+  content: "!";
+  font-size: 2rem;
+  font-weight: 700;
+  color: #856404;
 }
 
 .confirm-title {
@@ -1910,9 +1892,6 @@ function addActivity() {
   gap: 1rem;
 }
 
-.option-icon {
-  font-size: 2rem;
-}
 
 .option-title {
   font-weight: 600;
