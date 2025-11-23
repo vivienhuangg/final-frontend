@@ -90,6 +90,24 @@
                   {{ activity.description }}
                 </p>
 
+                <!-- Conflict Warning -->
+                <div v-if="getConflicts(activity).length > 0" class="conflict-warning">
+                  <div class="conflict-header">
+                    <span class="conflict-icon">⚠</span>
+                    <span class="conflict-title">Time Conflict</span>
+                  </div>
+                  <div class="conflict-list">
+                    <div
+                      v-for="conflict in getConflicts(activity)"
+                      :key="conflict.id"
+                      class="conflict-item"
+                    >
+                      <span class="conflict-event-name">{{ conflict.title }}</span>
+                      <span class="conflict-event-type">({{ conflict.isSolo ? 'Solo Event' : 'Group Event' }})</span>
+                    </div>
+                  </div>
+                </div>
+
                 <div class="activity-tags" v-if="activity.tags && activity.tags.length > 0">
                   <span
                     v-for="tag in activity.tags"
@@ -225,6 +243,24 @@
                 <p v-if="activity.description" class="activity-description">
                   {{ activity.description }}
                 </p>
+
+                <!-- Conflict Warning -->
+                <div v-if="getConflicts(activity).length > 0" class="conflict-warning">
+                  <div class="conflict-header">
+                    <span class="conflict-icon">⚠</span>
+                    <span class="conflict-title">Time Conflict</span>
+                  </div>
+                  <div class="conflict-list">
+                    <div
+                      v-for="conflict in getConflicts(activity)"
+                      :key="conflict.id"
+                      class="conflict-item"
+                    >
+                      <span class="conflict-event-name">{{ conflict.title }}</span>
+                      <span class="conflict-event-type">({{ conflict.isSolo ? 'Solo Event' : 'Group Event' }})</span>
+                    </div>
+                  </div>
+                </div>
 
                 <div class="activity-tags" v-if="activity.tags && activity.tags.length > 0">
                   <span
@@ -830,6 +866,58 @@ const displayedActivities = computed(() => {
   return activeView.value === 'mine' ? personalEvents.value : [];
 });
 
+// Get all committed events (solo events and current group events)
+const committedEvents = computed(() => {
+  return props.activities.filter(activity => {
+    // Solo events are always committed
+    if (isSoloEvent(activity)) {
+      return true;
+    }
+    // Current group events are committed
+    if (isGroupEvent(activity)) {
+      return true;
+    }
+    return false;
+  });
+});
+
+// Check if two activities have overlapping times
+function hasTimeConflict(activity1: ActivityWithDetails, activity2: ActivityWithDetails): boolean {
+  if (!activity1.start || !activity1.end || !activity2.start || !activity2.end) {
+    return false;
+  }
+  
+  const start1 = new Date(activity1.start).getTime();
+  const end1 = new Date(activity1.end).getTime();
+  const start2 = new Date(activity2.start).getTime();
+  const end2 = new Date(activity2.end).getTime();
+  
+  // Check for overlap: activities conflict if their time ranges overlap
+  return (start1 < end2 && end1 > start2);
+}
+
+// Get conflicts for a proposal activity
+function getConflicts(proposal: ActivityWithDetails): Array<{ id: string; title: string; isSolo: boolean }> {
+  const conflicts: Array<{ id: string; title: string; isSolo: boolean }> = [];
+  
+  committedEvents.value.forEach(committedEvent => {
+    // Don't check against itself
+    if (committedEvent.id === proposal.id) {
+      return;
+    }
+    
+    if (hasTimeConflict(proposal, committedEvent)) {
+      conflicts.push({
+        id: committedEvent.id,
+        title: committedEvent.title,
+        isSolo: isSoloEvent(committedEvent),
+      });
+    }
+  });
+  
+  return conflicts;
+}
+
 function rateActivity(activityId: string, rating: number) {
   userRatings.value[activityId] = rating;
   emit('rate', activityId, rating);
@@ -1352,6 +1440,58 @@ function addActivity() {
   line-height: 1.6;
   margin-bottom: 1rem;
   font-size: 0.95rem;
+}
+
+.conflict-warning {
+  background: #fff3cd;
+  border: 1.5px solid #ffc107;
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.conflict-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+  color: #856404;
+}
+
+.conflict-icon {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.conflict-title {
+  font-size: 0.95rem;
+}
+
+.conflict-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.conflict-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: white;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.conflict-event-name {
+  font-weight: 500;
+  color: #333;
+}
+
+.conflict-event-type {
+  color: #666;
+  font-size: 0.85rem;
 }
 
 .activity-tags {
