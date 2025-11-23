@@ -18,17 +18,18 @@
       >
         My Events
       </button>
-      <button
-        :class="['toggle', { active: activeView === 'proposals' }]"
-        @click="activeView = 'proposals'"
-      >
-        Group Event Proposals
-      </button>
+      
       <button
         :class="['toggle', { active: activeView === 'group' }]"
         @click="activeView = 'group'"
       >
         Current Group Events
+      </button>
+      <button
+        :class="['toggle', { active: activeView === 'proposals' }]"
+        @click="activeView = 'proposals'"
+      >
+        Group Event Proposals
       </button>
     </div>
 
@@ -374,41 +375,16 @@
                   </span>
                 </div>
 
-                <div class="activity-stats">
-                  <div class="stat">
-                    <span class="stat-icon">⭐</span>
-                    <span class="stat-value">{{ activity.rating?.toFixed(1) || 'N/A' }}/10</span>
-                    <span class="stat-label">Rating</span>
-                  </div>
-                  <div class="stat">
-                    <span class="stat-icon">👥</span>
-                    <span class="stat-value">{{ activity.attendees?.length || 0 }}</span>
-                    <span class="stat-label">Attending</span>
-                  </div>
-                  <div class="stat">
-                    <span class="stat-icon">🗳️</span>
-                    <span class="stat-value">{{ activity.votes || 0 }}</span>
-                    <span class="stat-label">Votes</span>
-                  </div>
-                </div>
-
                 <div class="activity-actions">
-                  <div class="rating-section" v-if="!isSoloEvent(activity)">
-                    <label>Your Rating:</label>
-                    <div class="rating-bar">
-                      <button
-                        v-for="i in 10"
-                        :key="i"
-                        :class="['rating-btn', { active: userRatings[activity.id] === i }]"
-                        @click="rateActivity(activity.id, i)"
-                      >
-                        {{ i }}
-                      </button>
-                    </div>
-                  </div>
-
                   <div class="proposal-actions">
                     <div class="group-event-actions">
+                      <button
+                        class="see-attendees-btn"
+                        @click="openAttendeesDialog(activity.id)"
+                      >
+                        <span class="btn-icon">👥</span>
+                        See Attendees ({{ activity.attendees?.length || 0 }})
+                      </button>
                       <button
                         v-if="!optedOutEvents.has(activity.id)"
                         class="opt-out-btn"
@@ -512,39 +488,6 @@
                 </span>
               </div>
 
-              <div class="activity-stats" v-if="!isSoloEvent(activity)">
-                <div class="stat">
-                  <span class="stat-icon">⭐</span>
-                  <span class="stat-value">{{ activity.rating?.toFixed(1) || 'N/A' }}/10</span>
-                  <span class="stat-label">Rating</span>
-                </div>
-                <div class="stat">
-                  <span class="stat-icon">👥</span>
-                  <span class="stat-value">{{ activity.attendees?.length || 0 }}</span>
-                  <span class="stat-label">Attending</span>
-                </div>
-                <div class="stat">
-                  <span class="stat-icon">🗳️</span>
-                  <span class="stat-value">{{ activity.votes || 0 }}</span>
-                  <span class="stat-label">Votes</span>
-                </div>
-              </div>
-
-              <div class="activity-actions">
-                <div class="rating-section" v-if="!isSoloEvent(activity)">
-                  <label>Your Rating:</label>
-                  <div class="rating-bar">
-                    <button
-                      v-for="i in 10"
-                      :key="i"
-                      :class="['rating-btn', { active: userRatings[activity.id] === i }]"
-                      @click="rateActivity(activity.id, i)"
-                    >
-                      {{ i }}
-                    </button>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -578,6 +521,35 @@
           </button>
           <button class="btn-confirm" @click="confirmDialogConfig?.onConfirm">
             {{ confirmDialogConfig?.confirmText || 'Confirm' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Attendees Dialog -->
+    <div v-if="showAttendeesDialog" class="dialog-overlay" @click="showAttendeesDialog = false">
+      <div class="dialog" @click.stop>
+        <h2>Attendees</h2>
+        <div v-if="selectedActivityForAttendees">
+          <p class="attendees-count">
+            {{ selectedActivityForAttendees.attendees?.length || 0 }} 
+            {{ (selectedActivityForAttendees.attendees?.length || 0) === 1 ? 'person' : 'people' }} attending
+          </p>
+          <div class="attendees-list">
+            <div
+              v-for="attendeeId in selectedActivityForAttendees.attendees"
+              :key="attendeeId"
+              class="attendee-item"
+            >
+              <span class="attendee-name">
+                {{ getTravelerName(attendeeId) }}
+              </span>
+            </div>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn-secondary" @click="showAttendeesDialog = false">
+            Close
           </button>
         </div>
       </div>
@@ -695,6 +667,8 @@ const userRatings = ref<Record<string, number>>({});
 const showAddActivityDialog = ref(false);
 const activeView = ref<'mine' | 'proposals' | 'group'>('mine');
 const showConfirmDialog = ref(false);
+const showAttendeesDialog = ref(false);
+const selectedActivityForAttendees = ref<ActivityWithDetails | null>(null);
 const confirmDialogConfig = ref<{
   message: string;
   confirmText: string;
@@ -1051,6 +1025,19 @@ function formatTime(timeString: string): string {
     hour: 'numeric',
     minute: '2-digit',
   });
+}
+
+function getTravelerName(travelerId: string): string {
+  const traveler = props.travelers.find(t => t.id === travelerId);
+  return traveler?.name || 'Unknown';
+}
+
+function openAttendeesDialog(activityId: string) {
+  const activity = props.activities.find(a => a.id === activityId);
+  if (activity) {
+    selectedActivityForAttendees.value = activity;
+    showAttendeesDialog.value = true;
+  }
 }
 
 function addActivity() {
@@ -1515,7 +1502,8 @@ function addActivity() {
 .opt-out-btn,
 .opt-in-btn,
 .unmake-group-event-btn,
-.delete-proposal-btn {
+.delete-proposal-btn,
+.see-attendees-btn {
   width: 100%;
   padding: 0.875rem 1.25rem;
   border-radius: 10px;
@@ -1630,6 +1618,50 @@ function addActivity() {
 .delete-proposal-btn:active {
   transform: translateY(0);
   box-shadow: 0 1px 3px rgba(211, 47, 47, 0.2);
+}
+
+.see-attendees-btn {
+  background: #42b983;
+  color: white;
+  box-shadow: 0 2px 8px rgba(66, 185, 131, 0.25);
+}
+
+.see-attendees-btn:hover {
+  background: #35a372;
+  box-shadow: 0 4px 12px rgba(66, 185, 131, 0.35);
+  transform: translateY(-1px);
+}
+
+.see-attendees-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(66, 185, 131, 0.3);
+}
+
+.attendees-count {
+  color: #666;
+  font-size: 1rem;
+  margin-bottom: 1.5rem;
+  font-weight: 500;
+}
+
+.attendees-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.attendee-item {
+  padding: 1rem;
+  background: #f9f9f9;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.attendee-name {
+  font-size: 1rem;
+  color: #333;
+  font-weight: 500;
 }
 
 .btn-icon {
