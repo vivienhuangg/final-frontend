@@ -37,8 +37,18 @@ export interface Activity {
 export interface Invitation {
   id: string;
   invitee: string; // User ID
-  event: string; // Activity ID (in our case, activity = event)
+  event: string; // Activity ID or Trip ID
   accepted: 'Yes' | 'No' | 'Maybe';
+}
+
+export interface TripInvitation {
+  id: string;
+  tripId: string;
+  invitee: string; // User ID
+  inviter: string; // User ID who sent the invitation
+  status: 'pending' | 'accepted' | 'declined';
+  createdAt: string;
+  trip: Trip; // Full trip data for display
 }
 
 export interface Rating {

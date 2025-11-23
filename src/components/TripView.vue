@@ -53,6 +53,7 @@
         @rate="handleRate"
         @toggle-attendance="handleToggleAttendance"
         @add-activity="handleAddActivity"
+        @delete-activity="handleDeleteActivity"
       />
       <CostsTab
         v-if="activeTab === 'costs'"
@@ -144,6 +145,13 @@ function handleToggleItem(itemId: string) {
   const item = packingItems.value.find(i => i.id === itemId);
   if (item) {
     item.checked = !item.checked;
+  }
+}
+
+function handleDeleteActivity(activityId: string) {
+  const index = activities.value.findIndex(a => a.id === activityId);
+  if (index > -1) {
+    activities.value.splice(index, 1);
   }
 }
 </script>

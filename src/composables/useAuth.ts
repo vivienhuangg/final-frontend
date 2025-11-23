@@ -14,6 +14,13 @@ const mockUsers: User[] = [
     firstName: 'Alex',
     lastName: 'Smith',
   },
+  {
+    id: '5',
+    username: 'hola',
+    password: 'hola', // In real app, this would be hashed
+    firstName: 'Hola',
+    lastName: 'User',
+  },
 ];
 
 export function useAuth() {

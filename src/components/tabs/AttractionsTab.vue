@@ -22,7 +22,7 @@
         :class="['toggle', { active: activeView === 'group' }]"
         @click="activeView = 'group'"
       >
-        Group Events
+        Group Event Proposals
       </button>
     </div>
 
@@ -112,30 +112,64 @@
                   </div>
                 </div>
 
-              <div class="activity-actions">
-                <div class="rating-section" v-if="!isSoloEvent(activity)">
-                  <label>Your Rating:</label>
-                  <div class="rating-bar">
+                <div class="activity-actions">
+                  <div class="rating-section" v-if="!isSoloEvent(activity)">
+                    <label>Your Rating:</label>
+                    <div class="rating-bar">
+                      <button
+                        v-for="i in 10"
+                        :key="i"
+                        :class="['rating-btn', { active: userRatings[activity.id] === i }]"
+                        @click="rateActivity(activity.id, i)"
+                      >
+                        {{ i }}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="proposal-actions">
                     <button
-                      v-for="i in 10"
-                      :key="i"
-                      :class="['rating-btn', { active: userRatings[activity.id] === i }]"
-                      @click="rateActivity(activity.id, i)"
+                      v-if="!isGroupEvent(activity)"
+                      class="make-group-event-btn"
+                      @click="makeGroupEvent(activity.id)"
                     >
-                      {{ i }}
+                      <span class="btn-icon">✓</span>
+                      Make Group Event
+                    </button>
+                    <div v-else class="group-event-actions">
+                      <button
+                        v-if="!optedOutEvents.has(activity.id)"
+                        class="opt-out-btn"
+                        @click="toggleOptOut(activity.id)"
+                      >
+                        <span class="btn-icon">✗</span>
+                        Opt Out
+                      </button>
+                      <button
+                        v-else
+                        class="opt-in-btn"
+                        @click="toggleOptOut(activity.id)"
+                      >
+                        <span class="btn-icon">✓</span>
+                        Opt Back In
+                      </button>
+                      <button
+                        class="unmake-group-event-btn"
+                        @click="unmakeGroupEvent(activity.id)"
+                      >
+                        <span class="btn-icon">↩</span>
+                        Remove from Group Events
+                      </button>
+                    </div>
+                    <button
+                      class="delete-proposal-btn"
+                      @click="deleteProposal(activity.id)"
+                    >
+                      <span class="btn-icon">🗑</span>
+                      Delete Proposal
                     </button>
                   </div>
                 </div>
-
-                <label class="opt-out-toggle">
-                  <input
-                    type="checkbox"
-                    :checked="optedOutEvents.has(activity.id)"
-                    @change="toggleOptOut(activity.id)"
-                  />
-                  <span>Opt out of this event</span>
-                </label>
-              </div>
               </div>
             </div>
           </div>
@@ -227,30 +261,64 @@
                   </div>
                 </div>
 
-              <div class="activity-actions">
-                <div class="rating-section" v-if="!isSoloEvent(activity)">
-                  <label>Your Rating:</label>
-                  <div class="rating-bar">
+                <div class="activity-actions">
+                  <div class="rating-section" v-if="!isSoloEvent(activity)">
+                    <label>Your Rating:</label>
+                    <div class="rating-bar">
+                      <button
+                        v-for="i in 10"
+                        :key="i"
+                        :class="['rating-btn', { active: userRatings[activity.id] === i }]"
+                        @click="rateActivity(activity.id, i)"
+                      >
+                        {{ i }}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="proposal-actions">
                     <button
-                      v-for="i in 10"
-                      :key="i"
-                      :class="['rating-btn', { active: userRatings[activity.id] === i }]"
-                      @click="rateActivity(activity.id, i)"
+                      v-if="!isGroupEvent(activity)"
+                      class="make-group-event-btn"
+                      @click="makeGroupEvent(activity.id)"
                     >
-                      {{ i }}
+                      <span class="btn-icon">✓</span>
+                      Make Group Event
+                    </button>
+                    <div v-else class="group-event-actions">
+                      <button
+                        v-if="!optedOutEvents.has(activity.id)"
+                        class="opt-out-btn"
+                        @click="toggleOptOut(activity.id)"
+                      >
+                        <span class="btn-icon">✗</span>
+                        Opt Out
+                      </button>
+                      <button
+                        v-else
+                        class="opt-in-btn"
+                        @click="toggleOptOut(activity.id)"
+                      >
+                        <span class="btn-icon">✓</span>
+                        Opt Back In
+                      </button>
+                      <button
+                        class="unmake-group-event-btn"
+                        @click="unmakeGroupEvent(activity.id)"
+                      >
+                        <span class="btn-icon">↩</span>
+                        Remove from Group Events
+                      </button>
+                    </div>
+                    <button
+                      class="delete-proposal-btn"
+                      @click="deleteProposal(activity.id)"
+                    >
+                      <span class="btn-icon">🗑</span>
+                      Delete Proposal
                     </button>
                   </div>
                 </div>
-
-                <label class="opt-out-toggle">
-                  <input
-                    type="checkbox"
-                    :checked="optedOutEvents.has(activity.id)"
-                    @change="toggleOptOut(activity.id)"
-                  />
-                  <span>Opt out of this event</span>
-                </label>
-              </div>
               </div>
             </div>
           </div>
@@ -377,6 +445,23 @@
       </p>
     </div>
 
+    <!-- Confirmation Dialog -->
+    <div v-if="showConfirmDialog" class="dialog-overlay" @click="cancelConfirm">
+      <div class="confirm-dialog" @click.stop>
+        <div class="confirm-icon">⚠️</div>
+        <h3 class="confirm-title">Confirm Action</h3>
+        <p class="confirm-message">{{ confirmDialogConfig?.message }}</p>
+        <div class="confirm-actions">
+          <button class="btn-cancel" @click="cancelConfirm">
+            {{ confirmDialogConfig?.cancelText || 'Cancel' }}
+          </button>
+          <button class="btn-confirm" @click="confirmDialogConfig?.onConfirm">
+            {{ confirmDialogConfig?.confirmText || 'Confirm' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Add Activity Dialog -->
     <div v-if="showAddActivityDialog" class="dialog-overlay" @click="showAddActivityDialog = false">
       <div class="dialog" @click.stop>
@@ -480,6 +565,7 @@ const emit = defineEmits<{
   (e: 'rate', activityId: string, rating: number): void;
   (e: 'toggle-attendance', activityId: string, travelerId: string): void;
   (e: 'add-activity', activity: ActivityWithDetails): void;
+  (e: 'delete-activity', activityId: string): void;
 }>();
 
 const { currentUser } = useAuth();
@@ -487,6 +573,13 @@ const currentUserId = computed(() => currentUser.value?.id || '1');
 const userRatings = ref<Record<string, number>>({});
 const showAddActivityDialog = ref(false);
 const activeView = ref<'mine' | 'group'>('mine');
+const showConfirmDialog = ref(false);
+const confirmDialogConfig = ref<{
+  message: string;
+  confirmText: string;
+  cancelText: string;
+  onConfirm: () => void;
+} | null>(null);
 const newActivity = ref({
   title: '',
   description: '',
@@ -508,6 +601,12 @@ function isSoloEvent(activity: ActivityWithDetails): boolean {
   return activity.source === 'manual' && 
          activity.attendees?.length === 1 &&
          activity.attendees.includes(currentUserId.value);
+}
+
+// Helper: Check if activity is a group event (has multiple attendees or is from discover)
+function isGroupEvent(activity: ActivityWithDetails): boolean {
+  // Group events have multiple attendees or are from discover
+  return (activity.attendees?.length || 0) > 1 || activity.source === 'discover';
 }
 
 // My Events: Shows solo events you created + group events you haven't opted out of
@@ -650,6 +749,57 @@ function rateActivity(activityId: string, rating: number) {
   emit('rate', activityId, rating);
 }
 
+function makeGroupEvent(activityId: string) {
+  const activity = props.activities.find(a => a.id === activityId);
+  if (!activity) return;
+  
+  // Add all travelers to attendees to make it a group event
+  const allTravelerIds = props.travelers.map(t => t.id);
+  
+  // Ensure all travelers are in attendees
+  allTravelerIds.forEach(travelerId => {
+    if (!activity.attendees?.includes(travelerId)) {
+      emit('toggle-attendance', activityId, travelerId);
+    }
+  });
+  
+  // Remove from opted out if it was there
+  optedOutEvents.value.delete(activityId);
+}
+
+function unmakeGroupEvent(activityId: string) {
+  const activity = props.activities.find(a => a.id === activityId);
+  if (!activity) return;
+  
+  // Remove all travelers from attendees to convert back to proposal
+  const allTravelerIds = props.travelers.map(t => t.id);
+  
+  // Remove all travelers from attendees
+  allTravelerIds.forEach(travelerId => {
+    if (activity.attendees?.includes(travelerId)) {
+      emit('toggle-attendance', activityId, travelerId);
+    }
+  });
+  
+  // Remove from opted out
+  optedOutEvents.value.delete(activityId);
+}
+
+function deleteProposal(activityId: string) {
+  showConfirmDialog.value = true;
+  confirmDialogConfig.value = {
+    message: 'Are you sure you want to delete this proposal? This action cannot be undone.',
+    confirmText: 'Delete',
+    cancelText: 'Cancel',
+    onConfirm: () => {
+      emit('delete-activity', activityId);
+      optedOutEvents.value.delete(activityId);
+      showConfirmDialog.value = false;
+      confirmDialogConfig.value = null;
+    },
+  };
+}
+
 function toggleOptOut(activityId: string) {
   const activity = props.activities.find(a => a.id === activityId);
   
@@ -677,8 +827,44 @@ function toggleAttendance(activityId: string) {
 }
 
 function removeFromMyEvents(activityId: string) {
-  // Remove user from attending this event
-  emit('toggle-attendance', activityId, currentUserId.value);
+  const activity = props.activities.find(a => a.id === activityId);
+  if (!activity) return;
+  
+  const isSolo = isSoloEvent(activity);
+  
+  if (isSolo) {
+    // Solo event: ask to delete
+    showConfirmDialog.value = true;
+    confirmDialogConfig.value = {
+      message: 'Are you sure you want to delete this event?',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      onConfirm: () => {
+        emit('delete-activity', activityId);
+        showConfirmDialog.value = false;
+        confirmDialogConfig.value = null;
+      },
+    };
+  } else {
+    // Group event: ask to opt out
+    showConfirmDialog.value = true;
+    confirmDialogConfig.value = {
+      message: 'Are you sure you want to opt out?',
+      confirmText: 'Opt Out',
+      cancelText: 'Cancel',
+      onConfirm: () => {
+        emit('toggle-attendance', activityId, currentUserId.value);
+        optedOutEvents.value.add(activityId);
+        showConfirmDialog.value = false;
+        confirmDialogConfig.value = null;
+      },
+    };
+  }
+}
+
+function cancelConfirm() {
+  showConfirmDialog.value = false;
+  confirmDialogConfig.value = null;
 }
 
 function isAttending(activityId: string): boolean {
@@ -1154,36 +1340,145 @@ function addActivity() {
   transform: scale(1.1);
 }
 
-.opt-out-toggle {
+.proposal-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.group-event-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* Base button styles */
+.make-group-event-btn,
+.opt-out-btn,
+.opt-in-btn,
+.unmake-group-event-btn,
+.delete-proposal-btn {
+  width: 100%;
+  padding: 0.875rem 1.25rem;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  font-size: 0.9rem;
-  color: #333;
-  cursor: pointer;
-  padding: 0.75rem;
-  background: #fff5f5;
-  border: 1px solid #fee;
-  border-radius: 8px;
-  transition: all 0.2s;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+  border: none;
+  position: relative;
+  overflow: hidden;
 }
 
-.opt-out-toggle:hover {
-  background: #fee;
-  border-color: #fcc;
+.make-group-event-btn {
+  background: #42b983;
+  color: white;
+  box-shadow: 0 2px 8px rgba(66, 185, 131, 0.25);
 }
 
-.opt-out-toggle input[type="checkbox"] {
-  width: 20px;
-  height: 20px;
-  cursor: pointer;
-  accent-color: #c33;
+.make-group-event-btn:hover {
+  background: #35a372;
+  box-shadow: 0 4px 12px rgba(66, 185, 131, 0.35);
+  transform: translateY(-1px);
 }
 
-.opt-out-toggle:has(input:checked) {
-  background: #fee;
-  border-color: #fcc;
-  color: #c33;
+.make-group-event-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(66, 185, 131, 0.3);
+}
+
+.opt-out-btn {
+  background: white;
+  color: #d32f2f;
+  border: 1.5px solid #ffcdd2;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.opt-out-btn:hover {
+  background: #ffebee;
+  border-color: #ef9a9a;
+  color: #c62828;
+  box-shadow: 0 3px 8px rgba(211, 47, 47, 0.15);
+  transform: translateY(-1px);
+}
+
+.opt-out-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 3px rgba(211, 47, 47, 0.2);
+}
+
+.opt-in-btn {
+  background: white;
+  color: #42b983;
+  border: 1.5px solid #a5d6a7;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.opt-in-btn:hover {
+  background: #e8f5e9;
+  border-color: #81c784;
+  color: #2e7d32;
+  box-shadow: 0 3px 8px rgba(66, 185, 131, 0.15);
+  transform: translateY(-1px);
+}
+
+.opt-in-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 3px rgba(66, 185, 131, 0.2);
+}
+
+.unmake-group-event-btn {
+  background: white;
+  color: #f57c00;
+  border: 1.5px solid #ffe0b2;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.unmake-group-event-btn:hover {
+  background: #fff3e0;
+  border-color: #ffcc80;
+  color: #e65100;
+  box-shadow: 0 3px 8px rgba(245, 124, 0, 0.15);
+  transform: translateY(-1px);
+}
+
+.unmake-group-event-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 3px rgba(245, 124, 0, 0.2);
+}
+
+.delete-proposal-btn {
+  background: white;
+  color: #d32f2f;
+  border: 1.5px solid #ffcdd2;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  margin-top: 0.25rem;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+}
+
+.delete-proposal-btn:hover {
+  background: #ffebee;
+  border-color: #ef9a9a;
+  color: #c62828;
+  box-shadow: 0 3px 8px rgba(211, 47, 47, 0.15);
+  transform: translateY(-1px);
+}
+
+.delete-proposal-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 3px rgba(211, 47, 47, 0.2);
+}
+
+.btn-icon {
+  font-size: 1.1rem;
+  font-weight: 600;
+  line-height: 1;
 }
 
 .empty-state {
@@ -1253,6 +1548,7 @@ function addActivity() {
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  backdrop-filter: blur(4px);
 }
 
 .dialog {
@@ -1264,6 +1560,77 @@ function addActivity() {
   max-height: 90vh;
   overflow-y: auto;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.confirm-dialog {
+  background: white;
+  border-radius: 16px;
+  padding: 2.5rem;
+  width: 90%;
+  max-width: 400px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  text-align: center;
+}
+
+.confirm-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.confirm-title {
+  font-size: 1.5rem;
+  color: #333;
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+
+.confirm-message {
+  font-size: 1rem;
+  color: #666;
+  margin-bottom: 2rem;
+  line-height: 1.5;
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.btn-cancel {
+  background: white;
+  color: #666;
+  border: 1.5px solid #e0e0e0;
+  padding: 0.75rem 1.5rem;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 100px;
+}
+
+.btn-cancel:hover {
+  background: #f5f5f5;
+  border-color: #ccc;
+}
+
+.btn-confirm {
+  background: #d32f2f;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 100px;
+}
+
+.btn-confirm:hover {
+  background: #c62828;
+  box-shadow: 0 4px 12px rgba(211, 47, 47, 0.3);
 }
 
 .dialog h2 {

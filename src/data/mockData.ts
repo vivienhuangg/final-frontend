@@ -1,4 +1,4 @@
-import type { Trip, ActivityWithDetails, Expense, ChecklistItem, Traveler } from '../types/trip';
+import type { Trip, ActivityWithDetails, Expense, ChecklistItem, Traveler, TripInvitation } from '../types/trip';
 
 // Mock travelers
 export const mockTravelers: Traveler[] = [
@@ -30,6 +30,13 @@ export const mockTravelers: Traveler[] = [
     firstName: 'Morgan',
     lastName: 'Brown',
   },
+  { 
+    id: '5', 
+    name: 'Hola User',
+    email: 'hola@example.com',
+    firstName: 'Hola',
+    lastName: 'User',
+  },
 ];
 
 // Mock trips
@@ -43,6 +50,102 @@ export const mockTrips: Trip[] = [
     organizer: '1', // Alex is the organizer
     travelers: mockTravelers.slice(0, 4),
     headerImage: 'https://images.unsplash.com/photo-1514214246283-d427a95c5d2f?w=1200&h=400&fit=crop',
+  },
+  {
+    id: '2',
+    title: 'Summer Road Trip',
+    destination: 'California Coast',
+    startDate: '2027-07-15',
+    endDate: '2027-07-22',
+    organizer: '1', // Alex is the organizer
+    travelers: [mockTravelers[0], mockTravelers[1]],
+    headerImage: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1200&h=400&fit=crop',
+  },
+  {
+    id: '3',
+    title: 'New York City Weekend',
+    destination: 'New York, NY',
+    startDate: '2024-12-10',
+    endDate: '2024-12-12',
+    organizer: '2', // Jordan is the organizer
+    travelers: [mockTravelers[1], mockTravelers[2]],
+    headerImage: 'https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?w=1200&h=400&fit=crop',
+  },
+];
+
+// Mock trip invitations
+export const mockTripInvitations: TripInvitation[] = [
+  {
+    id: 'inv-1',
+    tripId: '4',
+    invitee: '1', // Alex is invited
+    inviter: '2', // Jordan sent the invitation
+    status: 'pending',
+    createdAt: '2025-01-15T10:00:00',
+    trip: {
+      id: '4',
+      title: 'Ski Trip to Aspen',
+      destination: 'Aspen, CO',
+      startDate: '2025-02-10',
+      endDate: '2025-02-15',
+      organizer: '2',
+      travelers: [mockTravelers[1], mockTravelers[2], mockTravelers[3]],
+      headerImage: 'https://images.unsplash.com/photo-1551524164-6cf77f5e1d66?w=1200&h=400&fit=crop',
+    },
+  },
+  {
+    id: 'inv-2',
+    tripId: '5',
+    invitee: '1', // Alex is invited
+    inviter: '3', // Sam sent the invitation
+    status: 'pending',
+    createdAt: '2025-01-18T14:30:00',
+    trip: {
+      id: '5',
+      title: 'Beach House Getaway',
+      destination: 'Outer Banks, NC',
+      startDate: '2025-06-01',
+      endDate: '2025-06-07',
+      organizer: '3',
+      travelers: [mockTravelers[2], mockTravelers[3]],
+      headerImage: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1200&h=400&fit=crop',
+    },
+  },
+  {
+    id: 'inv-3',
+    tripId: '2',
+    invitee: '1', // Alex is invited to the Summer Road Trip
+    inviter: '2', // Jordan sent the invitation
+    status: 'pending',
+    createdAt: '2025-01-20T09:00:00',
+    trip: {
+      id: '2',
+      title: 'Summer Road Trip',
+      destination: 'California Coast',
+      startDate: '2025-07-15',
+      endDate: '2025-07-22',
+      organizer: '1', // Alex is the organizer, but this is an invitation from Jordan
+      travelers: [mockTravelers[0], mockTravelers[1]],
+      headerImage: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1200&h=400&fit=crop',
+    },
+  },
+  {
+    id: 'inv-4',
+    tripId: '1',
+    invitee: '5', // Hola is invited
+    inviter: '1', // Alex sent the invitation
+    status: 'pending',
+    createdAt: '2025-01-21T11:00:00',
+    trip: {
+      id: '1',
+      title: 'Spring Break Miami',
+      destination: 'Miami, FL',
+      startDate: '2025-03-20',
+      endDate: '2025-03-24',
+      organizer: '1',
+      travelers: mockTravelers.slice(0, 4),
+      headerImage: 'https://images.unsplash.com/photo-1514214246283-d427a95c5d2f?w=1200&h=400&fit=crop',
+    },
   },
 ];
 
