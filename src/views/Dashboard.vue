@@ -1,159 +1,82 @@
 <template>
   <div class="dashboard">
-    <header class="dashboard-header">
-      <div class="header-content">
-        <div>
-          <h1>TripSync</h1>
-          <p class="subtitle">Collaborative travel planning made easy</p>
+    <div class="container mx-auto p-6 max-w-6xl">
+      <!-- Simplified Header -->
+      <div class="flex justify-between items-center mb-8">
+        <div class="logo">
+          <h1 class="text-2xl font-bold text-[#1e3a5f]">TripSync</h1>
         </div>
-        <div class="user-section">
-          <div class="user-info" v-if="currentUser">
-            <span class="user-name">
-              {{ currentUser.firstName || currentUser.username }}
-            </span>
+        <button class="btn-sign-out" @click="handleLogout">
+          <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          </svg>
+          Sign Out
+        </button>
+      </div>
+
+      <!-- Welcome section -->
+      <div class="mb-8">
+        <h1 class="text-3xl font-semibold mb-2 text-[#1e3a5f]">Your Trips</h1>
+        <p class="text-muted-foreground">Plan unforgettable adventures with your squad</p>
+      </div>
+
+      <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <!-- Create New Trip Card -->
+        <div 
+          class="trip-card create-card"
+          @click="showNewTripDialog = true"
+        >
+          <div class="create-card-content">
+            <div class="create-icon">
+              <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4" />
+              </svg>
+            </div>
+            <p class="create-text">Create New Trip</p>
+            <p class="create-subtext">Start your next adventure</p>
           </div>
-          <div class="notification-bell" v-if="pendingInvitations.length > 0" @click="scrollToInvitations">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </div>
+
+        <!-- Trip Cards -->
+        <div
+          v-for="trip in upcomingTrips"
+          :key="trip.id"
+          class="trip-card"
+          @click="selectTrip(trip.id)"
+        >
+          <div class="trip-card-gradient"></div>
+          <div class="trip-card-delete" @click.stop="handleDeleteTrip(trip.id)">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
             </svg>
-            <span class="notification-count">{{ pendingInvitations.length }}</span>
           </div>
-          <button class="btn-secondary" @click="handleLogout">Logout</button>
-        </div>
-      </div>
-    </header>
-
-    <div class="dashboard-content">
-      <!-- Notifications/Invitations Section -->
-      <div v-if="pendingInvitations.length > 0" class="invitations-section">
-        <div class="section-header">
-          <div class="section-title-row">
-            <h2>Invitations</h2>
-            <span class="notification-badge">{{ pendingInvitations.length }}</span>
-          </div>
-        </div>
-        <div class="invitations-grid">
-          <div
-            v-for="invitation in pendingInvitations"
-            :key="invitation.id"
-            class="invitation-card"
-          >
-            <div class="invitation-card-image" v-if="invitation.trip.headerImage">
-              <img :src="invitation.trip.headerImage" :alt="invitation.trip.title" />
-              <div class="countdown-overlay">
-                <div class="countdown-content">
-                  <span class="countdown-label">{{ getCountdownLabel(invitation.trip) }}</span>
-                  <span class="countdown-value">{{ getDaysUntilTrip(invitation.trip) }}</span>
-                  <span class="countdown-unit">{{ getDaysUntilTrip(invitation.trip) === 1 ? 'day' : 'days' }}</span>
+          <div class="trip-card-content-inner">
+            <h3 class="trip-card-title">{{ trip.title }}</h3>
+            <div class="trip-card-destination">
+              <svg class="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              {{ trip.destination }}
+            </div>
+            <div class="trip-card-dates">
+              <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <span>{{ formatDate(trip.startDate) }} - {{ formatDate(trip.endDate) }}</span>
+            </div>
+            <div class="trip-card-members">
+              <div class="member-avatars">
+                <div
+                  v-for="(traveler, idx) in trip.travelers.slice(0, 3)"
+                  :key="traveler.id"
+                  class="member-avatar"
+                  :style="{ backgroundColor: getAvatarColor(idx) }"
+                >
+                  {{ traveler.name.charAt(0).toUpperCase() }}
                 </div>
               </div>
-            </div>
-            <div class="invitation-card-content">
-              <div class="invitation-header">
-                <div>
-                  <h3>{{ invitation.trip.title }}</h3>
-                  <p class="invitation-from">
-                    Invited by {{ invitation.inviter || 'Unknown' }}
-                  </p>
-                </div>
-                <span class="invitation-badge">New</span>
-              </div>
-              <p class="trip-destination">{{ invitation.trip.destination }}</p>
-              <p class="trip-dates">
-                {{ formatDate(invitation.trip.startDate) }} – {{ formatDate(invitation.trip.endDate) }}
-              </p>
-              <div class="invitation-actions">
-                <button class="btn-accept" @click.stop="acceptInvitation(invitation.id)">
-                  Accept
-                </button>
-                <button class="btn-decline" @click.stop="declineInvitation(invitation.id)">
-                  Decline
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Upcoming Trips Section -->
-      <div class="trips-section">
-        <div class="trips-header">
-          <h2>Upcoming Trips</h2>
-          <button class="btn-primary" @click="showNewTripDialog = true">
-            + New Trip
-          </button>
-        </div>
-
-        <div class="trips-grid" v-if="upcomingTrips.length > 0">
-          <div
-            v-for="trip in upcomingTrips"
-            :key="trip.id"
-            class="trip-card"
-            @click="selectTrip(trip.id)"
-          >
-            <div class="trip-card-image" v-if="trip.headerImage">
-              <img :src="trip.headerImage" :alt="trip.title" />
-              <div class="countdown-overlay">
-                <div class="countdown-content">
-                  <span class="countdown-label">{{ getCountdownLabel(trip) }}</span>
-                  <span class="countdown-value">{{ getDaysUntilTrip(trip) }}</span>
-                  <span class="countdown-unit">{{ getDaysUntilTrip(trip) === 1 ? 'day' : 'days' }}</span>
-                </div>
-              </div>
-            </div>
-            <div class="trip-card-content">
-              <div class="trip-card-header">
-                <h3>{{ trip.title }}</h3>
-                <span v-if="isOrganizer(trip)" class="organizer-badge">Organizer</span>
-              </div>
-              <p class="trip-destination">{{ trip.destination }}</p>
-              <p class="trip-dates">
-                {{ formatDate(trip.startDate) }} – {{ formatDate(trip.endDate) }}
-              </p>
-              <p class="trip-travelers">{{ trip.travelers.length }} travelers</p>
-            </div>
-          </div>
-        </div>
-
-        <div v-else-if="pendingInvitations.length === 0" class="empty-state">
-          <p>No upcoming trips. Create your first trip to get started!</p>
-        </div>
-      </div>
-
-      <!-- Past Trips Section -->
-      <div v-if="pastTrips.length > 0" class="trips-section">
-        <div class="trips-header">
-          <h2>Past Trips</h2>
-        </div>
-
-        <div class="trips-grid">
-          <div
-            v-for="trip in pastTrips"
-            :key="trip.id"
-            class="trip-card past-trip"
-            @click="selectTrip(trip.id)"
-          >
-            <div class="trip-card-image" v-if="trip.headerImage">
-              <img :src="trip.headerImage" :alt="trip.title" />
-              <div class="countdown-overlay past">
-                <div class="countdown-content">
-                  <span class="countdown-label">Ended</span>
-                  <span class="countdown-value">{{ getDaysSinceTrip(trip) }}</span>
-                  <span class="countdown-unit">{{ getDaysSinceTrip(trip) === 1 ? 'day' : 'days' }} ago</span>
-                </div>
-              </div>
-            </div>
-            <div class="trip-card-content">
-              <div class="trip-card-header">
-                <h3>{{ trip.title }}</h3>
-                <span v-if="isOrganizer(trip)" class="organizer-badge">Organizer</span>
-              </div>
-              <p class="trip-destination">{{ trip.destination }}</p>
-              <p class="trip-dates">
-                {{ formatDate(trip.startDate) }} – {{ formatDate(trip.endDate) }}
-              </p>
-              <p class="trip-travelers">{{ trip.travelers.length }} travelers</p>
+              <span class="member-count">{{ trip.travelers.length }} {{ trip.travelers.length === 1 ? 'member' : 'members' }}</span>
             </div>
           </div>
         </div>
@@ -163,32 +86,55 @@
     <!-- New Trip Dialog -->
     <div v-if="showNewTripDialog" class="dialog-overlay" @click="showNewTripDialog = false">
       <div class="dialog" @click.stop>
-        <h2>Create New Trip</h2>
-        <form @submit.prevent="createTrip">
+        <div class="dialog-header">
+          <h2 class="dialog-title">Create New Trip</h2>
+          <p class="dialog-description">Start planning your next adventure</p>
+        </div>
+        <form @submit.prevent="createTrip" class="dialog-form">
           <div class="form-group">
-            <label>Trip Name</label>
-            <input v-model="newTrip.title" type="text" required placeholder="e.g., Spring Break Miami" />
+            <label for="tripName">Trip Name</label>
+            <input
+              id="tripName"
+              v-model="newTrip.title"
+              type="text"
+              required
+              placeholder="e.g., Spring Break in Miami"
+            />
           </div>
           <div class="form-group">
-            <label>Destination</label>
-            <input v-model="newTrip.destination" type="text" required placeholder="e.g., Miami, FL" />
+            <label for="destination">Destination</label>
+            <input
+              id="destination"
+              v-model="newTrip.destination"
+              type="text"
+              required
+              placeholder="e.g., Miami, FL"
+            />
           </div>
           <div class="form-row">
             <div class="form-group">
-              <label>Start Date</label>
-              <input v-model="newTrip.startDate" type="date" required />
+              <label for="startDate">Start Date</label>
+              <input
+                id="startDate"
+                v-model="newTrip.startDate"
+                type="date"
+                required
+              />
             </div>
             <div class="form-group">
-              <label>End Date</label>
-              <input v-model="newTrip.endDate" type="date" required />
+              <label for="endDate">End Date</label>
+              <input
+                id="endDate"
+                v-model="newTrip.endDate"
+                type="date"
+                required
+              />
             </div>
           </div>
-          <div class="form-actions">
-            <button type="button" class="btn-secondary" @click="showNewTripDialog = false">
-              Cancel
-            </button>
-            <button type="submit" class="btn-primary">Create Trip</button>
-          </div>
+          <div v-if="createError" class="error-message">{{ createError }}</div>
+          <button type="submit" class="btn-submit" :disabled="createLoading">
+            {{ createLoading ? 'Creating...' : 'Create Trip' }}
+          </button>
         </form>
       </div>
     </div>
@@ -215,6 +161,8 @@ const trips = ref<Trip[]>([]);
 const invitations = ref<TripInvitation[]>([]);
 const showNewTripDialog = ref(false);
 const loading = ref(false);
+const createLoading = ref(false);
+const createError = ref('');
 const newTrip = ref({
 	title: "",
 	destination: "",
@@ -456,7 +404,37 @@ function getCountdownLabel(trip: Trip): string {
 
 function formatDate(dateString: string): string {
 	const date = new Date(dateString);
-	return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+	return date.toLocaleDateString("en-US", { 
+		month: "short", 
+		day: "numeric", 
+		year: "numeric" 
+	});
+}
+
+function getAvatarColor(index: number): string {
+	const colors = ['#14b8a6', '#ff7b6b', '#7ba3d1', '#f4c542', '#8ba888'];
+	return colors[index % colors.length];
+}
+
+async function handleDeleteTrip(tripId: string) {
+	if (!confirm('Are you sure you want to delete this trip? This action cannot be undone.')) {
+		return;
+	}
+	
+	const session = getSession();
+	if (!session) return;
+
+	try {
+		loading.value = true;
+		await tripApi.deleteTrip({ trip: tripId });
+		await loadTrips();
+	} catch (error: any) {
+		console.error("Failed to delete trip:", error);
+		const errorMessage = error instanceof Error ? error.message : "Failed to delete trip";
+		alert(errorMessage);
+	} finally {
+		loading.value = false;
+	}
 }
 
 function selectTrip(tripId: string) {
@@ -475,7 +453,8 @@ async function createTrip() {
 	if (!session || !currentUser.value) return;
 
 	try {
-		loading.value = true;
+		createLoading.value = true;
+		createError.value = '';
 		const response = await tripApi.createTrip({
 			title: newTrip.value.title,
 			startDate: newTrip.value.startDate,
@@ -495,11 +474,9 @@ async function createTrip() {
 		}
 	} catch (error: any) {
 		console.error("Failed to create trip:", error);
-		const errorMessage =
-			error instanceof Error ? error.message : "Failed to create trip";
-		alert(errorMessage);
+		createError.value = error instanceof Error ? error.message : "Failed to create trip";
 	} finally {
-		loading.value = false;
+		createLoading.value = false;
 	}
 }
 
@@ -511,119 +488,292 @@ function handleLogout() {
 <style scoped>
 .dashboard {
   min-height: 100vh;
-  background: #f5f5f5;
+  background: #f5f1ed;
 }
 
-.dashboard-header {
-  background: white;
-  padding: 2rem;
-  border-bottom: 1px solid #e0e0e0;
+.container {
   width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 1.5rem;
 }
 
-.header-content {
-  width: 100%;
+.mx-auto {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.p-6 {
+  padding: 1.5rem;
+}
+
+.max-w-6xl {
+  max-width: 72rem;
+}
+
+.flex {
   display: flex;
+}
+
+.justify-between {
   justify-content: space-between;
+}
+
+.items-center {
   align-items: center;
 }
 
-.dashboard-header h1 {
-  font-size: 2.5rem;
-  color: #42b983;
+.mb-8 {
+  margin-bottom: 2rem;
+}
+
+.text-2xl {
+  font-size: 1.5rem;
+  line-height: 2rem;
+}
+
+.font-bold {
+  font-weight: 700;
+}
+
+.text-3xl {
+  font-size: 1.875rem;
+  line-height: 2.25rem;
+}
+
+.font-semibold {
+  font-weight: 600;
+}
+
+.mb-2 {
   margin-bottom: 0.5rem;
 }
 
-.subtitle {
-  color: #666;
-  font-size: 1.1rem;
+.text-muted-foreground {
+  color: #64748b;
 }
 
-.user-section {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
+.grid {
+  display: grid;
 }
 
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.user-name {
-  font-weight: 500;
-  color: #333;
-}
-
-.notification-bell {
-  position: relative;
-  cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 50%;
-  transition: background 0.2s;
-  color: #666;
-}
-
-.notification-bell:hover {
-  background: #f0f0f0;
-  color: #333;
-}
-
-.notification-count {
-  position: absolute;
-  top: 0;
-  right: 0;
-  background: #d32f2f;
-  color: white;
-  border-radius: 50%;
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.7rem;
-  font-weight: 600;
-  border: 2px solid white;
-}
-
-.dashboard-content {
-  width: 100%;
-  padding: 2rem;
-}
-
-.trips-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
-}
-
-.trips-header h2 {
-  font-size: 1.5rem;
-  color: #333;
-}
-
-.trips-grid {
-  display: flex;
-  flex-direction: column;
+.gap-6 {
   gap: 1.5rem;
-  width: 100%;
+}
+
+.md\:grid-cols-2 {
+  @media (min-width: 768px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.lg\:grid-cols-3 {
+  @media (min-width: 1024px) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.btn-sign-out {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background: transparent;
+  border: none;
+  border-radius: 9999px;
+  color: #333;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-sign-out:hover {
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.w-4 {
+  width: 1rem;
+}
+
+.h-4 {
+  height: 1rem;
+}
+
+.mr-2 {
+  margin-right: 0.5rem;
 }
 
 .trip-card {
+  position: relative;
   background: white;
-  border-radius: 12px;
+  border-radius: 1rem;
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
-  width: 100%;
+  transition: all 0.2s;
+  height: 280px;
+  display: flex;
+  flex-direction: column;
+  border: 0;
 }
 
 .trip-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  transform: scale(1.02);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+.trip-card-gradient {
+  height: 6px;
+  background: linear-gradient(to right, #14b8a6, #ff7b6b, #f4c542);
+}
+
+.trip-card-delete {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ef4444;
+  color: white;
+  border-radius: 0.5rem;
+  opacity: 0;
+  transition: opacity 0.2s;
+  z-index: 10;
+  cursor: pointer;
+}
+
+.trip-card:hover .trip-card-delete {
+  opacity: 1;
+}
+
+.trip-card-content-inner {
+  flex: 1;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.trip-card-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1e3a5f;
+  margin-bottom: 0.5rem;
+}
+
+.trip-card-destination {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  color: #64748b;
+  font-size: 0.875rem;
+  margin-bottom: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.text-teal-600 {
+  color: #0d9488;
+}
+
+.trip-card-dates {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  color: #64748b;
+  font-size: 0.875rem;
+  margin-bottom: 0.5rem;
+}
+
+.text-blue-600 {
+  color: #2563eb;
+}
+
+.trip-card-members {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: auto;
+  padding-top: 1rem;
+}
+
+.member-avatars {
+  display: flex;
+  gap: -0.5rem;
+}
+
+.member-avatar {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 0.875rem;
+  border: 2px solid white;
+  margin-left: -0.5rem;
+}
+
+.member-avatar:first-child {
+  margin-left: 0;
+}
+
+.member-count {
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+.create-card {
+  border: 2px dashed rgba(255, 123, 107, 0.4);
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.create-card:hover {
+  border-color: #ff7b6b;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.create-card-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.create-icon {
+  width: 4rem;
+  height: 4rem;
+  border-radius: 1rem;
+  background: #ff7b6b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s;
+}
+
+.create-card:hover .create-icon {
+  transform: rotate(12deg);
+}
+
+.create-text {
+  font-weight: 500;
+  font-size: 1.125rem;
+  color: #1e3a5f;
+  margin-bottom: 0.25rem;
+}
+
+.create-subtext {
+  font-size: 0.875rem;
+  color: #64748b;
 }
 
 .trip-card-image {
@@ -933,36 +1083,62 @@ function handleLogout() {
 
 .dialog {
   background: white;
-  border-radius: 12px;
-  padding: 2rem;
+  border-radius: 0.5rem;
+  padding: 1.5rem;
   width: 90%;
   max-width: 500px;
   max-height: 90vh;
   overflow-y: auto;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
 }
 
-.dialog h2 {
+.dialog-header {
   margin-bottom: 1.5rem;
-  color: #333;
+}
+
+.dialog-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1e3a5f;
+  margin-bottom: 0.5rem;
+}
+
+.dialog-description {
+  color: #64748b;
+  font-size: 0.875rem;
+}
+
+.dialog-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .form-group {
-  margin-bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 .form-group label {
-  display: block;
-  margin-bottom: 0.5rem;
-  color: #333;
+  font-size: 0.875rem;
   font-weight: 500;
+  color: #1e3a5f;
 }
 
 .form-group input {
   width: 100%;
-  padding: 0.75rem;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  font-size: 1rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  background: #faf8f6;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #14b8a6;
+  box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.1);
 }
 
 .form-row {
@@ -971,10 +1147,34 @@ function handleLogout() {
   gap: 1rem;
 }
 
-.form-actions {
-  display: flex;
-  gap: 1rem;
-  justify-content: flex-end;
-  margin-top: 2rem;
+.error-message {
+  color: #ef4444;
+  font-size: 0.875rem;
+  padding: 0.5rem;
+  background: #fee;
+  border-radius: 0.375rem;
+}
+
+.btn-submit {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: #14b8a6;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-submit:hover:not(:disabled) {
+  background: #0d9488;
+}
+
+.btn-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 </style>
+

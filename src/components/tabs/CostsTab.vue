@@ -1,53 +1,100 @@
 <template>
   <div class="costs-tab">
-    <div class="costs-grid">
-      <!-- Member Balances -->
+    <div class="space-y-6">
+      <!-- Trip Expenses Card -->
       <div class="card">
+        <div class="card-gradient-gold"></div>
         <div class="card-header">
-          <h2>Member Balances</h2>
-        </div>
-        <div class="balances-list">
-          <div
-            v-for="balance in memberBalances"
-            :key="balance.travelerId"
-            class="balance-item"
-            :class="{ positive: balance.balance > 0, negative: balance.balance < 0 }"
-          >
-            <div class="balance-info">
-              <p class="balance-name">{{ getTravelerName(balance.travelerId) }}</p>
-              <p class="balance-amount" :class="{ positive: balance.balance > 0, negative: balance.balance < 0 }">
-                {{ formatBalance(balance.balance) }}
-              </p>
-            </div>
+          <div>
+            <h2 class="card-title">Trip Expenses</h2>
+            <p class="card-description">Track costs and split them among the group</p>
           </div>
+          <button class="btn-add-expense" @click="showAddExpenseDialog = true">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            Add Expense
+          </button>
         </div>
       </div>
 
-      <!-- Recent Expenses -->
-      <div class="card">
-        <div class="card-header">
-          <h2>Recent Expenses</h2>
-          <button class="btn-primary" @click="showAddExpenseDialog = true">
-            + Add Expense
-          </button>
-        </div>
-        <div class="expenses-list">
-          <div
-            v-for="expense in expenses"
-            :key="expense.id"
-            class="expense-item"
-          >
-            <div class="expense-info">
-              <h3>{{ expense.title }}</h3>
-              <p class="expense-details">
-                Paid by {{ getTravelerName(expense.paidBy) }} • 
-                Split between {{ expense.splitBetween.length }} people
-                <span v-if="expense.splitType === 'percentage'"> ({{ expense.splitType }})</span>
-              </p>
-              <p class="expense-date">{{ formatDate(expense.date) }}</p>
+      <div class="costs-grid">
+        <!-- Member Balances -->
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">Member Balances</h2>
+            <p class="card-description">Who owes and who's owed</p>
+          </div>
+          <div class="card-content">
+            <div class="balances-list">
+              <div
+                v-for="(balance, index) in memberBalances"
+                :key="balance.travelerId"
+                class="balance-item"
+                :class="{ positive: balance.balance > 0, negative: balance.balance < 0, zero: Math.abs(balance.balance) < 0.01 }"
+              >
+                <div class="balance-avatar" :style="{ backgroundColor: getAvatarColor(index) }">
+                  {{ getTravelerName(balance.travelerId).charAt(0).toUpperCase() }}
+                </div>
+                <div class="balance-info">
+                  <p class="balance-name">{{ getTravelerName(balance.travelerId) }}</p>
+                </div>
+                <div class="balance-amount-wrapper">
+                  <span v-if="Math.abs(balance.balance) < 0.01" class="badge-settled">Settled</span>
+                  <div v-else class="balance-amount" :class="{ positive: balance.balance > 0, negative: balance.balance < 0 }">
+                    <svg v-if="balance.balance > 0" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                    </svg>
+                    <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
+                    </svg>
+                    <span>{{ formatBalance(Math.abs(balance.balance)) }}</span>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div class="expense-amount">
-              ${{ expense.totalCost.toFixed(2) }}
+          </div>
+        </div>
+
+        <!-- Recent Expenses -->
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">Recent Expenses</h2>
+            <p class="card-description">All trip expenses</p>
+          </div>
+          <div class="card-content">
+            <div class="expenses-list">
+              <div v-if="expenses.length === 0" class="empty-state">
+                <p>No expenses yet</p>
+              </div>
+              <div
+                v-for="expense in expenses"
+                :key="expense.id"
+                class="expense-item"
+              >
+                <div class="expense-info">
+                  <div class="expense-header">
+                    <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <h3>{{ expense.title }}</h3>
+                  </div>
+                  <p class="expense-details">
+                    Paid by {{ getTravelerName(expense.paidBy) }} · Split {{ expense.splitBetween.length }} ways
+                  </p>
+                  <p class="expense-per-person">
+                    {{ formatCurrency(expense.totalCost / expense.splitBetween.length) }} per person
+                  </p>
+                </div>
+                <div class="expense-amount-wrapper">
+                  <span class="expense-amount">{{ formatCurrency(expense.totalCost) }}</span>
+                  <button class="btn-delete-expense" @click="handleDeleteExpense(expense.id)">
+                    <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -222,12 +269,27 @@ function getTravelerName(travelerId: string): string {
 }
 
 function formatBalance(balance: number): string {
-  if (balance > 0) {
-    return `+$${balance.toFixed(2)}`;
-  } else if (balance < 0) {
-    return `-$${Math.abs(balance).toFixed(2)}`;
-  }
-  return '$0.00';
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD'
+  }).format(balance);
+}
+
+function formatCurrency(amount: number): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD'
+  }).format(amount);
+}
+
+function getAvatarColor(index: number): string {
+  const colors = ['#14b8a6', '#ff7b6b', '#7ba3d1', '#f4c542', '#8ba888'];
+  return colors[index % colors.length];
+}
+
+function handleDeleteExpense(expenseId: string) {
+  // This would call the API to delete the expense
+  console.log('Delete expense:', expenseId);
 }
 
 function formatDate(dateString: string): string {
@@ -352,116 +414,240 @@ function addExpense() {
   width: 100%;
 }
 
+.space-y-6 > * + * {
+  margin-top: 1.5rem;
+}
+
 .costs-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-  gap: 2rem;
+  gap: 1.5rem;
 }
 
 .card {
+  position: relative;
   background: white;
-  border-radius: 12px;
-  padding: 1.5rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 1rem;
+  overflow: hidden;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  border: 0;
+}
+
+.card-gradient-gold {
+  height: 6px;
+  background: #f4c542;
 }
 
 .card-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
+  align-items: flex-start;
+  padding: 1.5rem;
+  padding-bottom: 1rem;
 }
 
-.card-header h2 {
-  font-size: 1.25rem;
-  color: #333;
+.card-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1e3a5f;
+  margin-bottom: 0.25rem;
+}
+
+.card-description {
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+.card-content {
+  padding: 0 1.5rem 1.5rem 1.5rem;
+}
+
+.btn-add-expense {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background: #f4c542;
+  color: #1e3a5f;
+  border: none;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+}
+
+.btn-add-expense:hover {
+  background: #e0b138;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  transform: scale(1.05);
+}
+
+.w-4 {
+  width: 1rem;
+}
+
+.h-4 {
+  height: 1rem;
+}
+
+.mr-2 {
+  margin-right: 0.5rem;
+}
+
+.text-green-600 {
+  color: #16a34a;
+}
+
+.text-red-500 {
+  color: #ef4444;
 }
 
 .balances-list {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
 .balance-item {
-  padding: 1rem;
-  background: #f9f9f9;
-  border-radius: 8px;
-  border-left: 4px solid #e0e0e0;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: #f9fafb;
+  border-radius: 0.5rem;
 }
 
-.balance-item.positive {
-  border-left-color: #42b983;
-}
-
-.balance-item.negative {
-  border-left-color: #ff9800;
+.balance-avatar {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.875rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
 }
 
 .balance-info {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex: 1;
 }
 
 .balance-name {
   font-weight: 500;
-  color: #333;
+  color: #1e3a5f;
+}
+
+.balance-amount-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .balance-amount {
-  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 1rem;
   font-weight: 600;
 }
 
 .balance-amount.positive {
-  color: #42b983;
+  color: #16a34a;
 }
 
 .balance-amount.negative {
-  color: #ff9800;
+  color: #dc2626;
+}
+
+.badge-settled {
+  font-size: 0.75rem;
+  background: #f1f5f9;
+  color: #64748b;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
 }
 
 .expenses-list {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.75rem;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 2rem;
+  color: #64748b;
 }
 
 .expense-item {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  padding: 1rem;
-  background: #f9f9f9;
-  border-radius: 8px;
+  padding: 0.75rem;
+  background: #f9fafb;
+  border-radius: 0.5rem;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.expense-item:hover {
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
 }
 
 .expense-info {
   flex: 1;
 }
 
-.expense-info h3 {
-  font-size: 1rem;
-  color: #333;
-  margin-bottom: 0.5rem;
-}
-
-.expense-details {
-  font-size: 0.85rem;
-  color: #666;
+.expense-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   margin-bottom: 0.25rem;
 }
 
-.expense-date {
-  font-size: 0.8rem;
-  color: #888;
+.expense-header h3 {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #1e3a5f;
+}
+
+.expense-details {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin-bottom: 0.25rem;
+}
+
+.expense-per-person {
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.expense-amount-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .expense-amount {
-  font-size: 1.25rem;
+  font-size: 1.125rem;
   font-weight: 600;
-  color: #333;
+  color: #1e3a5f;
+}
+
+.btn-delete-expense {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s;
+  padding: 0.25rem;
+}
+
+.expense-item:hover .btn-delete-expense {
+  opacity: 1;
 }
 
 .btn-primary {

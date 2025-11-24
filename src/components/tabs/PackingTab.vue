@@ -1,64 +1,104 @@
 <template>
   <div class="packing-tab">
-    <div class="packing-grid">
-      <!-- My Packing List -->
+    <div class="space-y-6">
+      <!-- Packing List Header Card -->
       <div class="card">
+        <div class="card-gradient-blue"></div>
         <div class="card-header">
-          <h2>My Packing List</h2>
-          <div class="progress-indicator">
-            {{ checkedCount }}/{{ personalItems.length }}
+          <div>
+            <h2 class="card-title">Packing List</h2>
+            <p class="card-description">AI-generated based on your trip details</p>
           </div>
-        </div>
-        <div class="packing-list">
-          <div
-            v-for="category in categories"
-            :key="category"
-            class="category-section"
-          >
-            <h3 class="category-title">{{ category }}</h3>
-            <div class="items-list">
-              <label
-                v-for="item in getPersonalItemsByCategory(category)"
-                :key="item.id"
-                class="packing-item"
-              >
-                <input
-                  type="checkbox"
-                  :checked="item.finished"
-                  @change="toggleItem(item.id)"
-                />
-                <span :class="{ checked: item.finished }">{{ item.name }}</span>
-              </label>
+          <div v-if="personalItems.length > 0" class="progress-section">
+            <div class="progress-badge">
+              <p class="progress-label">Progress</p>
+              <p class="progress-value">{{ checkedCount }}/{{ personalItems.length }}</p>
             </div>
+            <button class="btn-regenerate" @click="$emit('regenerate')">
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Regenerate List
+            </button>
           </div>
+          <button v-else class="btn-generate">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+            </svg>
+            Generate List
+          </button>
         </div>
       </div>
 
-      <!-- Shared Items -->
-      <div class="card">
-        <div class="card-header">
-          <h2>Shared Items</h2>
-          <div class="progress-indicator">
-            {{ checkedSharedCount }}/{{ sharedItems.length }}
+      <div class="packing-grid" v-if="personalItems.length > 0">
+        <!-- My Packing List -->
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">My Packing List</h2>
+          </div>
+          <div class="card-content">
+            <div class="packing-list">
+              <div
+                v-for="category in categories"
+                :key="category || 'uncategorized'"
+                class="category-section"
+              >
+                <h3 class="category-title">{{ category || 'Uncategorized' }}</h3>
+                <div class="items-list">
+                  <label
+                    v-for="item in getPersonalItemsByCategory(category || '')"
+                    :key="item.id"
+                    class="packing-item"
+                  >
+                    <input
+                      type="checkbox"
+                      :checked="item.finished"
+                      @change="toggleItem(item.id)"
+                    />
+                    <span :class="{ checked: item.finished }">{{ item.name }}</span>
+                  </label>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-        <div class="shared-items-list">
-          <div
-            v-for="item in sharedItems"
-            :key="item.id"
-            class="shared-item"
-          >
-            <label class="shared-item-checkbox">
-                <input
-                  type="checkbox"
-                  :checked="item.finished"
-                  @change="toggleItem(item.id)"
-                />
-                <span :class="{ checked: item.finished }">{{ item.name }}</span>
-            </label>
-            <div class="assigned-to" v-if="item.assignedTo">
-              <span class="assigned-label">Assigned to:</span>
-              <span class="assigned-name">{{ getTravelerName(item.assignedTo) }}</span>
+
+        <!-- Shared Items -->
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">Shared Items</h2>
+            <p class="card-description">Group coordination to avoid duplicates</p>
+          </div>
+          <div class="card-content">
+            <div v-if="sharedItems.length === 0" class="empty-state">
+              <svg class="w-12 h-12 mx-auto mb-3 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+              <p>No shared items yet</p>
+              <p class="text-sm mt-1">Mark items as "shared" to coordinate with your group</p>
+            </div>
+            <div v-else class="shared-items-list">
+              <div
+                v-for="item in sharedItems"
+                :key="item.id"
+                class="shared-item"
+              >
+                <label class="shared-item-checkbox">
+                  <input
+                    type="checkbox"
+                    :checked="item.finished"
+                    @change="toggleItem(item.id)"
+                  />
+                  <span :class="{ checked: item.finished }">{{ item.name }}</span>
+                </label>
+                <div class="assigned-to" v-if="item.assignee">
+                  <select class="assign-select" :value="item.assignee">
+                    <option v-for="traveler in travelers" :key="traveler.id" :value="traveler.id">
+                      {{ traveler.name }}
+                    </option>
+                  </select>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -68,49 +108,46 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-import type { ChecklistItem, Traveler } from '../../types/trip';
+import { computed } from "vue";
+import type { ChecklistItem, Traveler } from "../../types/trip";
 
 const props = defineProps<{
-  items: ChecklistItem[];
-  travelers: Traveler[];
+	items: ChecklistItem[];
+	travelers: Traveler[];
 }>();
 
 const emit = defineEmits<{
-  (e: 'toggle-item', itemId: string): void;
+	(e: "toggle-item", itemId: string): void;
+	(e: "regenerate"): void;
 }>();
 
 const personalItems = computed(() => {
-  return props.items.filter(item => !item.isShared);
+	return props.items.filter((item) => !item.isShared);
 });
 
 const sharedItems = computed(() => {
-  return props.items.filter(item => item.isShared);
+	return props.items.filter((item) => item.isShared);
 });
 
 const checkedCount = computed(() => {
-  return personalItems.value.filter(item => item.finished).length;
-});
-
-const checkedSharedCount = computed(() => {
-  return sharedItems.value.filter(item => item.finished).length;
+	return personalItems.value.filter((item) => item.finished).length;
 });
 
 const categories = computed(() => {
-  const cats = new Set(personalItems.value.map(item => item.category));
-  return Array.from(cats).sort();
+	const cats = new Set(
+		personalItems.value.map((item) => item.category || "Uncategorized"),
+	);
+	return Array.from(cats).sort();
 });
 
 function getPersonalItemsByCategory(category: string) {
-  return personalItems.value.filter(item => item.category === category);
-}
-
-function getTravelerName(travelerId: string): string {
-  return props.travelers.find(t => t.id === travelerId)?.name || 'Unknown';
+	return personalItems.value.filter(
+		(item) => (item.category || "Uncategorized") === category,
+	);
 }
 
 function toggleItem(itemId: string) {
-  emit('toggle-item', itemId);
+	emit("toggle-item", itemId);
 }
 </script>
 
@@ -119,38 +156,155 @@ function toggleItem(itemId: string) {
   width: 100%;
 }
 
+.space-y-6 > * + * {
+  margin-top: 1.5rem;
+}
+
 .packing-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-  gap: 2rem;
+  gap: 1.5rem;
 }
 
 .card {
+  position: relative;
   background: white;
-  border-radius: 12px;
-  padding: 1.5rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 1rem;
+  overflow: hidden;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  border: 0;
+}
+
+.card-gradient-blue {
+  height: 6px;
+  background: #7ba3d1;
 }
 
 .card-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
+  align-items: flex-start;
+  padding: 1.5rem;
+  padding-bottom: 1rem;
 }
 
-.card-header h2 {
-  font-size: 1.25rem;
-  color: #333;
-}
-
-.progress-indicator {
-  background: #e8f5e9;
-  color: #42b983;
-  padding: 0.5rem 1rem;
-  border-radius: 20px;
+.card-title {
+  font-size: 1.125rem;
   font-weight: 600;
-  font-size: 0.9rem;
+  color: #1e3a5f;
+  margin-bottom: 0.25rem;
+}
+
+.card-description {
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+.card-content {
+  padding: 0 1.5rem 1.5rem 1.5rem;
+}
+
+.progress-section {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.progress-badge {
+  text-align: right;
+  background: rgba(123, 163, 209, 0.1);
+  padding: 0.5rem 1rem;
+  border-radius: 1rem;
+}
+
+.progress-label {
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+.progress-value {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #7ba3d1;
+}
+
+.btn-generate {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background: #7ba3d1;
+  color: white;
+  border: none;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-generate:hover {
+  background: #6a92c0;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.btn-regenerate {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background: #42b983;
+  color: white;
+  border: none;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-regenerate:hover {
+  background: #36a372;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.w-4 {
+  width: 1rem;
+}
+
+.h-4 {
+  height: 1rem;
+}
+
+.w-12 {
+  width: 3rem;
+}
+
+.h-12 {
+  height: 3rem;
+}
+
+.mx-auto {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.mb-3 {
+  margin-bottom: 0.75rem;
+}
+
+.opacity-20 {
+  opacity: 0.2;
+}
+
+.mr-2 {
+  margin-right: 0.5rem;
+}
+
+.text-sm {
+  font-size: 0.875rem;
+}
+
+.mt-1 {
+  margin-top: 0.25rem;
 }
 
 .packing-list {

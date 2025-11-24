@@ -352,6 +352,7 @@ export const packingListApi = {
 	// Create packing list
 	async createPackingList(data: {
 		trip: string;
+		regenerate?: boolean;
 	}): Promise<{ packinglist: string }> {
 		return apiRequest<{ packinglist: string }>("/packinglists/create", data);
 	},

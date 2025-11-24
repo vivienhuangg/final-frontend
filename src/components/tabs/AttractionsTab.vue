@@ -1,665 +1,248 @@
 <template>
-  <div class="itinerary-tab">
-    <div class="itinerary-header">
-      <div>
-        <h2>Itinerary</h2>
-        <p class="subtitle">Plan and track activities for your trip</p>
-      </div>
-      <button class="btn-primary" @click="showAddActivityDialog = true">
-        + Add Activity
-      </button>
-    </div>
-
-    <!-- Tab Toggles -->
-    <div class="tab-toggles">
-      <button
-        :class="['toggle', { active: activeView === 'mine' }]"
-        @click="activeView = 'mine'"
-      >
-        My Events
-      </button>
-      
-      <button
-        :class="['toggle', { active: activeView === 'group' }]"
-        @click="activeView = 'group'"
-      >
-        Current Group Events
-      </button>
-      <button
-        :class="['toggle', { active: activeView === 'proposals' }]"
-        @click="activeView = 'proposals'"
-      >
-        Group Event Proposals
-      </button>
-    </div>
-
-    <!-- Recommended Section (only in Proposals) -->
-    <div v-if="activeView === 'proposals' && recommendedEvents.length > 0" class="recommended-section">
-      <div class="section-header">
-        <h3 class="section-title">
-          Recommended for You
-        </h3>
-        <p class="section-subtitle">Based on group ratings and preferences</p>
-      </div>
-      <div class="timeline-container">
-        <div class="timeline">
-          <div
-            v-for="(activity, index) in recommendedEvents"
-            :key="activity.id"
-            class="timeline-item"
-          >
-            <!-- Timeline Line -->
-            <div class="timeline-line" v-if="index < recommendedEvents.length - 1"></div>
-            
-             <!-- Timeline Dot -->
-             <div class="timeline-dot recommended" :class="{ 'opted-out': optedOutEvents.has(activity.id) }"></div>
-
-             <!-- Activity Card -->
-             <div class="activity-card recommended-card" :class="{ 'opted-out-card': optedOutEvents.has(activity.id) }">
-               <div class="recommended-badge" v-if="!optedOutEvents.has(activity.id)">Recommended</div>
-               <div class="opted-out-badge" v-else>Opted Out</div>
-              <div class="activity-image-container" v-if="activity.image">
-                <img :src="activity.image" :alt="activity.title" class="activity-image" />
-              </div>
-              
-              <div class="activity-content">
-                <div class="activity-header">
-                  <div class="activity-title-section">
-                    <h3>{{ activity.title }}</h3>
-                    <div class="activity-meta">
-                      <span v-if="activity.location" class="meta-item">
-                        Location: {{ activity.location }}
-                      </span>
-                      <span v-if="activity.start" class="meta-item">
-                        Time: {{ formatTime(activity.start) }}
-                      </span>
-                      <span v-if="activity.duration" class="meta-item">
-                        Duration: {{ activity.duration }}
-                      </span>
-                      <span v-if="activity.pricePerPerson" class="meta-item">
-                        Cost: ${{ activity.pricePerPerson }}/person
-                      </span>
-                    </div>
-                  </div>
-                  <div class="activity-badge group">
-                    Group Event
-                  </div>
-                </div>
-
-                <p v-if="activity.description" class="activity-description">
-                  {{ activity.description }}
-                </p>
-
-                <!-- Conflict Warning -->
-                <div v-if="getConflicts(activity).length > 0" class="conflict-warning">
-                  <div class="conflict-header">
-                    <span class="conflict-icon">⚠</span>
-                    <span class="conflict-title">Time Conflict</span>
-                  </div>
-                  <div class="conflict-list">
-                    <div
-                      v-for="conflict in getConflicts(activity)"
-                      :key="conflict.id"
-                      class="conflict-item"
-                    >
-                      <span class="conflict-event-name">{{ conflict.title }}</span>
-                      <span class="conflict-event-type">({{ conflict.isSolo ? 'Solo Event' : 'Group Event' }})</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="activity-tags" v-if="activity.tags && activity.tags.length > 0">
-                  <span
-                    v-for="tag in activity.tags"
-                    :key="tag"
-                    class="tag"
-                  >
-                    {{ tag }}
-                  </span>
-                </div>
-
-                <div class="activity-stats">
-                  <div class="stat">
-                    <span class="stat-value">{{ activity.rating?.toFixed(1) || 'N/A' }}/10</span>
-                    <span class="stat-label">Rating</span>
-                  </div>
-                  <div class="stat">
-                    <span class="stat-value">{{ activity.attendees?.length || 0 }}</span>
-                    <span class="stat-label">Attending</span>
-                  </div>
-                  <div class="stat">
-                    <span class="stat-value">{{ activity.votes || 0 }}</span>
-                    <span class="stat-label">Votes</span>
-                  </div>
-                </div>
-
-                <div class="activity-actions">
-                  <div class="rating-section" v-if="!isSoloEvent(activity)">
-                    <label>Your Rating:</label>
-                    <div class="rating-bar">
-                      <button
-                        v-for="i in 10"
-                        :key="i"
-                        :class="['rating-btn', { active: userRatings[activity.id] === i }]"
-                        @click="rateActivity(activity.id, i)"
-                      >
-                        {{ i }}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div class="proposal-actions">
-                    <button
-                      v-if="!isGroupEvent(activity)"
-                      class="make-group-event-btn"
-                      @click="makeGroupEvent(activity.id)"
-                    >
-                      Make Group Event
-                    </button>
-                    <div v-else class="group-event-actions">
-                      <button
-                        v-if="!optedOutEvents.has(activity.id)"
-                        class="opt-out-btn"
-                        @click="toggleOptOut(activity.id)"
-                      >
-                        Opt Out
-                      </button>
-                      <button
-                        v-else
-                        class="opt-in-btn"
-                        @click="toggleOptOut(activity.id)"
-                      >
-                        Opt Back In
-                      </button>
-                      <button
-                        class="unmake-group-event-btn"
-                        @click="unmakeGroupEvent(activity.id)"
-                      >
-                        Remove from Group Events
-                      </button>
-                    </div>
-                    <button
-                      class="delete-proposal-btn"
-                      @click="deleteProposal(activity.id)"
-                    >
-                      Delete Proposal
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
+  <div class="attractions-tab">
+    <div class="space-y-6">
+      <!-- Header Card -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">Attractions & Activities</h2>
+            <p class="card-description">Submit ideas and vote on what to do</p>
           </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Other Proposals Section (not recommended) -->
-    <div v-if="activeView === 'proposals' && otherProposals.length > 0" class="other-events-section">
-      
-      <div class="timeline-container">
-        <div class="timeline">
-          <div
-            v-for="(activity, index) in otherProposals"
-            :key="activity.id"
-            class="timeline-item"
-          >
-            <!-- Timeline Line -->
-            <div class="timeline-line" v-if="index < otherProposals.length - 1"></div>
-            
-            <!-- Timeline Dot -->
-            <div class="timeline-dot"></div>
-
-            <!-- Activity Card -->
-            <div class="activity-card" :class="{ 'opted-out-card': optedOutEvents.has(activity.id) }">
-              <div class="opted-out-badge" v-if="optedOutEvents.has(activity.id)">Opted Out</div>
-              <div class="activity-image-container" v-if="activity.image">
-                <img :src="activity.image" :alt="activity.title" class="activity-image" />
-              </div>
-              
-              <div class="activity-content">
-                <div class="activity-header">
-                  <div class="activity-title-section">
-                    <h3>{{ activity.title }}</h3>
-                    <div class="activity-meta">
-                      <span v-if="activity.location" class="meta-item">
-                        Location: {{ activity.location }}
-                      </span>
-                      <span v-if="activity.start" class="meta-item">
-                        Time: {{ formatTime(activity.start) }}
-                      </span>
-                      <span v-if="activity.duration" class="meta-item">
-                        Duration: {{ activity.duration }}
-                      </span>
-                      <span v-if="activity.pricePerPerson" class="meta-item">
-                        Cost: ${{ activity.pricePerPerson }}/person
-                      </span>
-                    </div>
-                  </div>
-                  <div class="activity-badge group">
-                    Proposal
-                  </div>
-                </div>
-
-                <p v-if="activity.description" class="activity-description">
-                  {{ activity.description }}
-                </p>
-
-                <!-- Conflict Warning -->
-                <div v-if="getConflicts(activity).length > 0" class="conflict-warning">
-                  <div class="conflict-header">
-                    <span class="conflict-icon">⚠</span>
-                    <span class="conflict-title">Time Conflict</span>
-                  </div>
-                  <div class="conflict-list">
-                    <div
-                      v-for="conflict in getConflicts(activity)"
-                      :key="conflict.id"
-                      class="conflict-item"
-                    >
-                      <span class="conflict-event-name">{{ conflict.title }}</span>
-                      <span class="conflict-event-type">({{ conflict.isSolo ? 'Solo Event' : 'Group Event' }})</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="activity-tags" v-if="activity.tags && activity.tags.length > 0">
-                  <span
-                    v-for="tag in activity.tags"
-                    :key="tag"
-                    class="tag"
-                  >
-                    {{ tag }}
-                  </span>
-                </div>
-
-                <div class="activity-stats">
-                  <div class="stat">
-                    <span class="stat-value">{{ activity.rating?.toFixed(1) || 'N/A' }}/10</span>
-                    <span class="stat-label">Rating</span>
-                  </div>
-                  <div class="stat">
-                    <span class="stat-value">{{ activity.attendees?.length || 0 }}</span>
-                    <span class="stat-label">Attending</span>
-                  </div>
-                  <div class="stat">
-                    <span class="stat-value">{{ activity.votes || 0 }}</span>
-                    <span class="stat-label">Votes</span>
-                  </div>
-                </div>
-
-                <div class="activity-actions">
-                  <div class="rating-section" v-if="!isSoloEvent(activity)">
-                    <label>Your Rating:</label>
-                    <div class="rating-bar">
-                      <button
-                        v-for="i in 10"
-                        :key="i"
-                        :class="['rating-btn', { active: userRatings[activity.id] === i }]"
-                        @click="rateActivity(activity.id, i)"
-                      >
-                        {{ i }}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div class="proposal-actions">
-                    <button
-                      v-if="!isGroupEvent(activity)"
-                      class="make-group-event-btn"
-                      @click="makeGroupEvent(activity.id)"
-                    >
-                      Make Group Event
-                    </button>
-                    <button
-                      class="delete-proposal-btn"
-                      @click="deleteProposal(activity.id)"
-                    >
-                      Delete Proposal
-                    </button>
-                  </div>
-                </div>
-              </div>
+          <div class="header-actions">
+            <div class="personal-view-toggle">
+              <label for="personal-view" class="toggle-label">Personal View</label>
+              <label class="switch">
+                <input
+                  id="personal-view"
+                  type="checkbox"
+                  v-model="showPersonalView"
+                />
+                <span class="slider"></span>
+              </label>
             </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Current Group Events Section -->
-    <div v-if="activeView === 'group' && currentGroupEvents.length > 0" class="current-group-events-section">
-
-      <div class="timeline-container">
-        <div class="timeline">
-          <div
-            v-for="(activity, index) in currentGroupEvents"
-            :key="activity.id"
-            class="timeline-item"
-          >
-            <!-- Timeline Line -->
-            <div class="timeline-line" v-if="index < currentGroupEvents.length - 1"></div>
-            
-            <!-- Timeline Dot -->
-            <div class="timeline-dot" :class="{ 'opted-out': optedOutEvents.has(activity.id) }"></div>
-
-            <!-- Activity Card -->
-            <div class="activity-card" :class="{ 'opted-out-card': optedOutEvents.has(activity.id) }">
-              <div class="opted-out-badge" v-if="optedOutEvents.has(activity.id)">Opted Out</div>
-              <div class="activity-image-container" v-if="activity.image">
-                <img :src="activity.image" :alt="activity.title" class="activity-image" />
-              </div>
-              
-              <div class="activity-content">
-                <div class="activity-header">
-                  <div class="activity-title-section">
-                    <h3>{{ activity.title }}</h3>
-                    <div class="activity-meta">
-                      <span v-if="activity.location" class="meta-item">
-                        Location: {{ activity.location }}
-                      </span>
-                      <span v-if="activity.start" class="meta-item">
-                        Time: {{ formatTime(activity.start) }}
-                      </span>
-                      <span v-if="activity.duration" class="meta-item">
-                        Duration: {{ activity.duration }}
-                      </span>
-                      <span v-if="activity.pricePerPerson" class="meta-item">
-                        Cost: ${{ activity.pricePerPerson }}/person
-                      </span>
-                    </div>
-                  </div>
-                  <div class="activity-badge group">
-                    Group Event
-                  </div>
-                </div>
-
-                <p v-if="activity.description" class="activity-description">
-                  {{ activity.description }}
-                </p>
-
-                <div class="activity-tags" v-if="activity.tags && activity.tags.length > 0">
-                  <span
-                    v-for="tag in activity.tags"
-                    :key="tag"
-                    class="tag"
-                  >
-                    {{ tag }}
-                  </span>
-                </div>
-
-                <div class="activity-actions">
-                  <div class="proposal-actions">
-                    <div class="group-event-actions">
-                      <button
-                        class="see-attendees-btn"
-                        @click="openAttendeesDialog(activity.id)"
-                      >
-                        See Attendees ({{ activity.attendees?.length || 0 }})
-                      </button>
-                      <button
-                        v-if="!optedOutEvents.has(activity.id)"
-                        class="opt-out-btn"
-                        @click="toggleOptOut(activity.id)"
-                      >
-                        Opt Out
-                      </button>
-                      <button
-                        v-else
-                        class="opt-in-btn"
-                        @click="toggleOptOut(activity.id)"
-                      >
-                        Opt Back In
-                      </button>
-                      <button
-                        class="unmake-group-event-btn"
-                        @click="confirmUnmakeGroupEvent(activity.id)"
-                      >
-                        Remove from Group Events
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- My Events Timeline View -->
-    <div class="timeline-container" v-if="activeView === 'mine' && displayedActivities.length > 0">
-      <div class="timeline">
-        <div
-          v-for="(activity, index) in displayedActivities"
-          :key="activity.id"
-          class="timeline-item"
-        >
-          <!-- Timeline Line -->
-          <div class="timeline-line" v-if="index < displayedActivities.length - 1"></div>
-          
-          <!-- Timeline Dot -->
-          <div class="timeline-dot"></div>
-
-          <!-- Activity Card -->
-          <div class="activity-card">
-            <!-- Remove Button for My Events -->
-            <button 
-              v-if="activeView === 'mine'"
-              class="remove-btn"
-              @click="removeFromMyEvents(activity.id)"
-              title="Remove from my events"
-            >
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <button class="btn-add-attraction" @click="showAddDialog = true">
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
               </svg>
+              Add Attraction
             </button>
-            
-            <div class="activity-image-container" v-if="activity.image">
-              <img :src="activity.image" :alt="activity.title" class="activity-image" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Empty State -->
+      <div v-if="filteredAttractions.length === 0" class="card">
+        <div class="empty-state">
+          <svg v-if="attractions.length === 0" class="empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+          </svg>
+          <svg v-else class="empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <p v-if="attractions.length === 0">No attractions yet. Be the first to suggest one!</p>
+          <p v-else>You haven't opted in to any activities yet</p>
+          <p v-if="showPersonalView && attractions.length > 0" class="empty-hint">
+            Toggle the "Personal View" switch off to see all activities
+          </p>
+        </div>
+      </div>
+
+      <!-- Attractions List -->
+      <div v-else class="attractions-list">
+        <div
+          v-for="attraction in filteredAttractions"
+          :key="attraction.id"
+          class="attraction-card"
+          :class="{ 'opted-in': isOptedIn(attraction.id) }"
+        >
+          <div class="card-gradient"></div>
+          <div class="card-header-inner">
+            <div class="card-title-section">
+              <div class="title-row">
+                <h3 class="attraction-title">{{ attraction.name }}</h3>
+                <div class="badges">
+                  <span v-if="attraction.isHiddenGem" class="badge hidden-gem">
+                    <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                    </svg>
+                    Hidden Gem
+                  </span>
+                  <span v-if="isOptedIn(attraction.id)" class="badge opted-in-badge">
+                    <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    You're In!
+                  </span>
+                </div>
+              </div>
+              <p class="attraction-description">{{ attraction.description }}</p>
             </div>
-            
-            <div class="activity-content">
-              <div class="activity-header">
-                <div class="activity-title-section">
-                  <h3>{{ activity.title }}</h3>
-                  <div class="activity-meta">
-                    <span v-if="activity.location" class="meta-item">
-                      Location: {{ activity.location }}
-                    </span>
-                    <span v-if="activity.start" class="meta-item">
-                      Time: {{ formatTime(activity.start) }}
-                    </span>
-                    <span v-if="activity.duration" class="meta-item">
-                      Duration: {{ activity.duration }}
-                    </span>
-                    <span v-if="activity.pricePerPerson" class="meta-item">
-                      Cost: ${{ activity.pricePerPerson }}/person
-                    </span>
-                  </div>
-                </div>
-                <div class="activity-badge" :class="isSoloEvent(activity) ? 'solo' : 'group'">
-                  {{ isSoloEvent(activity) ? 'Solo Event' : 'Group Event' }}
-                </div>
+            <div class="score-section">
+              <div class="score-display">
+                <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                </svg>
+                <span class="score-value">{{ getAverageScore(attraction.id).toFixed(1) }}</span>
               </div>
-
-              <p v-if="activity.description" class="activity-description">
-                {{ activity.description }}
-              </p>
-
-              <!-- Conflict Warning for My Events -->
-              <div v-if="getMyEventsConflicts(activity).length > 0" class="conflict-warning">
-                <div class="conflict-header">
-                  <span class="conflict-icon">⚠</span>
-                  <span class="conflict-title">Time Conflict</span>
-                </div>
-                <div class="conflict-list">
-                  <div
-                    v-for="conflict in getMyEventsConflicts(activity)"
-                    :key="conflict.id"
-                    class="conflict-item"
-                  >
-                    <span class="conflict-event-name">{{ conflict.title }}</span>
-                    <span class="conflict-event-type">({{ conflict.isSolo ? 'Solo Event' : 'Group Event' }})</span>
-                  </div>
-                </div>
+              <p class="votes-count">{{ getVoteCount(attraction.id) }} votes</p>
+              <div v-if="getOptedInCount(attraction.id) > 0" class="opted-in-count">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+                <span>{{ getOptedInCount(attraction.id) }} opted in</span>
               </div>
+            </div>
+          </div>
+          <div class="card-content">
+            <!-- Date/Time Info -->
+            <div v-if="attraction.date || attraction.time" class="datetime-info">
+              <div v-if="attraction.date" class="datetime-item">
+                <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span>{{ formatDate(attraction.date) }}</span>
+              </div>
+              <div v-if="attraction.time || attraction.endTime" class="datetime-item">
+                <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>{{ formatTime(attraction.time, attraction.endTime) }}</span>
+              </div>
+            </div>
 
-              <div class="activity-tags" v-if="activity.tags && activity.tags.length > 0">
-                <span
-                  v-for="tag in activity.tags"
-                  :key="tag"
-                  class="tag"
-                >
-                  {{ tag }}
+            <!-- Suggested By & Cost/Duration -->
+            <div class="attraction-meta">
+              <div class="suggested-by">
+                <div class="avatar-small">
+                  <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                </div>
+                <span>Suggested by {{ getSubmitterName(attraction.addedBy) }}</span>
+              </div>
+              <div class="cost-duration">
+                <span v-if="attraction.estimatedCost > 0" class="badge cost-badge">
+                  ${{ attraction.estimatedCost.toFixed(2) }} per person
+                </span>
+                <span v-if="attraction.estimatedDuration" class="badge duration-badge">
+                  {{ attraction.estimatedDuration }}
                 </span>
               </div>
+            </div>
 
+            <!-- Rating Slider -->
+            <div class="rating-section">
+              <div class="rating-header">
+                <label class="rating-label">Your Rating</label>
+                <div class="rating-display">
+                  <svg class="w-4 h-4 text-yellow-500 fill-yellow-500" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                  </svg>
+                  <span>{{ getUserRating(attraction.id) }}/10</span>
+                </div>
+              </div>
+              <input
+                type="range"
+                :min="0"
+                :max="10"
+                :step="1"
+                :value="getUserRating(attraction.id)"
+                @input="handleRatingChange(attraction.id, parseInt(($event.target as HTMLInputElement).value))"
+                class="rating-slider"
+              />
+            </div>
+
+            <!-- Opt-in Switch -->
+            <div class="opt-in-section">
+              <label :for="`opt-in-${attraction.id}`" class="opt-in-label">
+                {{ isOptedIn(attraction.id) ? "I'm attending this activity" : "Opt in to this activity" }}
+              </label>
+              <label class="switch">
+                <input
+                  :id="`opt-in-${attraction.id}`"
+                  type="checkbox"
+                  :checked="isOptedIn(attraction.id)"
+                  @change="handleToggleOptIn(attraction.id)"
+                />
+                <span class="slider"></span>
+              </label>
             </div>
           </div>
         </div>
+
+        <!-- Save Rankings Button -->
+        <button v-if="!showPersonalView && hasUnsavedRatings" class="btn-save-rankings" @click="handleSaveRankings">
+          Save Rankings
+        </button>
       </div>
     </div>
 
-    <!-- Empty State -->
-    <div v-if="(activeView === 'mine' && displayedActivities.length === 0) || (activeView === 'proposals' && recommendedEvents.length === 0 && otherProposals.length === 0) || (activeView === 'group' && currentGroupEvents.length === 0)" class="empty-state">
-      <div class="empty-icon"></div>
-      <p class="empty-title">
-        <span v-if="activeView === 'mine'">No personal events yet</span>
-        <span v-else-if="activeView === 'proposals'">No proposals yet</span>
-        <span v-else>No group events yet</span>
-      </p>
-      <p class="empty-subtitle">
-        <span v-if="activeView === 'mine'">Add activities you're planning to attend</span>
-        <span v-else-if="activeView === 'proposals'">Activities that can be made into group events will appear here</span>
-        <span v-else>Group events that have been committed to will appear here</span>
-      </p>
-    </div>
-
-    <!-- Confirmation Dialog -->
-    <div v-if="showConfirmDialog" class="dialog-overlay" @click="cancelConfirm">
-      <div class="confirm-dialog" @click.stop>
-        <div class="confirm-icon"></div>
-        <h3 class="confirm-title">Confirm Action</h3>
-        <p class="confirm-message">{{ confirmDialogConfig?.message }}</p>
-        <div class="confirm-actions">
-          <button class="btn-cancel" @click="cancelConfirm">
-            {{ confirmDialogConfig?.cancelText || 'Cancel' }}
-          </button>
-          <button class="btn-confirm" @click="confirmDialogConfig?.onConfirm">
-            {{ confirmDialogConfig?.confirmText || 'Confirm' }}
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Attendees Dialog -->
-    <div v-if="showAttendeesDialog" class="dialog-overlay" @click="showAttendeesDialog = false">
+    <!-- Add Attraction Dialog -->
+    <div v-if="showAddDialog" class="dialog-overlay" @click="showAddDialog = false">
       <div class="dialog" @click.stop>
-        <h2>Attendees</h2>
-        <div v-if="selectedActivityForAttendees">
-          <p class="attendees-count">
-            {{ selectedActivityForAttendees.attendees?.length || 0 }} 
-            {{ (selectedActivityForAttendees.attendees?.length || 0) === 1 ? 'person' : 'people' }} attending
-          </p>
-          <div class="attendees-list">
-            <div
-              v-for="attendeeId in selectedActivityForAttendees.attendees"
-              :key="attendeeId"
-              class="attendee-item"
-            >
-              <span class="attendee-name">
-                {{ getTravelerName(attendeeId) }}
-              </span>
-            </div>
-          </div>
+        <div class="dialog-header">
+          <h2 class="dialog-title">Add Attraction</h2>
+          <p class="dialog-description">Suggest a place or activity for the group</p>
         </div>
-        <div class="form-actions">
-          <button type="button" class="btn-secondary" @click="showAttendeesDialog = false">
-            Close
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Add Activity Dialog -->
-    <div v-if="showAddActivityDialog" class="dialog-overlay" @click="showAddActivityDialog = false">
-      <div class="dialog" @click.stop>
-        <h2>Add Activity</h2>
-        <form @submit.prevent="addActivity">
+        <form @submit.prevent="handleAddAttraction" class="dialog-form">
           <div class="form-group">
-            <label>Title *</label>
-            <input v-model="newActivity.title" type="text" required placeholder="e.g., Visit Art Museum" />
+            <label for="name">Name</label>
+            <input
+              id="name"
+              v-model="newAttraction.name"
+              type="text"
+              required
+              placeholder="e.g., South Beach"
+            />
           </div>
           <div class="form-group">
-            <label>Description</label>
+            <label for="description">Description</label>
             <textarea
-              v-model="newActivity.description"
+              id="description"
+              v-model="newAttraction.description"
+              placeholder="Why should we go here?"
               rows="3"
-              placeholder="Add a description for this activity..."
             ></textarea>
           </div>
           <div class="form-group">
-            <label>Image URL (optional)</label>
-            <input v-model="newActivity.image" type="url" placeholder="https://example.com/image.jpg" />
-          </div>
-          <div class="form-group">
-            <label>Location</label>
-            <input v-model="newActivity.location" type="text" placeholder="e.g., Downtown Miami" />
+            <label for="cost">Estimated Cost per Person ($)</label>
+            <input
+              id="cost"
+              v-model.number="newAttraction.estimatedCost"
+              type="number"
+              step="0.01"
+              placeholder="0.00"
+            />
           </div>
           <div class="form-row">
             <div class="form-group">
-              <label>Start Date & Time *</label>
-              <input v-model="newActivity.start" type="datetime-local" required />
+              <label for="date">Date</label>
+              <input
+                id="date"
+                v-model="newAttraction.date"
+                type="date"
+              />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="time">Start Time</label>
+              <input
+                id="time"
+                v-model="newAttraction.time"
+                type="time"
+              />
             </div>
             <div class="form-group">
-              <label>End Date & Time *</label>
-              <input v-model="newActivity.end" type="datetime-local" required />
+              <label for="endTime">End Time</label>
+              <input
+                id="endTime"
+                v-model="newAttraction.endTime"
+                type="time"
+              />
             </div>
           </div>
-          <div class="form-group">
-            <label>Cost per Person</label>
-            <input v-model.number="newActivity.cost" type="number" step="0.01" placeholder="0.00" />
-          </div>
-          <div class="form-group">
-            <label>Duration (optional)</label>
-            <input v-model="newActivity.duration" type="text" placeholder="e.g., 2 hours" />
-          </div>
-          <div class="form-group">
-            <label>Event Type</label>
-            <div class="event-type-toggle">
-              <label class="event-type-option">
-                <input
-                  type="radio"
-                  :value="true"
-                  v-model="newActivity.isPersonal"
-                />
-                <span class="option-content">
-                  <div>
-                    <div class="option-title">Personal Event</div>
-                    <div class="option-description">Just for you</div>
-                  </div>
-                </span>
-              </label>
-              <label class="event-type-option">
-                <input
-                  type="radio"
-                  :value="false"
-                  v-model="newActivity.isPersonal"
-                />
-                <span class="option-content">
-                  <div>
-                    <div class="option-title">Group Event</div>
-                    <div class="option-description">For everyone in the trip</div>
-                  </div>
-                </span>
-              </label>
-            </div>
-          </div>
-          <div class="form-actions">
-            <button type="button" class="btn-secondary" @click="showAddActivityDialog = false">
-              Cancel
-            </button>
-            <button type="submit" class="btn-primary">Add Activity</button>
-          </div>
+          <button type="submit" class="btn-submit">Add Attraction</button>
         </form>
       </div>
     </div>
@@ -667,8 +250,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useAuth } from '../../stores/useAuth';
+import { activityApi, ratingApi } from '../../services/api';
 import type { ActivityWithDetails, Traveler } from '../../types/trip';
 
 const props = defineProps<{
@@ -684,1195 +268,731 @@ const emit = defineEmits<{
   (e: 'delete-activity', activityId: string): void;
 }>();
 
-const { currentUser } = useAuth();
-const currentUserId = computed(() => currentUser.value?.id || '1');
+const { currentUser, getSession } = useAuth();
+const currentUserId = computed(() => currentUser.value?.id || '');
+
+// State
+const showPersonalView = ref(false);
+const showAddDialog = ref(false);
 const userRatings = ref<Record<string, number>>({});
-const showAddActivityDialog = ref(false);
-const activeView = ref<'mine' | 'proposals' | 'group'>('mine');
-const showConfirmDialog = ref(false);
-const showAttendeesDialog = ref(false);
-const selectedActivityForAttendees = ref<ActivityWithDetails | null>(null);
-const confirmDialogConfig = ref<{
-  message: string;
-  confirmText: string;
-  cancelText: string;
-  onConfirm: () => void;
-} | null>(null);
-const newActivity = ref({
-  title: '',
-  description: '',
-  image: '',
-  location: '',
-  start: '',
-  end: '',
-  cost: 0,
-  duration: '',
-  isPersonal: true, // true = personal/solo event, false = group event
+const ratings = ref<Record<string, { user: string; ratingNum: number; rating: string }[]>>({});
+const optedInAttractions = ref<Set<string>>(new Set());
+const unsavedRatings = ref<Set<string>>(new Set());
+
+// Map activities to attractions format
+const attractions = computed(() => {
+  return props.activities.map(activity => ({
+    id: activity.id,
+    name: activity.title,
+    description: activity.description || '',
+    estimatedCost: activity.cost || 0,
+    estimatedDuration: activity.duration || '',
+    date: activity.start ? new Date(activity.start).toISOString().split('T')[0] : '',
+    time: activity.start ? new Date(activity.start).toTimeString().slice(0, 5) : '',
+    endTime: activity.end ? new Date(activity.end).toTimeString().slice(0, 5) : '',
+    addedBy: activity.attendees?.[0] || currentUserId.value,
+    isHiddenGem: false, // Could be determined by rating/attendance ratio
+  }));
 });
 
-// Track which events user has explicitly opted out of
-const optedOutEvents = ref<Set<string>>(new Set());
-
-// Helper: Check if activity is a solo event (personal event - only creator attends)
-function isSoloEvent(activity: ActivityWithDetails): boolean {
-  // Solo events are manually created activities where ONLY the creator is in attendees
-  return activity.source === 'manual' && 
-         activity.attendees?.length === 1 &&
-         activity.attendees.includes(currentUserId.value);
-}
-
-// Helper: Check if activity is a group event (has multiple attendees or is from discover)
-function isGroupEvent(activity: ActivityWithDetails): boolean {
-  // Group events have multiple attendees or are from discover
-  return (activity.attendees?.length || 0) > 1 || activity.source === 'discover';
-}
-
-// My Events: Shows solo events you created + group events you haven't opted out of
-const personalEvents = computed(() => {
-  return props.activities.filter(activity => {
-    const isOptedOut = optedOutEvents.value.has(activity.id);
-    if (isOptedOut) return false;
-    
-    // Solo events: you're always attending (you created them)
-    if (isSoloEvent(activity)) {
-      return true;
-    }
-    
-    // Group events: default to attending unless opted out
-    return true;
-  }).sort((a, b) => {
-    if (!a.start || !b.start) return 0;
-    return new Date(a.start).getTime() - new Date(b.start).getTime();
-  });
+const filteredAttractions = computed(() => {
+  if (showPersonalView.value) {
+    return attractions.value.filter(attr => optedInAttractions.value.has(attr.id));
+  }
+  return attractions.value;
 });
 
-// Group Events: All activities that are not solo events (or solo events you opted out of)
-const groupEvents = computed(() => {
-  return props.activities.filter(activity => {
-    // If it's a solo event and you haven't opted out, don't show in group events
-    if (isSoloEvent(activity) && !optedOutEvents.value.has(activity.id)) {
-      return false;
-    }
-    // Show all other activities (discover events, or opted-out solo events)
-    return true;
-  });
-});
+// Load ratings for all activities
+async function loadRatings() {
+  const session = getSession();
+  if (!session) return;
 
-// Calculate recommendation scores based on ranking algorithm
-const activityScores = computed(() => {
-  const scores: Record<string, number> = {};
-  
-  // Calculate how many activities each user is attending (for fairness)
-  // Count activities they haven't opted out of
-  const userActivityCounts: Record<string, number> = {};
-  props.travelers.forEach(traveler => {
-    userActivityCounts[traveler.id] = props.activities.filter(a => {
-      if (optedOutEvents.value.has(a.id)) return false;
-      if (isSoloEvent(a) && a.attendees?.includes(traveler.id)) return true;
-      if (!isSoloEvent(a)) return true; // Group events default to attending
-      return false;
-    }).length;
-  });
-  
-  const maxUserActivities = Math.max(...Object.values(userActivityCounts), 1);
-  
-  // Only calculate scores for group events (not solo events)
-  groupEvents.value.filter(a => !isSoloEvent(a)).forEach(activity => {
-    let score = 0;
-    
-    // Base score: Average rating (0-10 scale, normalized to 0-1)
-    const avgRating = activity.rating || 0;
-    score += (avgRating / 10) * 0.4; // 40% weight
-    
-    // Vote count boost (more votes = more consensus)
-    const voteCount = activity.votes || 0;
-    const groupEventsOnly = groupEvents.value.filter(a => !isSoloEvent(a));
-    const maxVotes = Math.max(...groupEventsOnly.map(a => a.votes || 0), 1);
-    score += (voteCount / maxVotes) * 0.2; // 20% weight
-    
-    // Hidden gem boost: High rating but low attendance
-    const attendanceCount = activity.attendees?.length || 0;
-    const maxAttendance = Math.max(...groupEventsOnly.map(a => a.attendees?.length || 0), 1);
-    const isHiddenGem = activity.tags?.includes('Hidden Gem') || false;
-    if (isHiddenGem && avgRating >= 7 && attendanceCount < maxAttendance * 0.5) {
-      score += 0.2; // 20% boost for hidden gems
-    }
-    
-    // Fairness boost: Activities rated highly by underrepresented users
-    // (users who have fewer activities they're attending)
-    const underrepresentedBoost = props.travelers
-      .filter(t => userActivityCounts[t.id] < maxUserActivities * 0.7)
-      .length / props.travelers.length;
-    score += underrepresentedBoost * 0.2; // 20% weight
-    
-    scores[activity.id] = score;
-  });
-  
-  return scores;
-});
-
-// Recommended events: Top scoring proposals (not yet group events, excluding solo events)
-const recommendedEvents = computed(() => {
-  return [...groupEvents.value]
-    .filter(activity => 
-      !isSoloEvent(activity) &&
-      !isGroupEvent(activity) && // Only show proposals (not yet group events)
-      activityScores.value[activity.id] >= 0.5
-    ) // Threshold for recommendation
-    .sort((a, b) => {
-      // Sort opted-out events to the bottom
-      const aOptedOut = optedOutEvents.value.has(a.id);
-      const bOptedOut = optedOutEvents.value.has(b.id);
-      if (aOptedOut !== bOptedOut) {
-        return aOptedOut ? 1 : -1;
+  try {
+    for (const activity of props.activities) {
+      try {
+        const response = await ratingApi.getRatingsByItem({ item: activity.id });
+        ratings.value[activity.id] = response.results || [];
+        
+        // Find current user's rating
+        const userRating = response.results.find(r => r.user === currentUserId.value);
+        if (userRating) {
+          userRatings.value[activity.id] = userRating.ratingNum;
+        }
+      } catch (e) {
+        console.warn('Failed to load ratings for activity:', activity.id, e);
       }
-      
-      const scoreA = activityScores.value[a.id] || 0;
-      const scoreB = activityScores.value[b.id] || 0;
-      if (Math.abs(scoreB - scoreA) > 0.01) {
-        return scoreB - scoreA; // Sort by score descending
-      }
-      // If scores are similar, sort by date
-      if (!a.start || !b.start) return 0;
-      return new Date(a.start).getTime() - new Date(b.start).getTime();
-    });
-});
-
-// Other proposals: Not recommended (proposals that don't meet recommendation threshold)
-const otherProposals = computed(() => {
-  const recommendedIds = new Set(recommendedEvents.value.map(a => a.id));
-  return groupEvents.value
-    .filter(activity => 
-      !isSoloEvent(activity) &&
-      !isGroupEvent(activity) && // Only show proposals (not group events)
-      !recommendedIds.has(activity.id)
-    )
-    .sort((a, b) => {
-      // Sort opted-out events to the bottom
-      const aOptedOut = optedOutEvents.value.has(a.id);
-      const bOptedOut = optedOutEvents.value.has(b.id);
-      if (aOptedOut !== bOptedOut) {
-        return aOptedOut ? 1 : -1;
-      }
-      
-      if (!a.start || !b.start) return 0;
-      return new Date(a.start).getTime() - new Date(b.start).getTime();
-    });
-});
-
-// Current group events: Actual group events that have been committed to
-const currentGroupEvents = computed(() => {
-  return groupEvents.value
-    .filter(activity => 
-      !isSoloEvent(activity) &&
-      isGroupEvent(activity) // Only show actual group events
-    )
-    .sort((a, b) => {
-      // Sort opted-out events to the bottom
-      const aOptedOut = optedOutEvents.value.has(a.id);
-      const bOptedOut = optedOutEvents.value.has(b.id);
-      if (aOptedOut !== bOptedOut) {
-        return aOptedOut ? 1 : -1;
-      }
-      
-      if (!a.start || !b.start) return 0;
-      return new Date(a.start).getTime() - new Date(b.start).getTime();
-    });
-});
-
-const displayedActivities = computed(() => {
-  return activeView.value === 'mine' ? personalEvents.value : [];
-});
-
-// Get all committed events (solo events and current group events)
-const committedEvents = computed(() => {
-  return props.activities.filter(activity => {
-    // Solo events are always committed
-    if (isSoloEvent(activity)) {
-      return true;
     }
-    // Current group events are committed
-    if (isGroupEvent(activity)) {
-      return true;
-    }
-    return false;
-  });
-});
-
-// Check if two activities have overlapping times
-function hasTimeConflict(activity1: ActivityWithDetails, activity2: ActivityWithDetails): boolean {
-  if (!activity1.start || !activity1.end || !activity2.start || !activity2.end) {
-    return false;
-  }
-  
-  const start1 = new Date(activity1.start).getTime();
-  const end1 = new Date(activity1.end).getTime();
-  const start2 = new Date(activity2.start).getTime();
-  const end2 = new Date(activity2.end).getTime();
-  
-  // Check for overlap: activities conflict if their time ranges overlap
-  return (start1 < end2 && end1 > start2);
-}
-
-// Get conflicts for a proposal activity
-function getConflicts(proposal: ActivityWithDetails): Array<{ id: string; title: string; isSolo: boolean }> {
-  const conflicts: Array<{ id: string; title: string; isSolo: boolean }> = [];
-  
-  committedEvents.value.forEach(committedEvent => {
-    // Don't check against itself
-    if (committedEvent.id === proposal.id) {
-      return;
-    }
-    
-    if (hasTimeConflict(proposal, committedEvent)) {
-      conflicts.push({
-        id: committedEvent.id,
-        title: committedEvent.title,
-        isSolo: isSoloEvent(committedEvent),
-      });
-    }
-  });
-  
-  return conflicts;
-}
-
-// Get conflicts for an activity in "My Events" - checks against other events in "My Events"
-function getMyEventsConflicts(activity: ActivityWithDetails): Array<{ id: string; title: string; isSolo: boolean }> {
-  const conflicts: Array<{ id: string; title: string; isSolo: boolean }> = [];
-  
-  displayedActivities.value.forEach(otherActivity => {
-    // Don't check against itself
-    if (otherActivity.id === activity.id) {
-      return;
-    }
-    
-    if (hasTimeConflict(activity, otherActivity)) {
-      conflicts.push({
-        id: otherActivity.id,
-        title: otherActivity.title,
-        isSolo: isSoloEvent(otherActivity),
-      });
-    }
-  });
-  
-  return conflicts;
-}
-
-function rateActivity(activityId: string, rating: number) {
-  userRatings.value[activityId] = rating;
-  emit('rate', activityId, rating);
-}
-
-function makeGroupEvent(activityId: string) {
-  const activity = props.activities.find(a => a.id === activityId);
-  if (!activity) return;
-  
-  // Add all travelers to attendees to make it a group event
-  const allTravelerIds = props.travelers.map(t => t.id);
-  
-  // Ensure all travelers are in attendees
-  allTravelerIds.forEach(travelerId => {
-    if (!activity.attendees?.includes(travelerId)) {
-      emit('toggle-attendance', activityId, travelerId);
-    }
-  });
-  
-  // Remove from opted out if it was there
-  optedOutEvents.value.delete(activityId);
-}
-
-function confirmUnmakeGroupEvent(activityId: string) {
-  showConfirmDialog.value = true;
-  confirmDialogConfig.value = {
-    message: 'This will remove this event from everyone\'s calendar and convert it back to a proposal. Are you sure?',
-    confirmText: 'Remove from Group Events',
-    cancelText: 'Cancel',
-    onConfirm: () => {
-      unmakeGroupEvent(activityId);
-      showConfirmDialog.value = false;
-      confirmDialogConfig.value = null;
-    },
-  };
-}
-
-function unmakeGroupEvent(activityId: string) {
-  const activity = props.activities.find(a => a.id === activityId);
-  if (!activity) return;
-  
-  // Remove all travelers from attendees to convert back to proposal
-  const allTravelerIds = props.travelers.map(t => t.id);
-  
-  // Remove all travelers from attendees
-  allTravelerIds.forEach(travelerId => {
-    if (activity.attendees?.includes(travelerId)) {
-      emit('toggle-attendance', activityId, travelerId);
-    }
-  });
-  
-  // Remove from opted out
-  optedOutEvents.value.delete(activityId);
-}
-
-function deleteProposal(activityId: string) {
-  showConfirmDialog.value = true;
-  confirmDialogConfig.value = {
-    message: 'Are you sure you want to delete this proposal? This action cannot be undone.',
-    confirmText: 'Delete',
-    cancelText: 'Cancel',
-    onConfirm: () => {
-      emit('delete-activity', activityId);
-      optedOutEvents.value.delete(activityId);
-      showConfirmDialog.value = false;
-      confirmDialogConfig.value = null;
-    },
-  };
-}
-
-function toggleOptOut(activityId: string) {
-  const activity = props.activities.find(a => a.id === activityId);
-  
-  if (optedOutEvents.value.has(activityId)) {
-    // User is opting back in
-    optedOutEvents.value.delete(activityId);
-    // Ensure user is in attendees list
-    if (activity && !activity.attendees?.includes(currentUserId.value)) {
-      emit('toggle-attendance', activityId, currentUserId.value);
-    }
-  } else {
-    // User is opting out
-    optedOutEvents.value.add(activityId);
-    // Remove user from attendees list
-    if (activity?.attendees?.includes(currentUserId.value)) {
-      emit('toggle-attendance', activityId, currentUserId.value);
-    }
+  } catch (error) {
+    console.error('Error loading ratings:', error);
   }
 }
 
-function toggleAttendance(activityId: string) {
-  // This is used for the X button in My Events
-  emit('toggle-attendance', activityId, currentUserId.value);
-  optedOutEvents.value.add(activityId);
-}
-
-function removeFromMyEvents(activityId: string) {
-  const activity = props.activities.find(a => a.id === activityId);
-  if (!activity) return;
-  
-  const isSolo = isSoloEvent(activity);
-  
-  if (isSolo) {
-    // Solo event: ask to delete
-    showConfirmDialog.value = true;
-    confirmDialogConfig.value = {
-      message: 'Are you sure you want to delete this event?',
-      confirmText: 'Delete',
-      cancelText: 'Cancel',
-      onConfirm: () => {
-        emit('delete-activity', activityId);
-        showConfirmDialog.value = false;
-        confirmDialogConfig.value = null;
-      },
-    };
-  } else {
-    // Group event: ask to opt out
-    showConfirmDialog.value = true;
-    confirmDialogConfig.value = {
-      message: 'Are you sure you want to opt out?',
-      confirmText: 'Opt Out',
-      cancelText: 'Cancel',
-      onConfirm: () => {
-        emit('toggle-attendance', activityId, currentUserId.value);
-        optedOutEvents.value.add(activityId);
-        showConfirmDialog.value = false;
-        confirmDialogConfig.value = null;
-      },
-    };
-  }
-}
-
-function cancelConfirm() {
-  showConfirmDialog.value = false;
-  confirmDialogConfig.value = null;
-}
-
-function isAttending(activityId: string): boolean {
-  const activity = props.activities.find(a => a.id === activityId);
-  if (!activity) return false;
-  
-  // If user has explicitly opted out, they're not attending
-  if (optedOutEvents.value.has(activityId)) {
-    return false;
-  }
-  
-  // Solo events: you're always attending (you created them)
-  if (isSoloEvent(activity)) {
-    return true;
-  }
-  
-  // Group events: default to attending (unless opted out)
-  return true;
-}
-
-function formatTime(timeString: string): string {
-  const date = new Date(timeString);
-  return date.toLocaleString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
+// Initialize opted-in attractions from activities
+function initializeOptedIn() {
+  props.activities.forEach(activity => {
+    if (activity.attendees?.includes(currentUserId.value)) {
+      optedInAttractions.value.add(activity.id);
+    }
   });
 }
 
-function getTravelerName(travelerId: string): string {
-  const traveler = props.travelers.find(t => t.id === travelerId);
+onMounted(() => {
+  loadRatings();
+  initializeOptedIn();
+});
+
+watch(() => props.activities, () => {
+  loadRatings();
+  initializeOptedIn();
+}, { deep: true });
+
+// Helper functions
+function getAverageScore(activityId: string): number {
+  const activityRatings = ratings.value[activityId] || [];
+  if (activityRatings.length === 0) return 0;
+  const sum = activityRatings.reduce((acc, r) => acc + r.ratingNum, 0);
+  return sum / activityRatings.length;
+}
+
+function getVoteCount(activityId: string): number {
+  return (ratings.value[activityId] || []).length;
+}
+
+function getOptedInCount(activityId: string): number {
+  const activity = props.activities.find(a => a.id === activityId);
+  return activity?.attendees?.length || 0;
+}
+
+function getUserRating(activityId: string): number {
+  return userRatings.value[activityId] || 5;
+}
+
+function isOptedIn(activityId: string): boolean {
+  return optedInAttractions.value.has(activityId);
+}
+
+function getSubmitterName(userId: string): string {
+  const traveler = props.travelers.find(t => t.id === userId);
   return traveler?.name || 'Unknown';
 }
 
-function openAttendeesDialog(activityId: string) {
-  const activity = props.activities.find(a => a.id === activityId);
-  if (activity) {
-    selectedActivityForAttendees.value = activity;
-    showAttendeesDialog.value = true;
+function formatDate(dateString: string): string {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', { 
+    month: 'short', 
+    day: 'numeric',
+    year: 'numeric'
+  });
+}
+
+function formatTime(startTime?: string, endTime?: string): string {
+  if (startTime && endTime) {
+    return `${startTime} - ${endTime}`;
+  }
+  return startTime || endTime || '';
+}
+
+// Handlers
+async function handleRatingChange(activityId: string, rating: number) {
+  userRatings.value[activityId] = rating;
+  unsavedRatings.value.add(activityId);
+}
+
+async function handleSaveRankings() {
+  const session = getSession();
+  if (!session) return;
+
+  try {
+    for (const activityId of unsavedRatings.value) {
+      const rating = userRatings.value[activityId];
+      if (!rating) continue;
+
+      try {
+        // Try to get existing rating first
+        const existingRatings = ratings.value[activityId] || [];
+        const existingRating = existingRatings.find(r => r.user === currentUserId.value);
+
+        if (existingRating) {
+          // Update existing rating
+          await ratingApi.changeRating({
+            rating: existingRating.rating,
+            ratingNum: rating,
+          });
+        } else {
+          // Create new rating
+          await ratingApi.addRating({
+            item: activityId,
+            ratingNum: rating,
+          });
+        }
+
+        // Reload ratings for this activity
+        const response = await ratingApi.getRatingsByItem({ item: activityId });
+        ratings.value[activityId] = response.results || [];
+      } catch (error) {
+        console.error(`Failed to save rating for ${activityId}:`, error);
+      }
+    }
+
+    unsavedRatings.value.clear();
+    emit('rate', '', 0); // Trigger parent refresh if needed
+  } catch (error) {
+    console.error('Error saving rankings:', error);
   }
 }
 
-function addActivity() {
-  // For personal events: only current user attends
-  // For group events: all travelers attend by default (they can opt out later)
-  const attendees = newActivity.value.isPersonal
-    ? [currentUserId.value] // Personal: just you
-    : props.travelers.map(t => t.id); // Group: everyone by default
+const hasUnsavedRatings = computed(() => unsavedRatings.value.size > 0);
 
-  const activity: ActivityWithDetails = {
-    id: Date.now().toString(),
-    title: newActivity.value.title,
-    event: props.tripId,
-    start: newActivity.value.start || new Date().toISOString(),
-    end: newActivity.value.end || new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
-    cost: newActivity.value.cost || 0,
-    location: newActivity.value.location,
-    duration: newActivity.value.duration,
-    pricePerPerson: newActivity.value.cost,
-    description: newActivity.value.description,
-    image: newActivity.value.image || undefined,
-    source: 'manual',
-    rating: 0,
-    votes: 0,
-    attendees: attendees,
-  };
-
-  emit('add-activity', activity);
-  showAddActivityDialog.value = false;
-  newActivity.value = {
-    title: '',
-    description: '',
-    image: '',
-    location: '',
-    start: '',
-    end: '',
-    cost: 0,
-    duration: '',
-    isPersonal: true,
-  };
+async function handleToggleOptIn(activityId: string) {
+  if (optedInAttractions.value.has(activityId)) {
+    optedInAttractions.value.delete(activityId);
+  } else {
+    optedInAttractions.value.add(activityId);
+  }
+  emit('toggle-attendance', activityId, currentUserId.value);
 }
+
+async function handleAddAttraction() {
+  const session = getSession();
+  if (!session) return;
+
+  try {
+    // Convert date and time to datetime strings
+    let startDateTime = '';
+    let endDateTime = '';
+    
+    if (newAttraction.value.date) {
+      if (newAttraction.value.time) {
+        startDateTime = `${newAttraction.value.date}T${newAttraction.value.time}:00`;
+      } else {
+        startDateTime = `${newAttraction.value.date}T00:00:00`;
+      }
+      
+      if (newAttraction.value.endTime) {
+        endDateTime = `${newAttraction.value.date}T${newAttraction.value.endTime}:00`;
+      } else if (newAttraction.value.time) {
+        // Default to 2 hours after start if no end time
+        const start = new Date(startDateTime);
+        start.setHours(start.getHours() + 2);
+        endDateTime = start.toISOString();
+      } else {
+        endDateTime = `${newAttraction.value.date}T23:59:59`;
+      }
+    } else {
+      // Default to now if no date provided
+      const now = new Date();
+      startDateTime = now.toISOString();
+      const end = new Date(now);
+      end.setHours(end.getHours() + 2);
+      endDateTime = end.toISOString();
+    }
+
+    const activity: ActivityWithDetails = {
+      id: '', // Will be set by API
+      title: newAttraction.value.name,
+      description: newAttraction.value.description,
+      event: props.tripId,
+      start: startDateTime,
+      end: endDateTime,
+      cost: newAttraction.value.estimatedCost || 0,
+      location: '',
+      duration: newAttraction.value.estimatedDuration,
+      pricePerPerson: newAttraction.value.estimatedCost,
+      source: 'manual',
+      rating: 0,
+      votes: 0,
+      attendees: [currentUserId.value],
+    };
+
+    emit('add-activity', activity);
+    
+    // Reset form
+    newAttraction.value = {
+      name: '',
+      description: '',
+      estimatedCost: 0,
+      estimatedDuration: '',
+      date: '',
+      time: '',
+      endTime: '',
+    };
+    
+    showAddDialog.value = false;
+  } catch (error) {
+    console.error('Error adding attraction:', error);
+  }
+}
+
+const newAttraction = ref({
+  name: '',
+  description: '',
+  estimatedCost: 0,
+  estimatedDuration: '',
+  date: '',
+  time: '',
+  endTime: '',
+});
 </script>
 
 <style scoped>
-.itinerary-tab {
+.attractions-tab {
   width: 100%;
 }
 
-.itinerary-header {
+.space-y-6 > * + * {
+  margin-top: 1.5rem;
+}
+
+.card {
+  position: relative;
+  background: white;
+  border-radius: 1rem;
+  overflow: hidden;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  border: 0;
+}
+
+.card-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 2rem;
+  padding: 1.5rem;
+  padding-bottom: 1rem;
 }
 
-.itinerary-header h2 {
-  font-size: 2rem;
-  color: #333;
-  margin-bottom: 0.5rem;
+.card-title {
+  font-size: 1.125rem;
   font-weight: 600;
+  color: #1e3a5f;
+  margin-bottom: 0.25rem;
 }
 
-.subtitle {
-  color: #666;
-  font-size: 1rem;
+.card-description {
+  font-size: 0.875rem;
+  color: #64748b;
 }
 
-.tab-toggles {
-  display: flex;
-  gap: 0;
-  margin-bottom: 2rem;
-  border-bottom: 2px solid #e0e0e0;
-}
-
-.toggle {
-  padding: 1rem 2rem;
-  background: none;
-  border: none;
-  border-bottom: 3px solid transparent;
-  font-size: 1rem;
-  font-weight: 500;
-  color: #666;
-  cursor: pointer;
-  transition: all 0.2s;
-  position: relative;
-}
-
-.toggle:hover {
-  color: #333;
-  background: #f9f9f9;
-}
-
-.toggle.active {
-  color: #42b983;
-  border-bottom-color: #42b983;
-}
-
-.timeline-container {
-  position: relative;
-  padding: 2rem 0;
-}
-
-.timeline {
-  position: relative;
-  max-width: 900px;
-  margin: 0 auto;
-}
-
-.timeline-item {
-  position: relative;
-  padding-left: 3rem;
-  margin-bottom: 3rem;
-}
-
-.timeline-line {
-  position: absolute;
-  left: 0.5rem;
-  top: 2.5rem;
-  width: 2px;
-  height: calc(100% + 1rem);
-  background: linear-gradient(to bottom, #42b983, #e0e0e0);
-}
-
-.timeline-dot {
-  position: absolute;
-  left: 0;
-  top: 0.5rem;
-  width: 1rem;
-  height: 1rem;
-  border-radius: 50%;
-  background: #42b983;
-  border: 3px solid white;
-  box-shadow: 0 0 0 2px #42b983;
-  z-index: 2;
-}
-
-.timeline-dot.recommended {
-  background: #ffd700;
-  box-shadow: 0 0 0 2px #ffd700;
-}
-
-.timeline-dot.opted-out {
-  background: #ccc;
-  box-shadow: 0 0 0 2px #ccc;
-  opacity: 0.6;
-}
-
-.activity-card {
-  background: white;
-  border-radius: 16px;
-  overflow: hidden;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  transition: transform 0.2s, box-shadow 0.2s;
-  position: relative;
-}
-
-.activity-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
-}
-
-.remove-btn {
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.95);
-  border: 2px solid #e0e0e0;
-  color: #666;
-  cursor: pointer;
+.header-actions {
   display: flex;
   align-items: center;
-  justify-content: center;
-  z-index: 10;
+  gap: 0.75rem;
+}
+
+.personal-view-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.toggle-label {
+  font-size: 0.875rem;
+  color: #1e3a5f;
+  font-weight: 500;
+}
+
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #cbd5e1;
+  transition: 0.3s;
+  border-radius: 24px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.3s;
+  border-radius: 50%;
+}
+
+input:checked + .slider {
+  background-color: #14b8a6;
+}
+
+input:checked + .slider:before {
+  transform: translateX(20px);
+}
+
+.btn-add-attraction {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background: #ff7b6b;
+  color: white;
+  border: none;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
   transition: all 0.2s;
-  backdrop-filter: blur(8px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
 }
 
-.remove-btn:hover {
-  background: #fee;
-  border-color: #fcc;
-  color: #c33;
-  transform: scale(1.1) rotate(90deg);
-  box-shadow: 0 4px 12px rgba(204, 51, 51, 0.2);
+.btn-add-attraction:hover {
+  background: #ff6859;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  transform: scale(1.05);
 }
 
-.remove-btn:active {
-  transform: scale(0.95) rotate(90deg);
+.w-4 {
+  width: 1rem;
 }
 
-.activity-image-container {
-  width: 100%;
-  height: 250px;
+.h-4 {
+  height: 1rem;
+}
+
+.w-3 {
+  width: 0.75rem;
+}
+
+.h-3 {
+  height: 0.75rem;
+}
+
+.mr-1 {
+  margin-right: 0.25rem;
+}
+
+.mr-2 {
+  margin-right: 0.5rem;
+}
+
+.text-blue-600 {
+  color: #2563eb;
+}
+
+.text-yellow-500 {
+  color: #eab308;
+}
+
+.text-blue-500 {
+  color: #3b82f6;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 3rem 1.5rem;
+  color: #64748b;
+}
+
+.empty-icon {
+  width: 3rem;
+  height: 3rem;
+  margin: 0 auto 0.75rem;
+  opacity: 0.2;
+}
+
+.empty-hint {
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+  color: #94a3b8;
+}
+
+.attractions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.attraction-card {
+  position: relative;
+  background: white;
+  border-radius: 1rem;
   overflow: hidden;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s;
+  border: 0;
 }
 
-.activity-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+.attraction-card:hover {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  transform: scale(1.01);
 }
 
-.activity-content {
-  padding: 2rem;
+.attraction-card.opted-in {
+  box-shadow: 0 0 0 2px #14b8a6;
 }
 
-.activity-header {
+.card-gradient {
+  height: 6px;
+  background: linear-gradient(to right, #14b8a6, #ff7b6b, #f4c542);
+}
+
+.card-header-inner {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 1rem;
+  padding: 1.5rem;
+  padding-bottom: 1rem;
 }
 
-.activity-title-section {
+.card-title-section {
   flex: 1;
 }
 
-.activity-title-section h3 {
-  font-size: 1.5rem;
-  color: #333;
-  margin-bottom: 0.75rem;
-  font-weight: 600;
-}
-
-.activity-meta {
+.title-row {
   display: flex;
+  align-items: center;
+  gap: 0.75rem;
   flex-wrap: wrap;
-  gap: 1rem;
-  font-size: 0.9rem;
-  color: #666;
+  margin-bottom: 0.25rem;
 }
 
-.meta-item {
+.attraction-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1e3a5f;
+}
+
+.badges {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.badge.hidden-gem {
+  background: rgba(244, 197, 66, 0.2);
+  color: #d4af37;
+  border: 1px solid rgba(244, 197, 66, 0.4);
+}
+
+.badge.opted-in-badge {
+  background: rgba(20, 184, 166, 0.2);
+  color: #14b8a6;
+  border: 1px solid rgba(20, 184, 166, 0.3);
+}
+
+.badge.cost-badge {
+  background: linear-gradient(to right, #f0fdf4, #d1fae5);
+  color: #15803d;
+  border: 1px solid #86efac;
+}
+
+.badge.duration-badge {
+  background: transparent;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+}
+
+.attraction-description {
+  color: #64748b;
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+}
+
+.score-section {
+  text-align: right;
+}
+
+.score-display {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  background: linear-gradient(to bottom right, #dbeafe, #cffafe);
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.score-value {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1e3a5f;
+}
+
+.votes-count {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-top: 0.25rem;
+}
+
+.opted-in-count {
   display: flex;
   align-items: center;
   gap: 0.25rem;
+  font-size: 0.75rem;
+  color: #14b8a6;
+  margin-top: 0.25rem;
 }
 
-.meta-item .icon {
-  font-size: 1rem;
-}
-
-.activity-badge {
-  padding: 0.5rem 1rem;
-  border-radius: 20px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.activity-badge.solo {
-  background: #e8f5e9;
-  color: #42b983;
-}
-
-.activity-badge.personal {
-  background: #e8f5e9;
-  color: #42b983;
-}
-
-.activity-badge.group {
-  background: #f3e8ff;
-  color: #667eea;
-}
-
-.recommended-section {
-  margin-bottom: 3rem;
-}
-
-.other-events-section {
-  margin-bottom: 2rem;
-}
-
-.section-header {
-  margin-bottom: 1.5rem;
-}
-
-.section-title {
-  font-size: 1.5rem;
-  color: #333;
-  margin-bottom: 0.5rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-weight: 600;
-}
-
-.section-subtitle {
-  color: #666;
-  font-size: 0.95rem;
-  margin-left: 2rem;
-}
-
-.recommended-card {
-  position: relative;
-  border: 2px solid #ffd700;
-  box-shadow: 0 4px 20px rgba(255, 215, 0, 0.2);
-}
-
-.recommended-badge {
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  background: linear-gradient(135deg, #ffd700, #ffed4e);
-  color: #333;
-  padding: 0.5rem 1rem;
-  border-radius: 20px;
-  font-size: 0.85rem;
-  font-weight: 700;
-  z-index: 10;
-  box-shadow: 0 2px 8px rgba(255, 215, 0, 0.4);
-}
-
-.opted-out-badge {
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  background: #fee;
-  color: #c33;
-  padding: 0.5rem 1rem;
-  border-radius: 20px;
-  font-size: 0.85rem;
-  font-weight: 700;
-  z-index: 10;
-  border: 1px solid #fcc;
-}
-
-.opted-out-card {
-  opacity: 0.7;
-  border: 2px solid #ddd;
-}
-
-.opted-out-card:hover {
-  opacity: 0.9;
-}
-
-.activity-description {
-  color: #555;
-  line-height: 1.6;
-  margin-bottom: 1rem;
-  font-size: 0.95rem;
-}
-
-.conflict-warning {
-  background: #fff3cd;
-  border: 1.5px solid #ffc107;
-  border-radius: 12px;
-  padding: 1rem;
-  margin-bottom: 1rem;
-}
-
-.conflict-header {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
-  font-weight: 600;
-  color: #856404;
-}
-
-.conflict-icon {
-  font-size: 1.25rem;
-  font-weight: 700;
-}
-
-.conflict-title {
-  font-size: 0.95rem;
-}
-
-.conflict-list {
+.card-content {
+  padding: 0 1.5rem 1.5rem 1.5rem;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 1rem;
 }
 
-.conflict-item {
+.datetime-info {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem;
-  background: white;
-  border-radius: 8px;
-  font-size: 0.9rem;
-}
-
-.conflict-event-name {
-  font-weight: 500;
-  color: #333;
-}
-
-.conflict-event-type {
-  color: #666;
-  font-size: 0.85rem;
-}
-
-.activity-tags {
-  display: flex;
+  gap: 1rem;
+  padding: 0.75rem;
+  background: rgba(123, 163, 209, 0.1);
+  border-radius: 0.75rem;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 1.5rem;
 }
 
-.tag {
-  background: #f0f0f0;
-  color: #666;
-  padding: 0.4rem 0.8rem;
-  border-radius: 12px;
-  font-size: 0.85rem;
-  font-weight: 500;
-}
-
-.activity-stats {
+.datetime-item {
   display: flex;
-  gap: 2rem;
-  padding: 1.5rem 0;
-  border-top: 1px solid #e0e0e0;
-  border-bottom: 1px solid #e0e0e0;
-  margin-bottom: 1.5rem;
-}
-
-.stat {
-  display: flex;
-  flex-direction: column;
   align-items: center;
   gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #1e293b;
 }
 
-
-.stat-value {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #333;
-}
-
-.stat-label {
-  font-size: 0.85rem;
-  color: #666;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.activity-actions {
+.attraction-meta {
   display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.suggested-by {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+.avatar-small {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: linear-gradient(to bottom right, #14b8a6, #3b82f6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cost-duration {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .rating-section {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-}
-
-.rating-section label {
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: #333;
-}
-
-.rating-bar {
-  display: flex;
   gap: 0.5rem;
-  flex-wrap: wrap;
 }
 
-.rating-btn {
-  width: 36px;
-  height: 36px;
-  border: 2px solid #e0e0e0;
-  background: white;
-  border-radius: 8px;
-  font-size: 0.85rem;
-  font-weight: 500;
-  color: #666;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.rating-btn:hover {
-  border-color: #42b983;
-  color: #42b983;
-  transform: scale(1.1);
-}
-
-.rating-btn.active {
-  background: #42b983;
-  border-color: #42b983;
-  color: white;
-  transform: scale(1.1);
-}
-
-.proposal-actions {
+.rating-header {
   display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  margin-top: 0.5rem;
+  justify-content: space-between;
+  align-items: center;
 }
 
-.group-event-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-/* Base button styles */
-.make-group-event-btn,
-.opt-out-btn,
-.opt-in-btn,
-.unmake-group-event-btn,
-.delete-proposal-btn,
-.see-attendees-btn {
-  width: 100%;
-  padding: 0.875rem 1.25rem;
-  border-radius: 10px;
-  font-size: 0.95rem;
+.rating-label {
+  font-size: 0.875rem;
   font-weight: 500;
-  cursor: pointer;
+  color: #1e3a5f;
+}
+
+.rating-display {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  transition: all 0.2s ease;
-  border: none;
-  position: relative;
-  overflow: hidden;
-}
-
-.make-group-event-btn {
-  background: #42b983;
-  color: white;
-  box-shadow: 0 2px 8px rgba(66, 185, 131, 0.25);
-}
-
-.make-group-event-btn:hover {
-  background: #35a372;
-  box-shadow: 0 4px 12px rgba(66, 185, 131, 0.35);
-  transform: translateY(-1px);
-}
-
-.make-group-event-btn:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 6px rgba(66, 185, 131, 0.3);
-}
-
-.opt-out-btn {
-  background: white;
-  color: #d32f2f;
-  border: 1.5px solid #ffcdd2;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-}
-
-.opt-out-btn:hover {
-  background: #ffebee;
-  border-color: #ef9a9a;
-  color: #c62828;
-  box-shadow: 0 3px 8px rgba(211, 47, 47, 0.15);
-  transform: translateY(-1px);
-}
-
-.opt-out-btn:active {
-  transform: translateY(0);
-  box-shadow: 0 1px 3px rgba(211, 47, 47, 0.2);
-}
-
-.opt-in-btn {
-  background: white;
-  color: #42b983;
-  border: 1.5px solid #a5d6a7;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-}
-
-.opt-in-btn:hover {
-  background: #e8f5e9;
-  border-color: #81c784;
-  color: #2e7d32;
-  box-shadow: 0 3px 8px rgba(66, 185, 131, 0.15);
-  transform: translateY(-1px);
-}
-
-.opt-in-btn:active {
-  transform: translateY(0);
-  box-shadow: 0 1px 3px rgba(66, 185, 131, 0.2);
-}
-
-.unmake-group-event-btn {
-  background: white;
-  color: #f57c00;
-  border: 1.5px solid #ffe0b2;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-}
-
-.unmake-group-event-btn:hover {
-  background: #fff3e0;
-  border-color: #ffcc80;
-  color: #e65100;
-  box-shadow: 0 3px 8px rgba(245, 124, 0, 0.15);
-  transform: translateY(-1px);
-}
-
-.unmake-group-event-btn:active {
-  transform: translateY(0);
-  box-shadow: 0 1px 3px rgba(245, 124, 0, 0.2);
-}
-
-.delete-proposal-btn {
-  background: white;
-  color: #d32f2f;
-  border: 1.5px solid #ffcdd2;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  margin-top: 0.25rem;
-  padding-top: 0.75rem;
-  padding-bottom: 0.75rem;
-}
-
-.delete-proposal-btn:hover {
-  background: #ffebee;
-  border-color: #ef9a9a;
-  color: #c62828;
-  box-shadow: 0 3px 8px rgba(211, 47, 47, 0.15);
-  transform: translateY(-1px);
-}
-
-.delete-proposal-btn:active {
-  transform: translateY(0);
-  box-shadow: 0 1px 3px rgba(211, 47, 47, 0.2);
-}
-
-.see-attendees-btn {
-  background: #42b983;
-  color: white;
-  box-shadow: 0 2px 8px rgba(66, 185, 131, 0.25);
-}
-
-.see-attendees-btn:hover {
-  background: #35a372;
-  box-shadow: 0 4px 12px rgba(66, 185, 131, 0.35);
-  transform: translateY(-1px);
-}
-
-.see-attendees-btn:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 6px rgba(66, 185, 131, 0.3);
-}
-
-.attendees-count {
-  color: #666;
-  font-size: 1rem;
-  margin-bottom: 1.5rem;
+  gap: 0.25rem;
+  font-size: 0.875rem;
   font-weight: 500;
+  color: #1e3a5f;
 }
 
-.attendees-list {
+.rating-slider {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: #e2e8f0;
+  outline: none;
+  -webkit-appearance: none;
+}
+
+.rating-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #14b8a6;
+  cursor: pointer;
+}
+
+.rating-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #14b8a6;
+  cursor: pointer;
+  border: none;
+}
+
+.opt-in-section {
   display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  margin-bottom: 1.5rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem;
+  background: linear-gradient(to right, #f0fdfa, #ecfeff);
+  border-radius: 0.5rem;
 }
 
-.attendee-item {
-  padding: 1rem;
-  background: #f9f9f9;
-  border-radius: 8px;
-  border: 1px solid #e0e0e0;
-}
-
-.attendee-name {
-  font-size: 1rem;
-  color: #333;
+.opt-in-label {
+  font-size: 0.875rem;
   font-weight: 500;
+  color: #1e3a5f;
+  cursor: pointer;
 }
 
-.btn-icon {
-  font-size: 1.1rem;
-  font-weight: 600;
-  line-height: 1;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 6rem 2rem;
-  color: #888;
-}
-
-.empty-icon {
-  width: 64px;
-  height: 64px;
-  margin: 0 auto 1rem;
-  opacity: 0.3;
-  background: #e0e0e0;
-  border-radius: 8px;
-}
-
-.empty-title {
-  font-size: 1.25rem;
-  font-weight: 500;
-  color: #666;
-  margin-bottom: 0.5rem;
-}
-
-.empty-subtitle {
-  font-size: 1rem;
-  color: #999;
-}
-
-.btn-primary {
-  background: #42b983;
+.btn-save-rankings {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: #14b8a6;
   color: white;
   border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
-  font-size: 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background-color 0.2s;
+  margin-top: 1rem;
 }
 
-.btn-primary:hover {
-  background: #35a372;
-}
-
-.btn-secondary {
-  background: #f0f0f0;
-  color: #333;
-  border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.btn-secondary:hover {
-  background: #e0e0e0;
+.btn-save-rankings:hover {
+  background: #0d9488;
 }
 
 .dialog-overlay {
@@ -1886,136 +1006,69 @@ function addActivity() {
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  backdrop-filter: blur(4px);
 }
 
 .dialog {
   background: white;
-  border-radius: 16px;
-  padding: 2rem;
+  border-radius: 0.5rem;
+  padding: 1.5rem;
   width: 90%;
-  max-width: 600px;
+  max-width: 500px;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
 }
 
-.confirm-dialog {
-  background: white;
-  border-radius: 16px;
-  padding: 2.5rem;
-  width: 90%;
-  max-width: 400px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  text-align: center;
-}
-
-.confirm-icon {
-  width: 48px;
-  height: 48px;
-  margin: 0 auto 1rem;
-  background: #fff3cd;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 2px solid #ffc107;
-}
-.confirm-icon::before {
-  content: "!";
-  font-size: 2rem;
-  font-weight: 700;
-  color: #856404;
-}
-
-.confirm-title {
-  font-size: 1.5rem;
-  color: #333;
-  margin-bottom: 1rem;
-  font-weight: 600;
-}
-
-.confirm-message {
-  font-size: 1rem;
-  color: #666;
-  margin-bottom: 2rem;
-  line-height: 1.5;
-}
-
-.confirm-actions {
-  display: flex;
-  gap: 1rem;
-  justify-content: center;
-}
-
-.btn-cancel {
-  background: white;
-  color: #666;
-  border: 1.5px solid #e0e0e0;
-  padding: 0.75rem 1.5rem;
-  border-radius: 10px;
-  font-size: 0.95rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-  min-width: 100px;
-}
-
-.btn-cancel:hover {
-  background: #f5f5f5;
-  border-color: #ccc;
-}
-
-.btn-confirm {
-  background: #d32f2f;
-  color: white;
-  border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 10px;
-  font-size: 0.95rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-  min-width: 100px;
-}
-
-.btn-confirm:hover {
-  background: #c62828;
-  box-shadow: 0 4px 12px rgba(211, 47, 47, 0.3);
-}
-
-.dialog h2 {
+.dialog-header {
   margin-bottom: 1.5rem;
-  color: #333;
-  font-size: 1.5rem;
+}
+
+.dialog-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1e3a5f;
+  margin-bottom: 0.5rem;
+}
+
+.dialog-description {
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+.dialog-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .form-group {
-  margin-bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 .form-group label {
-  display: block;
-  margin-bottom: 0.5rem;
-  color: #333;
+  font-size: 0.875rem;
   font-weight: 500;
+  color: #1e3a5f;
 }
 
 .form-group input,
 .form-group textarea {
   width: 100%;
-  padding: 0.75rem;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
-  font-size: 1rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  background: #faf8f6;
   font-family: inherit;
-  transition: border-color 0.2s;
 }
 
 .form-group input:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: #42b983;
+  border-color: #14b8a6;
+  box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.1);
 }
 
 .form-group textarea {
@@ -2029,58 +1082,21 @@ function addActivity() {
   gap: 1rem;
 }
 
-.form-actions {
-  display: flex;
-  gap: 1rem;
-  justify-content: flex-end;
-  margin-top: 2rem;
-}
-
-.event-type-toggle {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-}
-
-.event-type-option {
-  display: block;
+.btn-submit {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: #14b8a6;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
   cursor: pointer;
-  border: 2px solid #e0e0e0;
-  border-radius: 12px;
-  padding: 1rem;
-  transition: all 0.2s;
-  background: white;
+  transition: background-color 0.2s;
+  margin-top: 0.5rem;
 }
 
-.event-type-option:hover {
-  border-color: #42b983;
-  background: #f9f9f9;
-}
-
-.event-type-option input[type="radio"] {
-  display: none;
-}
-
-.event-type-option:has(input:checked) {
-  border-color: #42b983;
-  background: #e8f5e9;
-}
-
-.option-content {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-
-.option-title {
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 0.25rem;
-}
-
-.option-description {
-  font-size: 0.85rem;
-  color: #666;
+.btn-submit:hover {
+  background: #0d9488;
 }
 </style>
