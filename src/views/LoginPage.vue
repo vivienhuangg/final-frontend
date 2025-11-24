@@ -108,7 +108,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import { useAuth } from '../composables/useAuth';
+import { useAuth } from '../stores/useAuth';
 
 const emit = defineEmits<{
   (e: 'authenticated'): void;

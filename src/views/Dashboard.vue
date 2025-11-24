@@ -54,7 +54,7 @@
                 <div>
                   <h3>{{ invitation.trip.title }}</h3>
                   <p class="invitation-from">
-                    Invited by {{ getTravelerName(invitation.inviter) }}
+                    Invited by {{ invitation.inviter || 'Unknown' }}
                   </p>
                 </div>
                 <span class="invitation-badge">New</span>
@@ -196,164 +196,315 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import { useAuth } from '../composables/useAuth';
-import { mockTrips, mockTripInvitations, mockTravelers } from '../data/mockData';
-import type { Trip, TripInvitation } from '../types/trip';
+import { computed, onMounted, ref } from "vue";
+import { invitationApi, tripApi, userApi } from "../services/api";
+import { useAuth } from "../stores/useAuth";
+import type { Trip, TripInvitation } from "../types/trip";
+import {
+	transformApiInvitationToTripInvitation,
+	transformApiTripToTrip,
+} from "../utils/dataTransformers";
 
 const emit = defineEmits<{
-  (e: 'select-trip', tripId: string): void;
-  (e: 'logout'): void;
+	(e: "select-trip", trip: Trip): void;
+	(e: "logout"): void;
 }>();
 
-const { currentUser } = useAuth();
-const trips = ref<Trip[]>([...mockTrips]);
-const invitations = ref<TripInvitation[]>([...mockTripInvitations]);
+const { currentUser, getSession } = useAuth();
+const trips = ref<Trip[]>([]);
+const invitations = ref<TripInvitation[]>([]);
 const showNewTripDialog = ref(false);
+const loading = ref(false);
 const newTrip = ref({
-  title: '',
-  destination: '',
-  startDate: '',
-  endDate: '',
+	title: "",
+	destination: "",
+	startDate: "",
+	endDate: "",
 });
+
+// Fetch trips and invitations on mount
+onMounted(async () => {
+	await loadTrips();
+	await loadInvitations();
+});
+
+async function loadTrips() {
+	const session = getSession();
+	if (!session) return;
+
+	try {
+		loading.value = true;
+		const response = await tripApi.getMyTrips();
+
+		// Fetch user names for all travelers
+		const travelerIds = new Set<string>();
+		response.results.forEach(({ trip }) => {
+			travelerIds.add(trip.organizer);
+			trip.travellers.forEach((id) => travelerIds.add(id));
+		});
+
+		const travelerNames = new Map<
+			string,
+			{ firstName?: string; lastName?: string; username: string }
+		>();
+		for (const userId of travelerIds) {
+			try {
+				const nameResponse = await userApi.getName({ targetUser: userId });
+				travelerNames.set(userId, {
+					firstName: nameResponse.firstName,
+					lastName: nameResponse.lastName,
+					username: userId,
+				});
+			} catch (e) {
+				// User name not set, use username
+				travelerNames.set(userId, { username: userId });
+			}
+		}
+
+		// Transform API trips to component trips
+		trips.value = response.results.map(({ trip }) =>
+			transformApiTripToTrip(trip, undefined, travelerNames),
+		);
+	} catch (error: any) {
+		console.error("Failed to load trips:", error);
+	} finally {
+		loading.value = false;
+	}
+}
+
+async function loadInvitations() {
+	const session = getSession();
+	if (!session || !currentUser.value) return;
+
+	try {
+		const response = await invitationApi.getMyInvitations();
+
+		// Fetch trip details for each invitation
+		const invitationTrips: TripInvitation[] = [];
+		for (const apiInv of response.results) {
+			if (apiInv.accepted !== "No") {
+				try {
+					// Get trip details
+					const tripResponse = await tripApi.getTrip({ trip: apiInv.event });
+
+					// Fetch traveler names
+					const travelerIds = new Set<string>();
+					travelerIds.add(tripResponse.trip.organizer);
+					tripResponse.trip.travellers.forEach((id) => travelerIds.add(id));
+
+					const travelerNames = new Map<
+						string,
+						{ firstName?: string; lastName?: string; username: string }
+					>();
+					for (const userId of travelerIds) {
+						try {
+							const nameResponse = await userApi.getName({
+								targetUser: userId,
+							});
+							travelerNames.set(userId, {
+								firstName: nameResponse.firstName,
+								lastName: nameResponse.lastName,
+								username: userId,
+							});
+						} catch (e) {
+							travelerNames.set(userId, { username: userId });
+						}
+					}
+
+					const trip = transformApiTripToTrip(
+						tripResponse.trip,
+						undefined,
+						travelerNames,
+					);
+					const invitation = transformApiInvitationToTripInvitation(
+						apiInv,
+						trip,
+					);
+					invitation.invitee = currentUser.value.id;
+					invitationTrips.push(invitation);
+				} catch (e) {
+					console.warn("Failed to load trip for invitation:", e);
+				}
+			}
+		}
+
+		invitations.value = invitationTrips;
+	} catch (error: any) {
+		console.error("Failed to load invitations:", error);
+	}
+}
 
 // Separate trips into upcoming and past
 const upcomingTrips = computed(() => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return trips.value.filter(trip => {
-    const endDate = new Date(trip.endDate);
-    endDate.setHours(0, 0, 0, 0);
-    return endDate >= today;
-  });
+	const today = new Date();
+	today.setHours(0, 0, 0, 0);
+	return trips.value.filter((trip) => {
+		const endDate = new Date(trip.endDate);
+		endDate.setHours(0, 0, 0, 0);
+		return endDate >= today;
+	});
 });
 
 const pastTrips = computed(() => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return trips.value.filter(trip => {
-    const endDate = new Date(trip.endDate);
-    endDate.setHours(0, 0, 0, 0);
-    return endDate < today;
-  });
+	const today = new Date();
+	today.setHours(0, 0, 0, 0);
+	return trips.value.filter((trip) => {
+		const endDate = new Date(trip.endDate);
+		endDate.setHours(0, 0, 0, 0);
+		return endDate < today;
+	});
 });
 
 const pendingInvitations = computed(() => {
-  if (!currentUser.value) return [];
-  return invitations.value.filter(inv => 
-    inv.invitee === currentUser.value?.id && inv.status === 'pending'
-  );
+	if (!currentUser.value) return [];
+	return invitations.value.filter(
+		(inv) => inv.invitee === currentUser.value?.id && inv.status === "pending",
+	);
 });
 
-function getTravelerName(travelerId: string): string {
-  const traveler = mockTravelers.find(t => t.id === travelerId);
-  return traveler?.name || 'Unknown';
+async function getTravelerName(travelerId: string): Promise<string> {
+	const session = getSession();
+	if (!session) return travelerId;
+
+	try {
+		const nameResponse = await userApi.getName({ targetUser: travelerId });
+		if (nameResponse.firstName && nameResponse.lastName) {
+			return `${nameResponse.firstName} ${nameResponse.lastName}`;
+		}
+		return travelerId;
+	} catch (e) {
+		return travelerId;
+	}
 }
 
-function acceptInvitation(invitationId: string) {
-  const invitation = invitations.value.find(inv => inv.id === invitationId);
-  if (invitation) {
-    invitation.status = 'accepted';
-    // Add user to trip travelers
-    if (currentUser.value && !invitation.trip.travelers.some(t => t.id === currentUser.value?.id)) {
-      invitation.trip.travelers.push({
-        id: currentUser.value.id,
-        name: currentUser.value.firstName && currentUser.value.lastName
-          ? `${currentUser.value.firstName} ${currentUser.value.lastName}`
-          : currentUser.value.username,
-        email: `${currentUser.value.username}@example.com`,
-        firstName: currentUser.value.firstName,
-        lastName: currentUser.value.lastName,
-      });
-    }
-    // Add trip to trips list
-    trips.value.push(invitation.trip);
-  }
+async function acceptInvitation(invitationId: string) {
+	const session = getSession();
+	if (!session) return;
+
+	try {
+		await invitationApi.acceptInvitation({ invitation: invitationId });
+
+		// Update local state
+		const invitation = invitations.value.find((inv) => inv.id === invitationId);
+		if (invitation) {
+			invitation.status = "accepted";
+			// Reload trips to get updated trip data
+			await loadTrips();
+		}
+	} catch (error: any) {
+		console.error("Failed to accept invitation:", error);
+		const errorMessage =
+			error instanceof Error ? error.message : "Failed to accept invitation";
+		alert(errorMessage);
+	}
 }
 
-function declineInvitation(invitationId: string) {
-  const invitation = invitations.value.find(inv => inv.id === invitationId);
-  if (invitation) {
-    invitation.status = 'declined';
-  }
+async function declineInvitation(invitationId: string) {
+	const session = getSession();
+	if (!session) return;
+
+	try {
+		await invitationApi.rejectInvitation({ invitation: invitationId });
+
+		// Update local state
+		const invitation = invitations.value.find((inv) => inv.id === invitationId);
+		if (invitation) {
+			invitation.status = "declined";
+		}
+	} catch (error: any) {
+		console.error("Failed to decline invitation:", error);
+		const errorMessage =
+			error instanceof Error ? error.message : "Failed to decline invitation";
+		alert(errorMessage);
+	}
 }
 
 function scrollToInvitations() {
-  const invitationsSection = document.querySelector('.invitations-section');
-  if (invitationsSection) {
-    invitationsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
+	const invitationsSection = document.querySelector(".invitations-section");
+	if (invitationsSection) {
+		invitationsSection.scrollIntoView({ behavior: "smooth", block: "start" });
+	}
 }
 
 function getDaysUntilTrip(trip: Trip): number {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const startDate = new Date(trip.startDate);
-  startDate.setHours(0, 0, 0, 0);
-  const diffTime = startDate.getTime() - today.getTime();
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  return Math.max(0, diffDays);
+	const today = new Date();
+	today.setHours(0, 0, 0, 0);
+	const startDate = new Date(trip.startDate);
+	startDate.setHours(0, 0, 0, 0);
+	const diffTime = startDate.getTime() - today.getTime();
+	const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+	return Math.max(0, diffDays);
 }
 
 function getDaysSinceTrip(trip: Trip): number {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const endDate = new Date(trip.endDate);
-  endDate.setHours(0, 0, 0, 0);
-  const diffTime = today.getTime() - endDate.getTime();
-  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-  return Math.max(0, diffDays);
+	const today = new Date();
+	today.setHours(0, 0, 0, 0);
+	const endDate = new Date(trip.endDate);
+	endDate.setHours(0, 0, 0, 0);
+	const diffTime = today.getTime() - endDate.getTime();
+	const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+	return Math.max(0, diffDays);
 }
 
 function getCountdownLabel(trip: Trip): string {
-  const days = getDaysUntilTrip(trip);
-  if (days === 0) return 'Today';
-  if (days === 1) return 'Tomorrow';
-  if (days <= 7) return 'In';
-  return 'In';
+	const days = getDaysUntilTrip(trip);
+	if (days === 0) return "Today";
+	if (days === 1) return "Tomorrow";
+	if (days <= 7) return "In";
+	return "In";
 }
 
 function formatDate(dateString: string): string {
-  const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+	const date = new Date(dateString);
+	return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 function selectTrip(tripId: string) {
-  emit('select-trip', tripId);
+	const trip = trips.value.find((t) => t.id === tripId);
+	if (trip) {
+		emit("select-trip", trip);
+	}
 }
 
 function isOrganizer(trip: Trip): boolean {
-  return currentUser.value && trip.organizer === currentUser.value.id;
+	return currentUser.value && trip.organizer === currentUser.value.id;
 }
 
-function createTrip() {
-  if (!currentUser.value) return;
-  
-  const trip: Trip = {
-    id: Date.now().toString(),
-    title: newTrip.value.title,
-    destination: newTrip.value.destination,
-    startDate: newTrip.value.startDate,
-    endDate: newTrip.value.endDate,
-    organizer: currentUser.value.id,
-    travelers: [{
-      id: currentUser.value.id,
-      name: currentUser.value.firstName && currentUser.value.lastName
-        ? `${currentUser.value.firstName} ${currentUser.value.lastName}`
-        : currentUser.value.username,
-      email: `${currentUser.value.username}@example.com`,
-      firstName: currentUser.value.firstName,
-      lastName: currentUser.value.lastName,
-    }],
-  };
-  trips.value.push(trip);
-  showNewTripDialog.value = false;
-  newTrip.value = { title: '', destination: '', startDate: '', endDate: '' };
-  selectTrip(trip.id);
+async function createTrip() {
+	const session = getSession();
+	if (!session || !currentUser.value) return;
+
+	try {
+		loading.value = true;
+		const response = await tripApi.createTrip({
+			title: newTrip.value.title,
+			startDate: newTrip.value.startDate,
+			endDate: newTrip.value.endDate,
+		});
+
+		// Reload trips to get the new trip with full details
+		await loadTrips();
+
+		showNewTripDialog.value = false;
+		newTrip.value = { title: "", destination: "", startDate: "", endDate: "" };
+
+		// Select the newly created trip
+		const createdTrip = trips.value.find((t) => t.id === response.trip);
+		if (createdTrip) {
+			emit("select-trip", createdTrip);
+		}
+	} catch (error: any) {
+		console.error("Failed to create trip:", error);
+		const errorMessage =
+			error instanceof Error ? error.message : "Failed to create trip";
+		alert(errorMessage);
+	} finally {
+		loading.value = false;
+	}
 }
 
 function handleLogout() {
-  emit('logout');
+	emit("logout");
 }
 </script>
 

@@ -6,7 +6,7 @@
     />
     <div v-else class="app-content">
       <Dashboard
-        v-if="!selectedTripId"
+        v-if="!selectedTrip"
         @select-trip="handleSelectTrip"
         @logout="handleLogout"
       />
@@ -20,22 +20,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
-import LoginPage from './components/LoginPage.vue';
-import Dashboard from './components/Dashboard.vue';
+import { ref, onMounted } from 'vue';
+import LoginPage from './views/LoginPage.vue';
+import Dashboard from './views/Dashboard.vue';
 import TripView from './components/TripView.vue';
-import { useAuth } from './composables/useAuth';
-import { mockTrips } from './data/mockData';
+import { useAuth } from './stores/useAuth';
 import type { Trip } from './types/trip';
 
-const { isAuthenticated, initializeAuth } = useAuth();
-const trips = ref<Trip[]>([...mockTrips]);
-const selectedTripId = ref<string | null>(null);
-
-const selectedTrip = computed(() => {
-  if (!selectedTripId.value) return null;
-  return trips.value.find(t => t.id === selectedTripId.value) || null;
-});
+const { isAuthenticated, initializeAuth, logout } = useAuth();
+const selectedTrip = ref<Trip | null>(null);
 
 onMounted(() => {
   initializeAuth();
@@ -45,18 +38,17 @@ function handleAuthenticated() {
   // User is now authenticated, app will show dashboard
 }
 
-function handleSelectTrip(tripId: string) {
-  selectedTripId.value = tripId;
+function handleSelectTrip(trip: Trip) {
+  selectedTrip.value = trip;
 }
 
 function handleBack() {
-  selectedTripId.value = null;
+  selectedTrip.value = null;
 }
 
 function handleLogout() {
-  const { logout } = useAuth();
   logout();
-  selectedTripId.value = null;
+  selectedTrip.value = null;
 }
 </script>
 

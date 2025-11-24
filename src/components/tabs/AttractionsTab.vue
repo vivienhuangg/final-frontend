@@ -614,7 +614,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { useAuth } from '../../composables/useAuth';
+import { useAuth } from '../../stores/useAuth';
 import type { ActivityWithDetails, Traveler } from '../../types/trip';
 
 const props = defineProps<{
