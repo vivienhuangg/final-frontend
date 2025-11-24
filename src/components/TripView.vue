@@ -109,8 +109,12 @@
           v-if="activeTab === 'packing'"
           :items="packingItems"
           :travelers="trip.travelers"
+          :generating="generatingPackingList"
+          :generation-stage="generationStage"
+          :generation-progress="generationProgress"
           @toggle-item="handleToggleItem"
           @regenerate="handleRegeneratePackingList"
+          @generate="handleGeneratePackingList"
         />
       </div>
     </div>
@@ -149,6 +153,9 @@ const expenses = ref<Expense[]>([]);
 const packingItems = ref<ChecklistItem[]>([]);
 const packingListId = ref<string | null>(null);
 const loading = ref(false);
+const generatingPackingList = ref(false);
+const generationStage = ref("");
+const generationProgress = ref(0);
 
 // Load data when trip changes
 watch(
@@ -267,9 +274,8 @@ async function loadPackingItems() {
 	if (!session || !props.trip.id) return;
 
 	try {
-		// First, try to create a packing list if it doesn't exist
-		// Note: The API doesn't have a way to get packing list by trip,
-		// so we'll create one if we don't have an ID stored
+		// Get or create packing list for this user and trip
+		// The API will return existing list if it exists, or create a new one
 		if (!packingListId.value) {
 			try {
 				const createResponse = await packingListApi.createPackingList({
@@ -277,8 +283,8 @@ async function loadPackingItems() {
 				});
 				packingListId.value = createResponse.packinglist;
 			} catch (e: any) {
-				// Packing list might already exist, try to load items anyway
-				console.warn("Failed to create packing list (might already exist):", e);
+				console.error("Failed to get or create packing list:", e);
+				return;
 			}
 		}
 
@@ -287,9 +293,17 @@ async function loadPackingItems() {
 				packinglist: packingListId.value,
 			});
 
-			packingItems.value = response.results.map(({ item }) =>
-				transformApiPackingItemToChecklistItem(item),
-			);
+			if (!response.results || !Array.isArray(response.results)) {
+				packingItems.value = [];
+				return;
+			}
+			
+			packingItems.value = response.results
+				.map((result) => {
+					if (!result.item) return null;
+					return transformApiPackingItemToChecklistItem(result.item);
+				})
+				.filter((item): item is ChecklistItem => item !== null);
 		}
 	} catch (error: any) {
 		console.error("Failed to load packing items:", error);
@@ -440,7 +454,11 @@ async function handleRegeneratePackingList() {
 	if (!session || !props.trip.id) return;
 
 	try {
-		loading.value = true;
+		generatingPackingList.value = true;
+		generationProgress.value = 0;
+		generationStage.value = "Regenerating packing list...";
+		generationProgress.value = 30;
+		
 		// Regenerate the packing list (this will delete existing and create new)
 		const createResponse = await packingListApi.createPackingList({
 			trip: props.trip.id,
@@ -448,15 +466,139 @@ async function handleRegeneratePackingList() {
 		});
 		packingListId.value = createResponse.packinglist;
 		
+		generationProgress.value = 60;
+		generationStage.value = "Loading items...";
+		
 		// Reload the packing items
 		await loadPackingItems();
+		
+		generationProgress.value = 100;
+		generationStage.value = "Complete!";
+		await new Promise(resolve => setTimeout(resolve, 500));
 	} catch (error: any) {
 		console.error("Failed to regenerate packing list:", error);
 		const errorMessage =
 			error instanceof Error ? error.message : "Failed to regenerate packing list";
 		alert(errorMessage);
+		generationStage.value = "Error occurred";
 	} finally {
-		loading.value = false;
+		await new Promise(resolve => setTimeout(resolve, 1000));
+		generatingPackingList.value = false;
+		generationProgress.value = 0;
+		generationStage.value = "";
+	}
+}
+
+async function handleGeneratePackingList() {
+	const session = getSession();
+	if (!session || !props.trip.id) return;
+
+	try {
+		generatingPackingList.value = true;
+		generationProgress.value = 0;
+		generationStage.value = "Preparing...";
+		
+		// Get or create packing list for this user and trip
+		// The API will return existing list if it exists, or create a new one
+		if (!packingListId.value) {
+			try {
+				generationStage.value = "Creating packing list...";
+				generationProgress.value = 10;
+				const createResponse = await packingListApi.createPackingList({
+					trip: props.trip.id,
+				});
+				packingListId.value = createResponse.packinglist;
+			} catch (e: any) {
+				console.error("Failed to get or create packing list:", e);
+				alert("Failed to get or create packing list. Please try again.");
+				return;
+			}
+		}
+
+		if (!packingListId.value) {
+			alert("Failed to get or create packing list");
+			return;
+		}
+
+		// Build additionalInput with trip details
+		generationStage.value = "Analyzing trip details...";
+		generationProgress.value = 20;
+		const tripInfo = `Trip: ${props.trip.title || props.trip.destination} from ${formatDate(props.trip.startDate)} to ${formatDate(props.trip.endDate)}. Destination: ${props.trip.destination}.`;
+		const activitiesInfo = activities.value.length > 0 
+			? `Activities: ${activities.value.map(a => a.title).join(", ")}.`
+			: "";
+		const additionalInput = `${tripInfo} ${activitiesInfo}`;
+
+		// Request suggestions from LLM
+		generationStage.value = "Requesting AI suggestions...";
+		generationProgress.value = 30;
+		await packingListApi.requestSuggestions({
+			packinglist: packingListId.value,
+			additionalInput: additionalInput,
+		});
+
+		// Poll for items with progress updates
+		generationStage.value = "Generating items...";
+		generationProgress.value = 50;
+		
+		let attempts = 0;
+		const maxAttempts = 30; // 30 seconds max
+		const pollInterval = 1000; // 1 second
+		
+		while (attempts < maxAttempts) {
+			await new Promise(resolve => setTimeout(resolve, pollInterval));
+			attempts++;
+			
+			// Update progress (50% to 90%)
+			generationProgress.value = 50 + Math.min(40, (attempts / maxAttempts) * 40);
+			
+			try {
+				const response = await packingListApi.getItems({
+					packinglist: packingListId.value,
+				});
+				
+				if (response.results && response.results.length > 0) {
+					generationStage.value = "Finalizing...";
+					generationProgress.value = 95;
+					
+					// Transform and set items
+					packingItems.value = response.results
+						.map((result) => {
+							if (!result.item) return null;
+							return transformApiPackingItemToChecklistItem(result.item);
+						})
+						.filter((item): item is ChecklistItem => item !== null);
+					
+					generationProgress.value = 100;
+					generationStage.value = "Complete!";
+					
+					// Wait a moment to show completion, then hide overlay
+					await new Promise(resolve => setTimeout(resolve, 500));
+					break;
+				}
+			} catch (e) {
+				// Continue polling on error
+				console.log("Polling for items...", e);
+			}
+		}
+		
+		if (attempts >= maxAttempts) {
+			// Timeout - try one final load
+			generationStage.value = "Loading items...";
+			await loadPackingItems();
+		}
+	} catch (error: any) {
+		console.error("Failed to generate packing list:", error);
+		const errorMessage =
+			error instanceof Error ? error.message : "Failed to generate packing list";
+		alert(errorMessage);
+		generationStage.value = "Error occurred";
+	} finally {
+		// Small delay before hiding to show completion
+		await new Promise(resolve => setTimeout(resolve, 1000));
+		generatingPackingList.value = false;
+		generationProgress.value = 0;
+		generationStage.value = "";
 	}
 }
 

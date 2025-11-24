@@ -1,116 +1,128 @@
-import type { Trip, Traveler, TripInvitation, ActivityWithDetails, ChecklistItem } from '../types/trip';
+import type {
+	ActivityWithDetails,
+	ChecklistItem,
+	Traveler,
+	Trip,
+	TripInvitation,
+} from "../types/trip";
 
 /**
  * Transform API trip response to component Trip type
  */
 export function transformApiTripToTrip(
-  apiTrip: {
-    _id: string;
-    title: string;
-    startDate: string;
-    endDate: string;
-    organizer: string;
-    travellers: string[];
-  },
-  organizerName?: string,
-  travelerNames?: Map<string, { firstName?: string; lastName?: string; username: string }>
+	apiTrip: {
+		_id: string;
+		title: string;
+		startDate: string;
+		endDate: string;
+		organizer: string;
+		travellers: string[];
+	},
+	organizerName?: string,
+	travelerNames?: Map<
+		string,
+		{ firstName?: string; lastName?: string; username: string }
+	>,
 ): Trip {
-  // Build travelers array
-  const travelers: Traveler[] = apiTrip.travellers.map((userId) => {
-    const nameInfo = travelerNames?.get(userId);
-    const name = nameInfo
-      ? nameInfo.firstName && nameInfo.lastName
-        ? `${nameInfo.firstName} ${nameInfo.lastName}`
-        : nameInfo.username
-      : userId;
-    
-    return {
-      id: userId,
-      name,
-      email: `${userId}@example.com`, // Placeholder
-      firstName: nameInfo?.firstName,
-      lastName: nameInfo?.lastName,
-    };
-  });
+	// Build travelers array
+	const travelers: Traveler[] = apiTrip.travellers.map((userId) => {
+		const nameInfo = travelerNames?.get(userId);
+		const name = nameInfo
+			? nameInfo.firstName && nameInfo.lastName
+				? `${nameInfo.firstName} ${nameInfo.lastName}`
+				: nameInfo.username
+			: userId;
 
-  return {
-    id: apiTrip._id,
-    title: apiTrip.title,
-    destination: apiTrip.title, // API doesn't have destination, use title as fallback
-    startDate: apiTrip.startDate,
-    endDate: apiTrip.endDate,
-    organizer: apiTrip.organizer,
-    travelers,
-  };
+		return {
+			id: userId,
+			name,
+			email: `${userId}@example.com`, // Placeholder
+			firstName: nameInfo?.firstName,
+			lastName: nameInfo?.lastName,
+		};
+	});
+
+	return {
+		id: apiTrip._id,
+		title: apiTrip.title,
+		destination: apiTrip.title, // API doesn't have destination, use title as fallback
+		startDate: apiTrip.startDate,
+		endDate: apiTrip.endDate,
+		organizer: apiTrip.organizer,
+		travelers,
+	};
 }
 
 /**
  * Transform API invitation response to component TripInvitation type
  */
 export function transformApiInvitationToTripInvitation(
-  apiInvitation: {
-    invitation: string;
-    event: string;
-    accepted: 'Yes' | 'No' | 'Maybe';
-  },
-  trip: Trip,
-  inviterId?: string,
-  inviterName?: string
+	apiInvitation: {
+		invitation: string;
+		event: string;
+		accepted: "Yes" | "No" | "Maybe";
+	},
+	trip: Trip,
+	inviterId?: string,
+	inviterName?: string,
 ): TripInvitation {
-  return {
-    id: apiInvitation.invitation,
-    tripId: apiInvitation.event,
-    invitee: '', // Will be set from current user context
-    inviter: inviterId || '',
-    status: apiInvitation.accepted === 'Yes' ? 'accepted' : apiInvitation.accepted === 'No' ? 'declined' : 'pending',
-    createdAt: new Date().toISOString(), // API doesn't provide this
-    trip,
-  };
+	return {
+		id: apiInvitation.invitation,
+		tripId: apiInvitation.event,
+		invitee: "", // Will be set from current user context
+		inviter: inviterId || "",
+		status:
+			apiInvitation.accepted === "Yes"
+				? "accepted"
+				: apiInvitation.accepted === "No"
+					? "declined"
+					: "pending",
+		createdAt: new Date().toISOString(), // API doesn't provide this
+		trip,
+	};
 }
 
 /**
  * Transform API activity response to component ActivityWithDetails type
  */
-export function transformApiActivityToActivity(
-  apiActivity: {
-    _id: string;
-    title: string;
-    start: string;
-    end: string;
-    cost: number;
-  }
-): ActivityWithDetails {
-  return {
-    id: apiActivity._id,
-    title: apiActivity.title,
-    event: '', // Will be set from context
-    start: apiActivity.start,
-    end: apiActivity.end,
-    cost: apiActivity.cost,
-    source: 'manual',
-    attendees: [],
-  };
+export function transformApiActivityToActivity(apiActivity: {
+	_id: string;
+	title: string;
+	start: string;
+	end: string;
+	cost: number;
+}): ActivityWithDetails {
+	return {
+		id: apiActivity._id,
+		title: apiActivity.title,
+		event: "", // Will be set from context
+		start: apiActivity.start,
+		end: apiActivity.end,
+		cost: apiActivity.cost,
+		source: "manual",
+		attendees: [],
+	};
 }
 
 /**
  * Transform API packing list item to component ChecklistItem type
  */
-export function transformApiPackingItemToChecklistItem(
-  apiItem: {
-    _id: string;
-    name: string;
-    finished: boolean;
-    assignee?: string;
-    finishedBy?: string;
-  }
-): ChecklistItem {
-  return {
-    id: apiItem._id,
-    name: apiItem.name,
-    finished: apiItem.finished,
-    assignee: apiItem.assignee,
-    finishedBy: apiItem.finishedBy,
-    isShared: !apiItem.assignee,
-  };
+export function transformApiPackingItemToChecklistItem(apiItem: {
+	_id: string;
+	name: string;
+	finished: boolean;
+	assignee?: string;
+	finishedBy?: string;
+}): ChecklistItem {
+	// Items without assignee are personal items (not shared)
+	// Items with assignee are shared/assigned items
+	return {
+		id: apiItem._id,
+		name: apiItem.name,
+		finished: apiItem.finished,
+		assignee: apiItem.assignee,
+		finishedBy: apiItem.finishedBy,
+		isShared: !!apiItem.assignee, // Only shared if it has an assignee
+		category: undefined, // Category not provided by API, will default to "Uncategorized" in UI
+	};
 }
-
