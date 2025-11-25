@@ -296,7 +296,7 @@
                     <button
                       v-for="i in 10"
                       :key="i"
-                      :class="['rating-btn', { active: getUserRating(activity.id) >= i }]"
+                      :class="['rating-btn', { active: hasUserRating(activity.id) && getUserRating(activity.id) >= i }]"
                       @click="handleRatingChange(activity.id, i)"
                       :title="`Rate ${i}/10`"
                     >
@@ -461,7 +461,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
 import { useAuth } from '../../stores/useAuth';
-import { activityApi, ratingApi, invitationApi } from '../../services/api';
+import { activityApi, ratingApi, invitationApi, userApi } from '../../services/api';
 import type { ActivityWithDetails, Traveler } from '../../types/trip';
 
 const props = defineProps<{
@@ -490,6 +490,7 @@ const ratings = ref<Record<string, { rater: string; num: number; ratingId: strin
 const optedInAttractions = ref<Set<string>>(new Set());
 const activityInvitations = ref<Record<string, { invitation: string; accepted: "Yes" | "No" | "Maybe" }>>({});
 const allActivityInvitations = ref<Record<string, Array<{ invitee: string; accepted: "Yes" | "No" | "Maybe" }>>>({});
+const actualUserId = ref<string | null>(null);
 const showConfirmDialog = ref(false);
 const confirmDialogConfig = ref<{
   title: string;
@@ -571,32 +572,79 @@ const proposals = computed(() => {
     });
 });
 
+// Get actual user ID from session (not username)
+async function getActualUserId(): Promise<string | null> {
+  const session = getSession();
+  if (!session) {
+    console.warn('No session available for getActualUserId');
+    return null;
+  }
+  
+  try {
+    // Use the Sessioning API to get the actual user ID from the session
+    const response = await userApi.getUserFromSession();
+    if (response && response.user) {
+      console.log('✅ getActualUserId success:', response.user);
+      return response.user;
+    }
+    console.warn('getActualUserId: response missing user field:', response);
+    return null;
+  } catch (error) {
+    console.error('Failed to get user ID from session:', error);
+    return null;
+  }
+}
+
 // Load ratings for all activities
 async function loadRatings() {
   const session = getSession();
   if (!session) return;
+
+  // Use cached actual user ID, or get it if not cached
+  let userId = actualUserId.value;
+  if (!userId) {
+    userId = await getActualUserId();
+    if (userId) {
+      actualUserId.value = userId;
+    }
+  }
 
   try {
     for (const activity of props.activities) {
       try {
         const response = await ratingApi.getRatingsByItem({ item: activity.id });
         const allRatings = response.results || [];
+        // Always store all ratings for average and vote count calculation
         ratings.value[activity.id] = allRatings;
 
-        // Find current user's rating
-        const userRating = allRatings.find(r => r.rater === currentUserId.value);
-        if (userRating && typeof userRating.num === 'number' && userRating.num >= 1 && userRating.num <= 10) {
-          // Use the actual rating from the backend
-          userRatings.value[activity.id] = userRating.num;
+        // Only try to find user's rating if we have a valid userId
+        if (userId) {
+          // Find current user's rating
+          // Check both rater field and ensure it matches the actual user ID from session
+          const userRating = allRatings.find(r => {
+            const raterId = r.rater || (r as any).user;
+            // Convert both to strings for comparison to handle any type mismatches
+            return String(raterId) === String(userId);
+          });
+          
+          if (userRating && typeof userRating.num === 'number' && userRating.num >= 1 && userRating.num <= 10) {
+            // Use the actual rating from the backend
+            userRatings.value[activity.id] = userRating.num;
+          } else {
+            // Explicitly clear if no rating exists
+            if (userRatings.value[activity.id] !== undefined) {
+              delete userRatings.value[activity.id];
+            }
+          }
+        } else {
+          // If we don't have userId, clear userRatings for this activity
+          if (userRatings.value[activity.id] !== undefined) {
+            delete userRatings.value[activity.id];
+          }
         }
-        // If no rating exists, don't set anything - getUserRating will provide the default of 5
-        // This ensures we don't overwrite a rating that might exist
       } catch (e) {
         console.warn('Failed to load ratings for activity:', activity.id, e);
-        // On error, default to 5 for UI display
-        if (!userRatings.value[activity.id]) {
-          userRatings.value[activity.id] = 5;
-        }
+        // On error, don't set a default - buttons should remain unhighlighted
       }
     }
   } catch (error) {
@@ -662,33 +710,75 @@ function initializeOptedIn() {
   });
 }
 
-onMounted(() => {
-  loadRatings();
-  loadInvitations();
+onMounted(async () => {
+  // Wait a bit to ensure session is available
+  await new Promise(resolve => setTimeout(resolve, 100));
+  if (props.activities.length > 0) {
+    await loadRatingsAndInvitationsIfReady();
+  }
   initializeOptedIn();
 });
 
-watch(() => props.activities, (newActivities, oldActivities) => {
+// Helper to load ratings and invitations when both are ready
+async function loadRatingsAndInvitationsIfReady() {
+  // Get actual user ID if we don't have it cached
+  if (!actualUserId.value) {
+    actualUserId.value = await getActualUserId();
+  }
+  
+  if (actualUserId.value && props.activities.length > 0) {
+    await loadRatings();
+    await loadInvitations();
+  }
+}
+
+// Watch for when currentUserId becomes available
+watch(currentUserId, async (newUserId, oldUserId) => {
+  // Load when userId becomes available and we have activities
+  if (newUserId && props.activities.length > 0) {
+    await loadRatingsAndInvitationsIfReady();
+  }
+}, { immediate: true });
+
+// Watch for when activities become available
+watch(() => props.activities, async (newActivities, oldActivities) => {
   // Only reload ratings if activities actually changed (not just rating updates)
   const activityIdsChanged = 
     !oldActivities || 
     newActivities.length !== oldActivities.length ||
     newActivities.some((a, i) => !oldActivities[i] || a.id !== oldActivities[i].id);
   
-  if (activityIdsChanged) {
-    loadRatings();
-    loadInvitations();
+  if (activityIdsChanged && newActivities.length > 0) {
+    await loadRatingsAndInvitationsIfReady();
   }
   initializeOptedIn();
-}, { deep: true });
+}, { deep: true, immediate: true });
 
 // Helper functions
 function getAverageScore(activityId: string): number {
   const activityRatings = ratings.value[activityId] || [];
-  if (activityRatings.length === 0) return 0;
-  const sum = activityRatings.reduce((acc, r) => acc + (r.num || 0), 0);
+  if (activityRatings.length === 0) {
+    return 0;
+  }
+  const sum = activityRatings.reduce((acc, r) => {
+    const ratingNum = r.num || (r as any).ratingNum || 0;
+    return acc + ratingNum;
+  }, 0);
   const average = sum / activityRatings.length;
-  return isNaN(average) ? 0 : average;
+  const result = isNaN(average) ? 0 : average;
+  
+  // Debug: log if we have ratings but average is 0
+  if (activityRatings.length > 0 && result === 0) {
+    console.warn('Average is 0 but ratings exist:', {
+      activityId,
+      ratings: activityRatings,
+      sum,
+      average,
+      length: activityRatings.length
+    });
+  }
+  
+  return result;
 }
 
 function formatRating(score: number): string {
@@ -714,15 +804,19 @@ function getOptedInCount(activityId: string): number {
   return acceptedCount;
 }
 
+function hasUserRating(activityId: string): boolean {
+  const rating = userRatings.value[activityId];
+  return rating !== undefined && rating !== null && rating !== 0;
+}
+
 function getUserRating(activityId: string): number {
   // Return the actual rating if it exists
   const rating = userRatings.value[activityId];
   if (rating !== undefined && rating !== null && rating !== 0) {
     return rating;
   }
-  // Default to 5 only for UI display when no rating exists
-  // This ensures the slider has a valid value, but the actual rating will be loaded from backend
-  return 5;
+  // Return 0 if no rating exists (buttons won't be highlighted)
+  return 0;
 }
 
 function isOptedIn(activityId: string): boolean {

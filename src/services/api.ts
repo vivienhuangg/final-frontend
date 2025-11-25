@@ -164,6 +164,11 @@ export const userApi = {
 		);
 	},
 
+	// Get user ID from session
+	async getUserFromSession(): Promise<{ user: string }> {
+		return apiRequest<{ user: string }>("/Sessioning/_getUser", {});
+	},
+
 	// Delete user's name
 	async deleteName(): Promise<{ status: string }> {
 		return apiRequest<{ status: string }>("/user/deleteName", {});
