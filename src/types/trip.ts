@@ -89,6 +89,7 @@ export interface ChecklistItem {
   finishedBy?: string; // User ID (optional)
   category?: string;
   isShared: boolean; // Helper for UI
+  quantity?: number; // Quantity of the item (defaults to 1)
 }
 
 export interface MemberBalance {

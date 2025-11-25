@@ -144,6 +144,14 @@ export function PackingTab({ tripId, trip }: PackingTabProps) {
     setPackingList(updatedList);
   };
 
+  const handleQuantityChange = (itemId: string, newQuantity: number) => {
+    if (newQuantity < 1) return;
+    const updatedList = packingList.map(item => 
+      item.id === itemId ? { ...item, quantity: newQuantity } : item
+    );
+    setPackingList(updatedList);
+  };
+
   const handleToggleShared = async (itemId: string, shared: boolean) => {
     // Demo mode - just update local state
     console.log('Demo version: Toggling shared status is not available yet');
@@ -314,12 +322,35 @@ export function PackingTab({ tripId, trip }: PackingTabProps) {
                             onCheckedChange={(checked) => handleToggleItem(item.id, checked === true)}
                           />
                           <div className="flex-1">
-                            <label 
-                              htmlFor={item.id} 
-                              className={`cursor-pointer ${item.isPacked ? 'line-through text-gray-400' : ''}`}
-                            >
-                              {item.name}
-                            </label>
+                            <div className="flex items-center gap-2">
+                              <label 
+                                htmlFor={item.id} 
+                                className={`cursor-pointer flex-1 ${item.isPacked ? 'line-through text-gray-400' : ''}`}
+                              >
+                                {item.name}
+                              </label>
+                              {item.quantity && (
+                                <div className="flex items-center gap-1 bg-[#7ba3d1]/10 rounded-full px-2 py-0.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleQuantityChange(item.id, item.quantity - 1)}
+                                    className="text-[#7ba3d1] hover:bg-[#7ba3d1]/20 rounded-full size-5 flex items-center justify-center text-sm"
+                                  >
+                                    -
+                                  </button>
+                                  <span className="text-sm text-[#1e3a5f] min-w-[20px] text-center">
+                                    {item.quantity}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
+                                    className="text-[#7ba3d1] hover:bg-[#7ba3d1]/20 rounded-full size-5 flex items-center justify-center text-sm"
+                                  >
+                                    +
+                                  </button>
+                                </div>
+                              )}
+                            </div>
                             <div className="flex items-center gap-2 mt-1">
                               <Checkbox
                                 id={`shared-${item.id}`}
