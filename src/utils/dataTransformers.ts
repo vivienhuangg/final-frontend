@@ -113,6 +113,7 @@ export function transformApiPackingItemToChecklistItem(apiItem: {
 	finished: boolean;
 	assignee?: string;
 	finishedBy?: string;
+	quantity?: number;
 }): ChecklistItem {
 	// Items without assignee are personal items (not shared)
 	// Items with assignee are shared/assigned items
@@ -124,5 +125,6 @@ export function transformApiPackingItemToChecklistItem(apiItem: {
 		finishedBy: apiItem.finishedBy,
 		isShared: !!apiItem.assignee, // Only shared if it has an assignee
 		category: undefined, // Category not provided by API, will default to "Uncategorized" in UI
+		quantity: apiItem.quantity ?? 1, // Default to 1 if not provided
 	};
 }

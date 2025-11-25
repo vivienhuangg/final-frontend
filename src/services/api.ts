@@ -422,6 +422,7 @@ export const packingListApi = {
 				finished: boolean;
 				assignee?: string;
 				finishedBy?: string;
+				quantity?: number;
 			};
 		}>;
 	}> {

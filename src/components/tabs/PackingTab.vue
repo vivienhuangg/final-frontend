@@ -80,18 +80,38 @@
               >
                 <h3 class="category-title">{{ category || 'Uncategorized' }}</h3>
                 <div class="items-list">
-                  <label
+                  <div
                     v-for="item in getPersonalItemsByCategory(category || '')"
                     :key="item.id"
                     class="packing-item"
                   >
-                    <input
-                      type="checkbox"
-                      :checked="item.finished"
-                      @change="toggleItem(item.id)"
-                    />
-                    <span :class="{ checked: item.finished }">{{ item.name }}</span>
-                  </label>
+                    <label class="packing-item-label">
+                      <input
+                        type="checkbox"
+                        :checked="item.finished"
+                        @change="toggleItem(item.id)"
+                      />
+                      <span :class="{ checked: item.finished }">{{ item.name }}</span>
+                    </label>
+                    <div class="quantity-controls">
+                      <button
+                        type="button"
+                        @click="handleQuantityChange(item.id, (item.quantity || 1) - 1)"
+                        class="quantity-btn"
+                        :disabled="(item.quantity || 1) <= 1"
+                      >
+                        -
+                      </button>
+                      <span class="quantity-value">{{ item.quantity || 1 }}</span>
+                      <button
+                        type="button"
+                        @click="handleQuantityChange(item.id, (item.quantity || 1) + 1)"
+                        class="quantity-btn"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -160,6 +180,7 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
 	(e: "toggle-item", itemId: string): void;
+	(e: "quantity-change", itemId: string, quantity: number): void;
 	(e: "regenerate"): void;
 	(e: "generate"): void;
 }>();
@@ -191,6 +212,11 @@ function getPersonalItemsByCategory(category: string) {
 
 function toggleItem(itemId: string) {
 	emit("toggle-item", itemId);
+}
+
+function handleQuantityChange(itemId: string, quantity: number) {
+	if (quantity < 1) return;
+	emit("quantity-change", itemId, quantity);
 }
 </script>
 
@@ -388,16 +414,24 @@ function toggleItem(itemId: string) {
 .packing-item {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 0.75rem;
   padding: 0.75rem;
   background: #f9f9f9;
   border-radius: 8px;
-  cursor: pointer;
   transition: background 0.2s;
 }
 
 .packing-item:hover {
   background: #f0f0f0;
+}
+
+.packing-item-label {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+  cursor: pointer;
 }
 
 .packing-item input[type="checkbox"] {
@@ -415,6 +449,48 @@ function toggleItem(itemId: string) {
 .packing-item span.checked {
   text-decoration: line-through;
   color: #888;
+}
+
+.quantity-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: rgba(123, 163, 209, 0.1);
+  border-radius: 9999px;
+  padding: 0.125rem 0.25rem;
+}
+
+.quantity-btn {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  color: #7ba3d1;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.quantity-btn:hover:not(:disabled) {
+  background: rgba(123, 163, 209, 0.2);
+}
+
+.quantity-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.quantity-value {
+  min-width: 24px;
+  text-align: center;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #1e3a5f;
 }
 
 .shared-items-list {

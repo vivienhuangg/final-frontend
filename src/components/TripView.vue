@@ -113,6 +113,7 @@
           :generation-stage="generationStage"
           :generation-progress="generationProgress"
           @toggle-item="handleToggleItem"
+          @quantity-change="handleQuantityChange"
           @regenerate="handleRegeneratePackingList"
           @generate="handleGeneratePackingList"
         />
@@ -122,7 +123,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { ref, watch } from "vue";
 import { activityApi, costTrackerApi, packingListApi } from "../services/api";
 import { useAuth } from "../stores/useAuth";
 import type {
@@ -167,10 +168,6 @@ watch(
 	},
 	{ immediate: true },
 );
-
-onMounted(() => {
-	loadTripData();
-});
 
 async function loadTripData() {
 	await Promise.all([loadActivities(), loadExpenses(), loadPackingItems()]);
@@ -298,12 +295,23 @@ async function loadPackingItems() {
 				return;
 			}
 			
-			packingItems.value = response.results
+			// Transform items and deduplicate by name to prevent duplicates
+			const transformedItems = response.results
 				.map((result) => {
 					if (!result.item) return null;
 					return transformApiPackingItemToChecklistItem(result.item);
 				})
 				.filter((item): item is ChecklistItem => item !== null);
+			
+			// Deduplicate by name (keep the first occurrence)
+			const seenNames = new Set<string>();
+			packingItems.value = transformedItems.filter((item) => {
+				if (seenNames.has(item.name.toLowerCase())) {
+					return false; // Duplicate, skip it
+				}
+				seenNames.add(item.name.toLowerCase());
+				return true;
+			});
 		}
 	} catch (error: any) {
 		console.error("Failed to load packing items:", error);
@@ -449,47 +457,19 @@ async function handleToggleItem(itemId: string) {
 	}
 }
 
-async function handleRegeneratePackingList() {
-	const session = getSession();
-	if (!session || !props.trip.id) return;
+function handleQuantityChange(itemId: string, newQuantity: number) {
+	if (newQuantity < 1) return;
+	
+	const item = packingItems.value.find((i) => i.id === itemId);
+	if (!item) return;
 
-	try {
-		generatingPackingList.value = true;
-		generationProgress.value = 0;
-		generationStage.value = "Regenerating packing list...";
-		generationProgress.value = 30;
-		
-		// Regenerate the packing list (this will delete existing and create new)
-		const createResponse = await packingListApi.createPackingList({
-			trip: props.trip.id,
-			regenerate: true,
-		});
-		packingListId.value = createResponse.packinglist;
-		
-		generationProgress.value = 60;
-		generationStage.value = "Loading items...";
-		
-		// Reload the packing items
-		await loadPackingItems();
-		
-		generationProgress.value = 100;
-		generationStage.value = "Complete!";
-		await new Promise(resolve => setTimeout(resolve, 500));
-	} catch (error: any) {
-		console.error("Failed to regenerate packing list:", error);
-		const errorMessage =
-			error instanceof Error ? error.message : "Failed to regenerate packing list";
-		alert(errorMessage);
-		generationStage.value = "Error occurred";
-	} finally {
-		await new Promise(resolve => setTimeout(resolve, 1000));
-		generatingPackingList.value = false;
-		generationProgress.value = 0;
-		generationStage.value = "";
-	}
+	// Update local state
+	// Note: Backend API doesn't support quantity updates yet, so we only update local state
+	// When API support is added, we can call an update endpoint here
+	item.quantity = newQuantity;
 }
 
-async function handleGeneratePackingList() {
+async function generatePackingList(regenerate: boolean = false) {
 	const session = getSession();
 	if (!session || !props.trip.id) return;
 
@@ -498,21 +478,61 @@ async function handleGeneratePackingList() {
 		generationProgress.value = 0;
 		generationStage.value = "Preparing...";
 		
-		// Get or create packing list for this user and trip
-		// The API will return existing list if it exists, or create a new one
-		if (!packingListId.value) {
+		// Clear local state when regenerating or when starting fresh generation
+		packingItems.value = [];
+		
+		// Reload activities to ensure we have the latest data (only for regenerate)
+		if (regenerate) {
+			generationStage.value = "Loading latest activities...";
+			generationProgress.value = 10;
+			await loadActivities();
+			
+			// Reset packing list ID when regenerating to force creation of new list
+			// (backend will delete old one and create new one)
+			packingListId.value = null;
+		}
+		
+		// For regeneration, always create a new list (backend will delete old one)
+		// For first-time generation, create if doesn't exist, otherwise use existing
+		if (!packingListId.value || regenerate) {
 			try {
-				generationStage.value = "Creating packing list...";
-				generationProgress.value = 10;
+				generationStage.value = regenerate ? "Regenerating packing list..." : "Creating packing list...";
+				generationProgress.value = regenerate ? 20 : 10;
 				const createResponse = await packingListApi.createPackingList({
 					trip: props.trip.id,
+					...(regenerate && { regenerate: true }),
 				});
 				packingListId.value = createResponse.packinglist;
+				
+				// After creating/regenerating, clear local items to ensure fresh start
+				packingItems.value = [];
 			} catch (e: any) {
 				console.error("Failed to get or create packing list:", e);
 				alert("Failed to get or create packing list. Please try again.");
 				return;
 			}
+		} else {
+			// If list exists and we're generating (not regenerating), clear existing items first
+			// to prevent duplicates. We'll delete all items from the existing list.
+			generationStage.value = "Clearing existing items...";
+			generationProgress.value = 15;
+			
+			// Delete all existing items to prevent duplicates
+			const itemsToDelete = [...packingItems.value];
+			packingItems.value = []; // Clear local state immediately
+			
+			// Delete all items in parallel for better performance
+			await Promise.allSettled(
+				itemsToDelete.map((item) =>
+					packingListApi.deleteItem({
+						packinglist: packingListId.value,
+						item: item.id,
+					}).catch((e) => {
+						console.warn("Failed to delete item:", e);
+						return null; // Continue even if some deletions fail
+					})
+				)
+			);
 		}
 
 		if (!packingListId.value) {
@@ -520,18 +540,22 @@ async function handleGeneratePackingList() {
 			return;
 		}
 
-		// Build additionalInput with trip details
+		// Build additionalInput with trip details including duration for quantity suggestions
 		generationStage.value = "Analyzing trip details...";
-		generationProgress.value = 20;
-		const tripInfo = `Trip: ${props.trip.title || props.trip.destination} from ${formatDate(props.trip.startDate)} to ${formatDate(props.trip.endDate)}. Destination: ${props.trip.destination}.`;
+		generationProgress.value = regenerate ? 30 : 20;
+		const startDate = new Date(props.trip.startDate);
+		const endDate = new Date(props.trip.endDate);
+		const nights = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+		const tripInfo = `Trip: ${props.trip.title || props.trip.destination} from ${formatDate(props.trip.startDate)} to ${formatDate(props.trip.endDate)} (${nights} ${nights === 1 ? 'night' : 'nights'}). Destination: ${props.trip.destination}.`;
 		const activitiesInfo = activities.value.length > 0 
 			? `Activities: ${activities.value.map(a => a.title).join(", ")}.`
 			: "";
-		const additionalInput = `${tripInfo} ${activitiesInfo}`;
+		const quantityHint = `Please suggest appropriate quantities for items based on the trip duration. For example, for a ${nights}-night trip, suggest ${nights} pairs of underwear, ${nights} pairs of socks, etc.`;
+		const additionalInput = `${tripInfo} ${activitiesInfo} ${quantityHint}`;
 
 		// Request suggestions from LLM
 		generationStage.value = "Requesting AI suggestions...";
-		generationProgress.value = 30;
+		generationProgress.value = regenerate ? 40 : 30;
 		await packingListApi.requestSuggestions({
 			packinglist: packingListId.value,
 			additionalInput: additionalInput,
@@ -541,15 +565,14 @@ async function handleGeneratePackingList() {
 		generationStage.value = "Generating items...";
 		generationProgress.value = 50;
 		
+		const maxAttempts = 30;
+		const pollInterval = 1000;
 		let attempts = 0;
-		const maxAttempts = 30; // 30 seconds max
-		const pollInterval = 1000; // 1 second
 		
 		while (attempts < maxAttempts) {
 			await new Promise(resolve => setTimeout(resolve, pollInterval));
 			attempts++;
 			
-			// Update progress (50% to 90%)
 			generationProgress.value = 50 + Math.min(40, (attempts / maxAttempts) * 40);
 			
 			try {
@@ -561,7 +584,6 @@ async function handleGeneratePackingList() {
 					generationStage.value = "Finalizing...";
 					generationProgress.value = 95;
 					
-					// Transform and set items
 					packingItems.value = response.results
 						.map((result) => {
 							if (!result.item) return null;
@@ -571,35 +593,38 @@ async function handleGeneratePackingList() {
 					
 					generationProgress.value = 100;
 					generationStage.value = "Complete!";
-					
-					// Wait a moment to show completion, then hide overlay
 					await new Promise(resolve => setTimeout(resolve, 500));
 					break;
 				}
 			} catch (e) {
 				// Continue polling on error
-				console.log("Polling for items...", e);
 			}
 		}
 		
 		if (attempts >= maxAttempts) {
-			// Timeout - try one final load
 			generationStage.value = "Loading items...";
 			await loadPackingItems();
 		}
 	} catch (error: any) {
-		console.error("Failed to generate packing list:", error);
+		console.error(`Failed to ${regenerate ? 'regenerate' : 'generate'} packing list:`, error);
 		const errorMessage =
-			error instanceof Error ? error.message : "Failed to generate packing list";
+			error instanceof Error ? error.message : `Failed to ${regenerate ? 'regenerate' : 'generate'} packing list`;
 		alert(errorMessage);
 		generationStage.value = "Error occurred";
 	} finally {
-		// Small delay before hiding to show completion
 		await new Promise(resolve => setTimeout(resolve, 1000));
 		generatingPackingList.value = false;
 		generationProgress.value = 0;
 		generationStage.value = "";
 	}
+}
+
+async function handleRegeneratePackingList() {
+	await generatePackingList(true);
+}
+
+async function handleGeneratePackingList() {
+	await generatePackingList(false);
 }
 
 async function handleDeleteActivity(activityId: string) {
