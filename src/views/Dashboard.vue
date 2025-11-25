@@ -230,7 +230,7 @@ async function loadInvitations() {
 		// Fetch trip details for each invitation
 		const invitationTrips: TripInvitation[] = [];
 		for (const apiInv of response.results) {
-			if (apiInv.accepted !== "No") {
+			if (apiInv.acceptedStatus !== "No") {
 				try {
 					// Get trip details
 					const tripResponse = await tripApi.getTrip({ trip: apiInv.event });
@@ -265,7 +265,11 @@ async function loadInvitations() {
 						travelerNames,
 					);
 					const invitation = transformApiInvitationToTripInvitation(
-						apiInv,
+						{
+							invitation: apiInv.invitation,
+							event: apiInv.event,
+							accepted: apiInv.acceptedStatus,
+						},
 						trip,
 					);
 					invitation.invitee = currentUser.value.id;
