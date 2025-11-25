@@ -899,6 +899,15 @@ async function handleToggleProposal(activityId: string, proposal: boolean) {
       activity: activityId,
       proposal,
     });
+    
+    // If committing a proposal (proposal: false), the backend creates invitations for all trip members
+    // We need to reload invitations so the frontend knows about them
+    if (!proposal) {
+      // Wait a bit for the backend to create invitations, then reload
+      await new Promise(resolve => setTimeout(resolve, 500));
+      await loadInvitations();
+    }
+    
     emit('refresh-activities');
   } catch (error) {
     console.error('Error toggling proposal:', error);
