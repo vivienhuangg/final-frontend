@@ -61,6 +61,25 @@
                   </div>
                 </div>
                 <p v-if="activity.description" class="attraction-description">{{ activity.description }}</p>
+                <!-- Conflict Warning for My Events -->
+                <div v-if="getCommittedEventConflicts(activity).length > 0" class="conflict-warning">
+                  <div class="conflict-header">
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                    </svg>
+                    <span class="conflict-title">Time Conflict</span>
+                  </div>
+                  <div class="conflict-list">
+                    <div
+                      v-for="conflict in getCommittedEventConflicts(activity)"
+                      :key="conflict.activity.id"
+                      class="conflict-item"
+                    >
+                      <span class="conflict-event-name">{{ conflict.activity.title }}</span>
+                      <span class="conflict-event-type">({{ conflict.type === 'my-event' ? 'My Event' : 'Group Event' }})</span>
+                    </div>
+                  </div>
+                </div>
               </div>
               <div class="card-actions">
                 <button 
@@ -169,6 +188,25 @@
                   </div>
                 </div>
                 <p v-if="activity.description" class="attraction-description">{{ activity.description }}</p>
+                <!-- Conflict Warning for Group Events -->
+                <div v-if="getCommittedEventConflicts(activity).length > 0" class="conflict-warning">
+                  <div class="conflict-header">
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                    </svg>
+                    <span class="conflict-title">Time Conflict</span>
+                  </div>
+                  <div class="conflict-list">
+                    <div
+                      v-for="conflict in getCommittedEventConflicts(activity)"
+                      :key="conflict.activity.id"
+                      class="conflict-item"
+                    >
+                      <span class="conflict-event-name">{{ conflict.activity.title }}</span>
+                      <span class="conflict-event-type">({{ conflict.type === 'my-event' ? 'My Event' : 'Group Event' }})</span>
+                    </div>
+                  </div>
+                </div>
               </div>
               <div class="card-actions">
                 <button 
@@ -278,18 +316,49 @@
           <div
             v-for="activity in proposals"
             :key="activity.id"
-            class="card attraction-card"
+            :class="['card attraction-card', { 'recommended-card': activity.isRecommended }]"
           >
-            <div class="card-gradient"></div>
+            <div v-if="!activity.isRecommended" class="card-gradient"></div>
             <div class="card-header">
               <div class="card-title-section">
                 <div class="title-row">
                   <h3 class="attraction-title">{{ activity.title }}</h3>
                   <div class="badges">
+                    <span v-if="activity.isRecommended" class="badge recommended-badge">
+                      <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                      </svg>
+                      Recommended
+                    </span>
                     <span class="badge proposal-badge">Proposal</span>
                   </div>
                 </div>
                 <p v-if="activity.description" class="attraction-description">{{ activity.description }}</p>
+                <div v-if="activity.isRecommended && activity.recommendationReason" class="recommendation-reason">
+                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                  </svg>
+                  <span>{{ activity.recommendationReason }}</span>
+                </div>
+                <!-- Conflict Warning for Proposals -->
+                <div v-if="getProposalConflicts(activity).length > 0" class="conflict-warning">
+                  <div class="conflict-header">
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                    </svg>
+                    <span class="conflict-title">Time Conflict</span>
+                  </div>
+                  <div class="conflict-list">
+                    <div
+                      v-for="conflict in getProposalConflicts(activity)"
+                      :key="conflict.activity.id"
+                      class="conflict-item"
+                    >
+                      <span class="conflict-event-name">{{ conflict.activity.title }}</span>
+                      <span class="conflict-event-type">({{ conflict.type === 'my-event' ? 'My Event' : 'Group Event' }})</span>
+                    </div>
+                  </div>
+                </div>
               </div>
               <div class="card-actions">
                 <button 
@@ -651,6 +720,69 @@ function getActivityEndTime(activity: ActivityWithDetails): string {
   return new Date(activity.end).toTimeString().slice(0, 5);
 }
 
+// Check if two activities have overlapping time ranges
+function hasTimeConflict(activity1: ActivityWithDetails, activity2: ActivityWithDetails): boolean {
+  if (!activity1.start || !activity1.end || !activity2.start || !activity2.end) {
+    return false; // Can't determine conflict without times
+  }
+  
+  const start1 = new Date(activity1.start).getTime();
+  const end1 = new Date(activity1.end).getTime();
+  const start2 = new Date(activity2.start).getTime();
+  const end2 = new Date(activity2.end).getTime();
+  
+  // Check for overlap: activities conflict if they overlap in time
+  // Two ranges overlap if: start1 < end2 && start2 < end1
+  return start1 < end2 && start2 < end1;
+}
+
+// Get conflicts for a proposal (conflicts with My Events or Group Events)
+function getProposalConflicts(proposal: ActivityWithDetails): Array<{ activity: ActivityWithDetails; type: 'my-event' | 'group-event' }> {
+  const conflicts: Array<{ activity: ActivityWithDetails; type: 'my-event' | 'group-event' }> = [];
+  
+  // Get all committed events (myEvents and groupEvents) to check against
+  const allCommittedEvents = [
+    ...myEvents.value,
+    ...groupEvents.value.filter(ge => !myEvents.value.some(me => me.id === ge.id)), // Avoid duplicates
+  ];
+  
+  allCommittedEvents.forEach(event => {
+    if (event.id !== proposal.id && hasTimeConflict(proposal, event)) {
+      // Determine if it's a my-event or group-event
+      const isMyEvent = myEvents.value.some(me => me.id === event.id);
+      conflicts.push({ 
+        activity: event, 
+        type: isMyEvent ? 'my-event' : 'group-event' 
+      });
+    }
+  });
+  
+  return conflicts;
+}
+
+// Get conflicts for My Events or Group Events (conflicts with each other, but not proposals)
+function getCommittedEventConflicts(activity: ActivityWithDetails): Array<{ activity: ActivityWithDetails; type: 'my-event' | 'group-event' }> {
+  const conflicts: Array<{ activity: ActivityWithDetails; type: 'my-event' | 'group-event' }> = [];
+  
+  // Check against other My Events
+  myEvents.value.forEach(myEvent => {
+    if (myEvent.id !== activity.id && hasTimeConflict(activity, myEvent)) {
+      conflicts.push({ activity: myEvent, type: 'my-event' });
+    }
+  });
+  
+  // Check against Group Events (but not if it's already in myEvents to avoid duplicates)
+  groupEvents.value.forEach(groupEvent => {
+    if (groupEvent.id !== activity.id && 
+        !myEvents.value.some(me => me.id === groupEvent.id) && 
+        hasTimeConflict(activity, groupEvent)) {
+      conflicts.push({ activity: groupEvent, type: 'group-event' });
+    }
+  });
+  
+  return conflicts;
+}
+
 // Filter activities by view
 const myEvents = computed(() => {
   return props.activities
@@ -689,20 +821,98 @@ const groupEvents = computed(() => {
     });
 });
 
+// Calculate average happiness of current itinerary (committed group events)
+function getCurrentItineraryHappiness(): number {
+  const committedEvents = props.activities.filter(
+    activity => !activity.proposal && !activity.solo
+  );
+  
+  if (committedEvents.length === 0) return 0;
+  
+  let totalScore = 0;
+  let totalVotes = 0;
+  
+  committedEvents.forEach(activity => {
+    const activityRatings = ratings.value[activity.id] || [];
+    const voteCount = activityRatings.length;
+    const avgScore = getAverageScore(activity.id);
+    
+    if (voteCount > 0 && avgScore > 0) {
+      totalScore += avgScore * voteCount; // Weight by number of votes
+      totalVotes += voteCount;
+    }
+  });
+  
+  return totalVotes > 0 ? totalScore / totalVotes : 0;
+}
+
+// Determine if a proposal should be recommended
+function isRecommended(activity: ActivityWithDetails): boolean {
+  const proposalScore = getAverageScore(activity.id);
+  const proposalVotes = getVoteCount(activity.id);
+  const itineraryHappiness = getCurrentItineraryHappiness();
+  
+  // Recommend if:
+  // 1. Proposal has a good rating (>= 7) with at least 2 votes
+  // 2. Proposal is significantly better than current itinerary happiness
+  // 3. Or if itinerary is low (< 6) and proposal is decent (>= 6)
+  const hasGoodRating = proposalScore >= 7 && proposalVotes >= 2;
+  const significantlyBetter = proposalScore >= itineraryHappiness + 1.5;
+  const wouldImproveLowItinerary = itineraryHappiness < 6 && proposalScore >= 6 && proposalVotes >= 1;
+  
+  return hasGoodRating || significantlyBetter || wouldImproveLowItinerary;
+}
+
+// Generate recommendation reason
+function getRecommendationReason(activity: ActivityWithDetails): string {
+  const proposalScore = getAverageScore(activity.id);
+  const proposalVotes = getVoteCount(activity.id);
+  const itineraryHappiness = getCurrentItineraryHappiness();
+  
+  if (proposalScore >= 8 && proposalVotes >= 2) {
+    return `Highly rated by ${proposalVotes} ${proposalVotes === 1 ? 'person' : 'people'} (${proposalScore.toFixed(1)}/10) - the group loves this idea!`;
+  }
+  
+  if (proposalScore >= itineraryHappiness + 1.5) {
+    const improvement = (proposalScore - itineraryHappiness).toFixed(1);
+    return `Would significantly improve your itinerary! This activity is rated ${improvement} points higher than your current events.`;
+  }
+  
+  if (itineraryHappiness < 6 && proposalScore >= 6) {
+    return `Your current itinerary could use a boost (${itineraryHappiness.toFixed(1)}/10 avg). This proposal would add variety and excitement!`;
+  }
+  
+  if (proposalVotes >= 3) {
+    return `Popular choice with ${proposalVotes} ${proposalVotes === 1 ? 'vote' : 'votes'} - the group is interested!`;
+  }
+  
+  return `Well-rated activity that the group would enjoy!`;
+}
+
 const proposals = computed(() => {
-  return props.activities
+  const filtered = props.activities
     .filter(activity => activity.proposal && !activity.solo)
-    .sort((a, b) => {
-      // Sort by rating score descending
-      const scoreA = getAverageScore(a.id);
-      const scoreB = getAverageScore(b.id);
-      if (Math.abs(scoreB - scoreA) > 0.1) {
-        return scoreB - scoreA;
-      }
-      // If scores are similar, sort by date
-      if (!a.start || !b.start) return 0;
-      return new Date(a.start).getTime() - new Date(b.start).getTime();
-    });
+    .map(activity => ({
+      ...activity,
+      isRecommended: isRecommended(activity),
+      recommendationReason: isRecommended(activity) ? getRecommendationReason(activity) : null,
+    }));
+  
+  return filtered.sort((a, b) => {
+    // Recommended proposals first
+    if (a.isRecommended && !b.isRecommended) return -1;
+    if (!a.isRecommended && b.isRecommended) return 1;
+    
+    // Then sort by rating score descending
+    const scoreA = getAverageScore(a.id);
+    const scoreB = getAverageScore(b.id);
+    if (Math.abs(scoreB - scoreA) > 0.1) {
+      return scoreB - scoreA;
+    }
+    // If scores are similar, sort by date
+    if (!a.start || !b.start) return 0;
+    return new Date(a.start).getTime() - new Date(b.start).getTime();
+  });
 });
 
 // Get actual user ID from session (not username)
@@ -1427,12 +1637,107 @@ const newAttraction = ref({
   border: 0;
 }
 
+.recommended-card {
+  border: 3px solid #fbbf24;
+  box-shadow: 0 4px 12px -1px rgba(251, 191, 36, 0.3), 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  position: relative;
+}
+
+.badge.recommended-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  color: white;
+  border: none;
+  font-size: 0.75rem;
+  font-weight: 600;
+  box-shadow: 0 2px 4px rgba(251, 191, 36, 0.4);
+}
+
+.badge.recommended-badge svg {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+.recommendation-reason {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background: #fef3c7;
+  border-left: 3px solid #fbbf24;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  color: #92400e;
+  line-height: 1.5;
+}
+
+.recommendation-reason svg {
+  flex-shrink: 0;
+  margin-top: 0.125rem;
+  color: #f59e0b;
+}
+
+.conflict-warning {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background: #fee2e2;
+  border-left: 3px solid #ef4444;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+}
+
+.conflict-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: #991b1b;
+}
+
+.conflict-header svg {
+  flex-shrink: 0;
+  color: #ef4444;
+}
+
+.conflict-title {
+  color: #991b1b;
+}
+
+.conflict-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.conflict-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #7f1d1d;
+  font-size: 0.8125rem;
+}
+
+.conflict-event-name {
+  font-weight: 500;
+}
+
+.conflict-event-type {
+  color: #991b1b;
+  font-size: 0.75rem;
+}
+
 .card-gradient {
   height: 6px;
   background: linear-gradient(to right, #14b8a6, #ff7b6b, #f4c542);
 }
 
 .card-header {
+  position: relative;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -1525,6 +1830,12 @@ const newAttraction = ref({
 .attraction-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.recommended-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px -3px rgba(251, 191, 36, 0.4), 0 8px 15px -3px rgba(0, 0, 0, 0.1);
+  border-color: #f59e0b;
 }
 
 .attraction-card.opted-out {
