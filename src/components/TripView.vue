@@ -130,6 +130,7 @@ import { ref, watch } from "vue";
 import * as Activities from "../api/activities";
 import * as CostTracker from "../api/costtracker";
 import * as PackingLists from "../api/packinglists";
+import * as Invitations from "../api/invitations";
 import { useAuth } from "../stores/useAuth";
 import type {
 	ActivityWithDetails,
@@ -324,14 +325,22 @@ function formatDate(dateString: string): string {
 	});
 }
 
-async function handleInvite(email: string) {
+async function handleInvite(username: string) {
 	const session = getSession();
 	if (!session || !props.trip.id) return;
 
-	// Note: The API requires inviteeId (username), not email
-	// In a real app, you'd need to look up username from email or have users enter username
-	console.log("Invite:", email);
-	alert("Please use the username to invite. Email lookup not implemented.");
+	try {
+		loading.value = true;
+		await Invitations.inviteUserToTrip(props.trip.id, username);
+		alert(`Invitation sent to ${username}`);
+	} catch (error: any) {
+		console.error("Failed to send invitation:", error);
+		const errorMessage =
+			error instanceof Error ? error.message : "Failed to send invitation";
+		alert(errorMessage);
+	} finally {
+		loading.value = false;
+	}
 }
 
 async function handleAddActivity(activity: ActivityWithDetails) {

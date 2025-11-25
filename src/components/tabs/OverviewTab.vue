@@ -53,12 +53,12 @@
         <h2>Invite Travelers</h2>
         <form @submit.prevent="sendInvite">
           <div class="form-group">
-            <label>Email Address</label>
+            <label>Username</label>
             <input
-              v-model="inviteEmail"
-              type="email"
+              v-model="inviteUsername"
+              type="text"
               required
-              placeholder="friend@example.com"
+              placeholder="friend_username"
             />
           </div>
           <div class="form-actions">
@@ -82,19 +82,19 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  (e: 'invite', email: string): void;
+  (e: 'invite', username: string): void;
 }>();
 
 const showInviteDialog = ref(false);
-const inviteEmail = ref('');
+const inviteUsername = ref('');
 const settings = ref({
   anonymousVoting: false,
   hiddenGemsBoost: false,
 });
 
 function sendInvite() {
-  emit('invite', inviteEmail.value);
-  inviteEmail.value = '';
+  emit('invite', inviteUsername.value.trim());
+  inviteUsername.value = '';
   showInviteDialog.value = false;
 }
 

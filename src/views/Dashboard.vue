@@ -14,10 +14,67 @@
         </button>
       </div>
 
-      <!-- Welcome section -->
+      <!-- Welcome + Invitations section -->
       <div class="mb-8">
-        <h1 class="text-3xl font-semibold mb-2 text-[#1e3a5f]">Your Trips</h1>
-        <p class="text-muted-foreground">Plan unforgettable adventures with your squad</p>
+        <div class="flex justify-between items-center mb-4">
+          <div>
+            <h1 class="text-3xl font-semibold mb-2 text-[#1e3a5f]">Your Trips</h1>
+            <p class="text-muted-foreground">Plan unforgettable adventures with your squad</p>
+          </div>
+          <button
+            v-if="pendingInvitations.length > 0"
+            class="btn-primary flex items-center gap-2"
+            type="button"
+            @click="scrollToInvitations"
+          >
+            <span class="notification-badge">{{ pendingInvitations.length }}</span>
+            <span>View invites</span>
+          </button>
+        </div>
+
+        <!-- Pending invitations list -->
+        <div v-if="pendingInvitations.length > 0" class="invitations-section">
+          <div class="section-header">
+            <div class="section-title-row">
+              <h2 class="text-xl font-semibold text-[#1e3a5f]">Pending Trip Invitations</h2>
+              <span class="notification-badge">{{ pendingInvitations.length }}</span>
+            </div>
+            <p class="text-muted-foreground mt-1">Trips you've been invited to join. Accept to add them to your list.</p>
+          </div>
+
+          <div class="invitations-grid">
+            <div
+              v-for="inv in pendingInvitations"
+              :key="inv.id"
+              class="invitation-card"
+            >
+              <div class="invitation-card-content">
+                <div class="invitation-header">
+                  <div>
+                    <h3>{{ inv.trip.title }}</h3>
+                    <p class="invitation-from">Organized by {{ inv.trip.organizer }}</p>
+                    <p class="trip-card-dates mt-1">
+                      <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <span>{{ formatDate(inv.trip.startDate) }} - {{ formatDate(inv.trip.endDate) }}</span>
+                    </p>
+                  </div>
+                  <span class="invitation-badge">Invitation</span>
+                </div>
+
+                <div class="invitation-actions">
+                  <button class="btn-accept" type="button" @click.stop="acceptInvitation(inv.id)">
+                    Accept
+                  </button>
+                  <button class="btn-decline" type="button" @click.stop="declineInvitation(inv.id)">
+                    Decline
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -45,7 +102,7 @@
           @click="selectTrip(trip.id)"
         >
           <div class="trip-card-gradient"></div>
-          <div class="trip-card-delete" @click.stop="handleDeleteTrip(trip.id)">
+          <div class="trip-card-delete" @click.stop="selectTrip(trip.id)">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
             </svg>
@@ -163,6 +220,7 @@ const router = useRouter();
 const { currentUser, getSession } = useAuth();
 const trips = ref<Trip[]>([]);
 const invitations = ref<TripInvitation[]>([]);
+const showInvitations = ref(false);
 const showNewTripDialog = ref(false);
 const loading = ref(false);
 const createLoading = ref(false);
@@ -173,6 +231,21 @@ const newTrip = ref({
 	startDate: "",
 	endDate: "",
 });
+
+function formatDate(dateStr: string): string {
+  if (!dateStr) return "";
+  const date = new Date(dateStr);
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function getAvatarColor(index: number): string {
+  const colors = ["#42b983", "#ff7b6b", "#f4c542", "#0ea5e9"];
+  return colors[index % colors.length];
+}
 
 // Fetch trips and invitations on mount
 onMounted(async () => {
@@ -234,7 +307,8 @@ async function loadInvitations() {
 		// Fetch trip details for each invitation
 		const invitationTrips: TripInvitation[] = [];
 		for (const apiInv of response.results) {
-			if (apiInv.acceptedStatus !== "No") {
+      // Only include pending invitations (acceptedStatus === "No")
+      if (apiInv.acceptedStatus === "No") {
 				try {
 					// Get trip details
           const tripResponse = await Trips.getTrip(apiInv.event);
@@ -375,71 +449,8 @@ async function declineInvitation(invitationId: string) {
 
 function scrollToInvitations() {
 	const invitationsSection = document.querySelector(".invitations-section");
-	if (invitationsSection) {
+  if (invitationsSection) {
 		invitationsSection.scrollIntoView({ behavior: "smooth", block: "start" });
-	}
-}
-
-function getDaysUntilTrip(trip: Trip): number {
-	const today = new Date();
-	today.setHours(0, 0, 0, 0);
-	const startDate = new Date(trip.startDate);
-	startDate.setHours(0, 0, 0, 0);
-	const diffTime = startDate.getTime() - today.getTime();
-	const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-	return Math.max(0, diffDays);
-}
-
-function getDaysSinceTrip(trip: Trip): number {
-	const today = new Date();
-	today.setHours(0, 0, 0, 0);
-	const endDate = new Date(trip.endDate);
-	endDate.setHours(0, 0, 0, 0);
-	const diffTime = today.getTime() - endDate.getTime();
-	const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-	return Math.max(0, diffDays);
-}
-
-function getCountdownLabel(trip: Trip): string {
-	const days = getDaysUntilTrip(trip);
-	if (days === 0) return "Today";
-	if (days === 1) return "Tomorrow";
-	if (days <= 7) return "In";
-	return "In";
-}
-
-function formatDate(dateString: string): string {
-	const date = new Date(dateString);
-	return date.toLocaleDateString("en-US", {
-		month: "short",
-		day: "numeric",
-		year: "numeric"
-	});
-}
-
-function getAvatarColor(index: number): string {
-	const colors = ['#14b8a6', '#ff7b6b', '#7ba3d1', '#f4c542', '#8ba888'];
-	return colors[index % colors.length];
-}
-
-async function handleDeleteTrip(tripId: string) {
-	if (!confirm('Are you sure you want to delete this trip? This action cannot be undone.')) {
-		return;
-	}
-
-	const session = getSession();
-	if (!session) return;
-
-	try {
-		loading.value = true;
-    await Trips.deleteTrip(tripId);
-		await loadTrips();
-	} catch (error: any) {
-		console.error("Failed to delete trip:", error);
-		const errorMessage = error instanceof Error ? error.message : "Failed to delete trip";
-		alert(errorMessage);
-	} finally {
-		loading.value = false;
 	}
 }
 

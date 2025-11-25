@@ -1245,7 +1245,7 @@ async function handleRatingChange(activityId: string, rating: number) {
     }
 
     emit('rate', activityId, rating);
-  } catch (error) {
+  } catch (error: any) {
     console.error(`Failed to save rating for ${activityId}:`, error);
     // Revert local state on error
     if (previousRating !== undefined) {
@@ -1253,6 +1253,11 @@ async function handleRatingChange(activityId: string, rating: number) {
     } else {
       delete userRatings.value[activityId];
     }
+    const message =
+      error?.response?.data?.error ||
+      (error instanceof Error ? error.message : null) ||
+      "Something went wrong while saving your rating. Please try again.";
+    alert(message);
   }
 }
 
@@ -1310,9 +1315,13 @@ async function handleToggleOptIn(activityId: string) {
     await loadInvitations();
     // Also refresh activities to get updated data
     emit('refresh-activities');
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error toggling opt-in:', error);
-    alert('Failed to update attendance status');
+    const message =
+      error?.response?.data?.error ||
+      (error instanceof Error ? error.message : null) ||
+      "Couldn't update your attendance status. Please refresh and try again.";
+    alert(message);
   }
 }
 
@@ -1323,9 +1332,13 @@ async function handleToggleSolo(activityId: string, solo: boolean) {
   try {
 		// Solo flag is only stored client-side in this frontend; backend API doesn't expose a modifySolo endpoint.
     emit('refresh-activities');
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error toggling solo:', error);
-    alert('Failed to update solo status');
+    const message =
+      error?.response?.data?.error ||
+      (error instanceof Error ? error.message : null) ||
+      "Couldn't update the solo visibility for this activity.";
+    alert(message);
   }
 }
 
@@ -1345,9 +1358,13 @@ async function handleToggleProposal(activityId: string, proposal: boolean) {
     }
 
     emit('refresh-activities');
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error toggling proposal:', error);
-    alert('Failed to update proposal status');
+    const message =
+      error?.response?.data?.error ||
+      (error instanceof Error ? error.message : null) ||
+      "Couldn't update the proposal status. Please try again.";
+    alert(message);
   }
 }
 
@@ -1369,9 +1386,13 @@ function handleDeleteProposal(activityId: string) {
       await Activities.deleteActivity(activityId);
         emit('delete-activity', activityId);
         emit('refresh-activities');
-      } catch (error) {
-        console.error('Error deleting proposal:', error);
-        alert('Failed to delete proposal');
+      } catch (error: any) {
+			console.error('Error deleting proposal:', error);
+			const message =
+				error?.response?.data?.error ||
+				(error instanceof Error ? error.message : null) ||
+				"Couldn't delete this proposal. Please refresh and try again.";
+			alert(message);
       } finally {
         showConfirmDialog.value = false;
         confirmDialogConfig.value = null;
@@ -1438,9 +1459,12 @@ async function handleSaveEdit() {
     showEditDialog.value = false;
     editingActivity.value = null;
     emit('refresh-activities');
-  } catch (error) {
-    console.error('Error saving activity edits:', error);
-    alert(`Failed to save changes: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  } catch (error: any) {
+		console.error('Error saving activity edits:', error);
+		const backendMessage = error?.response?.data?.error;
+		const fallback =
+			error instanceof Error ? error.message : 'Unknown error';
+		alert(`Failed to save changes: ${backendMessage || fallback}`);
   }
 }
 
@@ -1462,9 +1486,13 @@ function handleRevertToProposal(activityId: string) {
       // Backend modifyProposal endpoint is not exposed in the new Activities API;
       // keep UI consistent by just refreshing activities.
         emit('refresh-activities');
-      } catch (error) {
-        console.error('Error converting to proposal:', error);
-        alert('Failed to convert to proposal');
+      } catch (error: any) {
+			console.error('Error converting to proposal:', error);
+			const message =
+				error?.response?.data?.error ||
+				(error instanceof Error ? error.message : null) ||
+				"Couldn't convert this event back to a proposal.";
+			alert(message);
       } finally {
         showConfirmDialog.value = false;
         confirmDialogConfig.value = null;
@@ -1491,9 +1519,13 @@ async function handleDeleteActivity(activityId: string) {
 			await Activities.deleteActivity(activityId);
         emit('delete-activity', activityId);
         emit('refresh-activities');
-      } catch (error) {
-        console.error('Error deleting activity:', error);
-        alert('Failed to delete activity');
+      } catch (error: any) {
+			console.error('Error deleting activity:', error);
+			const message =
+				error?.response?.data?.error ||
+				(error instanceof Error ? error.message : null) ||
+				"Couldn't delete this activity. You might not have permission.";
+			alert(message);
       } finally {
         showConfirmDialog.value = false;
         confirmDialogConfig.value = null;
@@ -1580,8 +1612,13 @@ async function handleAddAttraction() {
     };
 
     showAddDialog.value = false;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error adding attraction:', error);
+    const message =
+      error?.response?.data?.error ||
+      (error instanceof Error ? error.message : null) ||
+      "Couldn't add this attraction. Please check the fields and try again.";
+    alert(message);
   }
 }
 
