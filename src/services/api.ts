@@ -1,5 +1,4 @@
-const API_BASE_URL =
-	import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api";
 
 class ApiError extends Error {
 	constructor(
@@ -63,7 +62,7 @@ async function apiRequest<T>(
 					? { session: sessionToken, ...data }
 					: data;
 
-			const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+			const response = await fetch(`${API_BASE}${endpoint}`, {
 				method,
 				headers: {
 					"Content-Type": "application/json",
