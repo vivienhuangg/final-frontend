@@ -191,7 +191,7 @@
                 {{ splitError }}
               </div>
               <div v-if="splitTotal" class="split-total">
-                Total: 
+                Total:
                 <span :class="{ valid: isSplitValid, invalid: !isSplitValid }">
                   {{ splitTotal }}
                   <span v-if="newExpense.splitType === 'money'">$</span>
@@ -240,7 +240,7 @@ const newExpense = ref({
 
 const memberBalances = computed<MemberBalance[]>(() => {
   const balances: Record<string, number> = {};
-  
+
   // Initialize all travelers with 0 balance
   props.travelers.forEach(t => {
     balances[t.id] = 0;
@@ -250,7 +250,7 @@ const memberBalances = computed<MemberBalance[]>(() => {
   props.expenses.forEach(expense => {
     // Person who paid gets positive balance (owed money)
     balances[expense.paidBy] = (balances[expense.paidBy] || 0) + expense.totalCost;
-    
+
     // People who split get negative balance (owe money)
     expense.splitBetween.forEach(splitUser => {
       const cost = splitUser.cost || 0;
@@ -332,7 +332,7 @@ function validateSplits() {
   if (!showAdvancedSettings.value) return;
 
   const total = parseFloat(splitTotal.value || '0');
-  
+
   if (newExpense.value.splitType === 'money') {
     const diff = Math.abs(total - newExpense.value.totalCost);
     if (diff >= 0.01) {
@@ -846,4 +846,3 @@ function addExpense() {
   cursor: not-allowed;
 }
 </style>
-

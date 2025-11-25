@@ -312,7 +312,7 @@ async function loadRatings() {
       try {
         const response = await ratingApi.getRatingsByItem({ item: activity.id });
         ratings.value[activity.id] = response.results || [];
-        
+
         // Find current user's rating
         const userRating = response.results.find(r => r.user === currentUserId.value);
         if (userRating) {
@@ -379,8 +379,8 @@ function getSubmitterName(userId: string): string {
 function formatDate(dateString: string): string {
   if (!dateString) return '';
   const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', { 
-    month: 'short', 
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
     day: 'numeric',
     year: 'numeric'
   });
@@ -461,14 +461,14 @@ async function handleAddAttraction() {
     // Convert date and time to datetime strings
     let startDateTime = '';
     let endDateTime = '';
-    
+
     if (newAttraction.value.date) {
       if (newAttraction.value.time) {
         startDateTime = `${newAttraction.value.date}T${newAttraction.value.time}:00`;
       } else {
         startDateTime = `${newAttraction.value.date}T00:00:00`;
       }
-      
+
       if (newAttraction.value.endTime) {
         endDateTime = `${newAttraction.value.date}T${newAttraction.value.endTime}:00`;
       } else if (newAttraction.value.time) {
@@ -506,7 +506,7 @@ async function handleAddAttraction() {
     };
 
     emit('add-activity', activity);
-    
+
     // Reset form
     newAttraction.value = {
       name: '',
@@ -517,7 +517,7 @@ async function handleAddAttraction() {
       time: '',
       endTime: '',
     };
-    
+
     showAddDialog.value = false;
   } catch (error) {
     console.error('Error adding attraction:', error);

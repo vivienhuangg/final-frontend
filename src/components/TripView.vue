@@ -2,7 +2,7 @@
   <div class="trip-view" v-if="trip">
     <div class="container mx-auto p-6 max-w-6xl">
       <!-- Back Button -->
-      <button 
+      <button
         class="btn-back"
         @click="$emit('back')"
       >
@@ -14,9 +14,9 @@
 
       <!-- Hero Header with Destination Photo -->
       <div class="hero-header">
-        <img 
-          v-if="trip.headerImage" 
-          :src="trip.headerImage" 
+        <img
+          v-if="trip.headerImage"
+          :src="trip.headerImage"
           :alt="trip.destination"
           class="hero-image"
         />
@@ -297,7 +297,7 @@ async function loadPackingItems() {
 				packingItems.value = [];
 				return;
 			}
-			
+
 			packingItems.value = response.results
 				.map((result) => {
 					if (!result.item) return null;
@@ -458,20 +458,20 @@ async function handleRegeneratePackingList() {
 		generationProgress.value = 0;
 		generationStage.value = "Regenerating packing list...";
 		generationProgress.value = 30;
-		
+
 		// Regenerate the packing list (this will delete existing and create new)
 		const createResponse = await packingListApi.createPackingList({
 			trip: props.trip.id,
 			regenerate: true,
 		});
 		packingListId.value = createResponse.packinglist;
-		
+
 		generationProgress.value = 60;
 		generationStage.value = "Loading items...";
-		
+
 		// Reload the packing items
 		await loadPackingItems();
-		
+
 		generationProgress.value = 100;
 		generationStage.value = "Complete!";
 		await new Promise(resolve => setTimeout(resolve, 500));
@@ -497,7 +497,7 @@ async function handleGeneratePackingList() {
 		generatingPackingList.value = true;
 		generationProgress.value = 0;
 		generationStage.value = "Preparing...";
-		
+
 		// Get or create packing list for this user and trip
 		// The API will return existing list if it exists, or create a new one
 		if (!packingListId.value) {
@@ -524,7 +524,7 @@ async function handleGeneratePackingList() {
 		generationStage.value = "Analyzing trip details...";
 		generationProgress.value = 20;
 		const tripInfo = `Trip: ${props.trip.title || props.trip.destination} from ${formatDate(props.trip.startDate)} to ${formatDate(props.trip.endDate)}. Destination: ${props.trip.destination}.`;
-		const activitiesInfo = activities.value.length > 0 
+		const activitiesInfo = activities.value.length > 0
 			? `Activities: ${activities.value.map(a => a.title).join(", ")}.`
 			: "";
 		const additionalInput = `${tripInfo} ${activitiesInfo}`;
@@ -540,27 +540,27 @@ async function handleGeneratePackingList() {
 		// Poll for items with progress updates
 		generationStage.value = "Generating items...";
 		generationProgress.value = 50;
-		
+
 		let attempts = 0;
 		const maxAttempts = 30; // 30 seconds max
 		const pollInterval = 1000; // 1 second
-		
+
 		while (attempts < maxAttempts) {
 			await new Promise(resolve => setTimeout(resolve, pollInterval));
 			attempts++;
-			
+
 			// Update progress (50% to 90%)
 			generationProgress.value = 50 + Math.min(40, (attempts / maxAttempts) * 40);
-			
+
 			try {
 				const response = await packingListApi.getItems({
 					packinglist: packingListId.value,
 				});
-				
+
 				if (response.results && response.results.length > 0) {
 					generationStage.value = "Finalizing...";
 					generationProgress.value = 95;
-					
+
 					// Transform and set items
 					packingItems.value = response.results
 						.map((result) => {
@@ -568,10 +568,10 @@ async function handleGeneratePackingList() {
 							return transformApiPackingItemToChecklistItem(result.item);
 						})
 						.filter((item): item is ChecklistItem => item !== null);
-					
+
 					generationProgress.value = 100;
 					generationStage.value = "Complete!";
-					
+
 					// Wait a moment to show completion, then hide overlay
 					await new Promise(resolve => setTimeout(resolve, 500));
 					break;
@@ -581,7 +581,7 @@ async function handleGeneratePackingList() {
 				console.log("Polling for items...", e);
 			}
 		}
-		
+
 		if (attempts >= maxAttempts) {
 			// Timeout - try one final load
 			generationStage.value = "Loading items...";
@@ -838,4 +838,3 @@ async function handleDeleteActivity(activityId: string) {
   opacity: 0.8;
 }
 </style>
-

@@ -22,7 +22,7 @@
 
       <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <!-- Create New Trip Card -->
-        <div 
+        <div
           class="trip-card create-card"
           @click="showNewTripDialog = true"
         >
@@ -404,10 +404,10 @@ function getCountdownLabel(trip: Trip): string {
 
 function formatDate(dateString: string): string {
 	const date = new Date(dateString);
-	return date.toLocaleDateString("en-US", { 
-		month: "short", 
-		day: "numeric", 
-		year: "numeric" 
+	return date.toLocaleDateString("en-US", {
+		month: "short",
+		day: "numeric",
+		year: "numeric"
 	});
 }
 
@@ -420,7 +420,7 @@ async function handleDeleteTrip(tripId: string) {
 	if (!confirm('Are you sure you want to delete this trip? This action cannot be undone.')) {
 		return;
 	}
-	
+
 	const session = getSession();
 	if (!session) return;
 
@@ -445,7 +445,9 @@ function selectTrip(tripId: string) {
 }
 
 function isOrganizer(trip: Trip): boolean {
-	return currentUser.value && trip.organizer === currentUser.value.id;
+  // Ensure a strict boolean is returned; previous version returned currentUser.value (object|null) short-circuited with comparison.
+  // Using optional chaining yields a pure boolean.
+  return trip.organizer === currentUser.value?.id;
 }
 
 async function createTrip() {
@@ -1177,4 +1179,3 @@ function handleLogout() {
   cursor: not-allowed;
 }
 </style>
-

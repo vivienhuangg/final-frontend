@@ -28,7 +28,7 @@
               :key="traveler.id"
               class="member-item"
             >
-              <div 
+              <div
                 class="member-avatar"
                 :style="{ backgroundColor: getAvatarColor(index) }"
               >
@@ -38,7 +38,8 @@
                 <p class="member-name">{{ traveler.name }}</p>
                 <p class="member-email">{{ traveler.email }}</p>
               </div>
-              <span v-if="traveler.role === 'owner'" class="owner-badge">Owner</span>
+              <!-- traveler.role doesn't exist in Trip/Traveler types; derive ownership from trip.organizer -->
+              <span v-if="traveler.id === trip.organizer" class="owner-badge">Owner</span>
             </div>
           </div>
         </div>
@@ -385,4 +386,3 @@ function getAvatarColor(index: number): string {
   background: #e0e0e0;
 }
 </style>
-
