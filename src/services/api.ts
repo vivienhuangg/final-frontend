@@ -279,7 +279,7 @@ export const invitationApi = {
 		results: Array<{
 			invitation: string;
 			event: string;
-			accepted: "Yes" | "No" | "Maybe";
+			acceptedStatus: "Yes" | "No" | "Maybe";
 		}>;
 	}> {
 		return apiRequest("/Invitation/myInvitations", {});
@@ -604,6 +604,14 @@ export const ratingApi = {
 		return apiRequest<{ rating: string }>("/ratings/item/change", data);
 	},
 
+	// Set rating (creates if doesn't exist, updates if it does)
+	async setRating(data: {
+		item: string;
+		ratingNum: number;
+	}): Promise<{ rating: string }> {
+		return apiRequest<{ rating: string }>("/ratings/item/set", data);
+	},
+
 	// Remove rating
 	async removeRating(data: { rating: string }): Promise<{ message: string }> {
 		return apiRequest<{ message: string }>("/ratings/item/remove", data);
@@ -618,7 +626,7 @@ export const ratingApi = {
 
 	// Get all ratings for an item
 	async getRatingsByItem(data: { item: string }): Promise<{
-		results: Array<{ user: string; ratingNum: number; rating: string }>;
+		results: Array<{ rater: string; num: number; ratingId: string }>;
 	}> {
 		return apiRequest("/ratings/item/list", data);
 	},
