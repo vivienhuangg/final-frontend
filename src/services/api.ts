@@ -340,6 +340,31 @@ export const activityApi = {
 		return apiRequest<{ status: string }>("/activities/modifySolo", data);
 	},
 
+	// Modify title
+	async modifyTitle(data: {
+		activity: string;
+		title: string;
+	}): Promise<{ status: string }> {
+		return apiRequest<{ status: string }>("/activities/modifyTitle", data);
+	},
+
+	// Modify duration (start and end times)
+	async modifyDuration(data: {
+		activity: string;
+		startDateTime: string;
+		endDateTime: string;
+	}): Promise<{ status: string }> {
+		return apiRequest<{ status: string }>("/activities/modifyDuration", data);
+	},
+
+	// Modify cost
+	async modifyCost(data: {
+		activity: string;
+		newCost: number;
+	}): Promise<{ status: string }> {
+		return apiRequest<{ status: string }>("/activities/modifyCost", data);
+	},
+
 	// Get all activities for a trip
 	async getActivitiesByTrip(data: { trip: string }): Promise<{
 		results: Array<{

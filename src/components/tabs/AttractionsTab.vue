@@ -62,15 +62,27 @@
                 </div>
                 <p v-if="activity.description" class="attraction-description">{{ activity.description }}</p>
               </div>
-              <button 
-                class="btn-delete-small"
-                @click="handleDeleteActivity(activity.id)"
-                title="Delete activity"
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </button>
+              <div class="card-actions">
+                <button 
+                  class="btn-settings-small"
+                  @click="openEditDialog(activity)"
+                  title="Edit activity"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </button>
+                <button 
+                  class="btn-delete-small"
+                  @click="handleDeleteActivity(activity.id)"
+                  title="Delete activity"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              </div>
             </div>
             <div class="card-content">
               <div class="attraction-meta">
@@ -157,6 +169,28 @@
                   </div>
                 </div>
                 <p v-if="activity.description" class="attraction-description">{{ activity.description }}</p>
+              </div>
+              <div class="card-actions">
+                <button 
+                  class="btn-settings-small"
+                  @click="openEditDialog(activity)"
+                  title="Edit activity"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </button>
+                <button 
+                  v-if="canDelete(activity.id)"
+                  class="btn-delete-small"
+                  @click="handleDeleteActivity(activity.id)"
+                  title="Delete activity"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
               </div>
             </div>
             <div class="card-content">
@@ -256,6 +290,28 @@
                   </div>
                 </div>
                 <p v-if="activity.description" class="attraction-description">{{ activity.description }}</p>
+              </div>
+              <div class="card-actions">
+                <button 
+                  class="btn-settings-small"
+                  @click="openEditDialog(activity)"
+                  title="Edit activity"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </button>
+                <button 
+                  v-if="canDelete(activity.id)"
+                  class="btn-delete-small"
+                  @click="handleDeleteActivity(activity.id)"
+                  title="Delete activity"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
               </div>
             </div>
             <div class="card-content">
@@ -439,6 +495,74 @@
       </div>
     </div>
 
+    <!-- Edit Activity Dialog -->
+    <div v-if="showEditDialog && editingActivity" class="dialog-overlay" @click="showEditDialog = false">
+      <div class="dialog" @click.stop>
+        <div class="dialog-header">
+          <h2 class="dialog-title">Edit Activity</h2>
+          <p class="dialog-description">Update activity details</p>
+        </div>
+        <form @submit.prevent="handleSaveEdit" class="dialog-form">
+          <div class="form-group">
+            <label for="edit-title">Title</label>
+            <input
+              id="edit-title"
+              v-model="editForm.title"
+              type="text"
+              required
+              placeholder="Activity title"
+            />
+          </div>
+          <div class="form-group">
+            <label for="edit-description">Description</label>
+            <textarea
+              id="edit-description"
+              v-model="editForm.description"
+              placeholder="Activity description"
+              rows="3"
+            ></textarea>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="edit-start">Start Date & Time</label>
+              <input
+                id="edit-start"
+                v-model="editForm.start"
+                type="datetime-local"
+                required
+              />
+            </div>
+            <div class="form-group">
+              <label for="edit-end">End Date & Time</label>
+              <input
+                id="edit-end"
+                v-model="editForm.end"
+                type="datetime-local"
+                required
+              />
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="edit-cost">Cost per Person ($)</label>
+            <input
+              id="edit-cost"
+              v-model.number="editForm.cost"
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="0.00"
+            />
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn-secondary" @click="showEditDialog = false">
+              Cancel
+            </button>
+            <button type="submit" class="btn-submit">Save Changes</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <!-- Confirmation Dialog -->
     <div v-if="showConfirmDialog" class="dialog-overlay" @click="cancelConfirm">
       <div class="confirm-dialog" @click.stop>
@@ -499,6 +623,15 @@ const confirmDialogConfig = ref<{
   cancelText: string;
   onConfirm: () => void;
 } | null>(null);
+const showEditDialog = ref(false);
+const editingActivity = ref<ActivityWithDetails | null>(null);
+const editForm = ref({
+  title: '',
+  description: '',
+  start: '',
+  end: '',
+  cost: 0,
+});
 
 // Helper to get date from activity
 function getActivityDate(activity: ActivityWithDetails): string {
@@ -1045,6 +1178,79 @@ function handleDeleteProposal(activityId: string) {
   };
 }
 
+function openEditDialog(activity: ActivityWithDetails) {
+  editingActivity.value = activity;
+  editForm.value = {
+    title: activity.title || '',
+    description: activity.description || '',
+    start: activity.start ? new Date(activity.start).toISOString().slice(0, 16) : '',
+    end: activity.end ? new Date(activity.end).toISOString().slice(0, 16) : '',
+    cost: activity.cost || 0,
+  };
+  showEditDialog.value = true;
+}
+
+async function handleSaveEdit() {
+  const session = getSession();
+  if (!session || !editingActivity.value) {
+    console.warn('Cannot save edit: no session or activity');
+    return;
+  }
+
+  try {
+    const activity = editingActivity.value;
+    console.log('Saving edits for activity:', activity.id, editForm.value);
+    
+    // Update title if changed
+    if (editForm.value.title !== activity.title) {
+      console.log('Updating title:', activity.title, '->', editForm.value.title);
+      await activityApi.modifyTitle({
+        activity: activity.id,
+        title: editForm.value.title,
+      });
+    }
+
+    // Update duration if changed
+    // Convert datetime-local to ISO string for comparison
+    const newStart = editForm.value.start ? new Date(editForm.value.start).toISOString() : null;
+    const newEnd = editForm.value.end ? new Date(editForm.value.end).toISOString() : null;
+    
+    // Compare dates (normalize to ISO strings for comparison)
+    const currentStart = activity.start ? new Date(activity.start).toISOString() : null;
+    const currentEnd = activity.end ? new Date(activity.end).toISOString() : null;
+    
+    if (newStart && newEnd && (newStart !== currentStart || newEnd !== currentEnd)) {
+      console.log('Updating duration:', { currentStart, newStart, currentEnd, newEnd });
+      await activityApi.modifyDuration({
+        activity: activity.id,
+        startDateTime: newStart,
+        endDateTime: newEnd,
+      });
+    }
+
+    // Update cost if changed (handle potential float precision issues)
+    const costChanged = Math.abs((editForm.value.cost || 0) - (activity.cost || 0)) > 0.01;
+    if (costChanged) {
+      console.log('Updating cost:', activity.cost, '->', editForm.value.cost);
+      await activityApi.modifyCost({
+        activity: activity.id,
+        newCost: editForm.value.cost,
+      });
+    }
+
+    // Note: Description is not stored in backend, so we skip it
+    // If you want to store description, you'd need to add a backend endpoint
+
+    console.log('Edit saved successfully');
+    showEditDialog.value = false;
+    editingActivity.value = null;
+    emit('refresh-activities');
+  } catch (error) {
+    console.error('Error saving activity edits:', error);
+    alert(`Failed to save changes: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
 function handleRevertToProposal(activityId: string) {
   const activity = props.activities.find(a => a.id === activityId);
   if (!activity) return;
@@ -1392,6 +1598,30 @@ const newAttraction = ref({
   color: #64748b;
   font-size: 0.875rem;
   margin-top: 0.25rem;
+}
+
+.card-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.btn-settings-small {
+  padding: 0.375rem;
+  background: #e0f2fe;
+  color: #0284c7;
+  border: 1px solid #bae6fd;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-settings-small:hover {
+  background: #bae6fd;
+  transform: scale(1.1);
 }
 
 .btn-delete-small {
