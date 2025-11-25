@@ -98,6 +98,10 @@
                   <span class="stat-value">{{ formatRating(getAverageScore(activity.id)) }}/10</span>
                   <span class="stat-label">Rating</span>
                 </div>
+                <div class="stat">
+                  <span class="stat-value">{{ getVoteCount(activity.id) }}</span>
+                  <span class="stat-label">Votes</span>
+                </div>
                 <div v-if="!activity.solo" class="stat">
                   <span class="stat-value">{{ getOptedInCount(activity.id) }}</span>
                   <span class="stat-label">Attending</span>
@@ -180,6 +184,10 @@
                 <div class="stat">
                   <span class="stat-value">{{ formatRating(getAverageScore(activity.id)) }}/10</span>
                   <span class="stat-label">Rating</span>
+                </div>
+                <div class="stat">
+                  <span class="stat-value">{{ getVoteCount(activity.id) }}</span>
+                  <span class="stat-label">Votes</span>
                 </div>
                 <div class="stat">
                   <span class="stat-value">{{ getOptedInCount(activity.id) }}</span>
@@ -276,25 +284,25 @@
                   <span class="stat-value">{{ formatRating(getAverageScore(activity.id)) }}/10</span>
                   <span class="stat-label">Rating</span>
                 </div>
+                <div class="stat">
+                  <span class="stat-value">{{ getVoteCount(activity.id) }}</span>
+                  <span class="stat-label">Votes</span>
+                </div>
               </div>
               <div class="activity-actions">
                 <div class="rating-section">
                   <label class="rating-label">Your Rating</label>
-                  <div class="rating-display">
-                    <svg class="w-4 h-4 text-yellow-500 fill-yellow-500" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                    </svg>
-                    <span>{{ getUserRating(activity.id) }}/10</span>
+                  <div class="rating-buttons">
+                    <button
+                      v-for="i in 10"
+                      :key="i"
+                      :class="['rating-btn', { active: getUserRating(activity.id) >= i }]"
+                      @click="handleRatingChange(activity.id, i)"
+                      :title="`Rate ${i}/10`"
+                    >
+                      {{ i }}
+                    </button>
                   </div>
-                  <input
-                    type="range"
-                    :min="0"
-                    :max="10"
-                    :step="1"
-                    :value="getUserRating(activity.id)"
-                    @input="handleRatingChange(activity.id, parseInt(($event.target as HTMLInputElement).value))"
-                    class="rating-slider"
-                  />
                 </div>
                 <div class="activity-controls">
                   <button
@@ -481,6 +489,7 @@ const userRatings = ref<Record<string, number>>({});
 const ratings = ref<Record<string, { rater: string; num: number; ratingId: string }[]>>({});
 const optedInAttractions = ref<Set<string>>(new Set());
 const activityInvitations = ref<Record<string, { invitation: string; accepted: "Yes" | "No" | "Maybe" }>>({});
+const allActivityInvitations = ref<Record<string, Array<{ invitee: string; accepted: "Yes" | "No" | "Maybe" }>>>({});
 const showConfirmDialog = ref(false);
 const confirmDialogConfig = ref<{
   title: string;
@@ -604,6 +613,9 @@ async function loadInvitations() {
     const response = await invitationApi.getMyInvitations();
     const myInvitations = response.results || [];
     
+    // Reset all activity invitations
+    allActivityInvitations.value = {};
+    
     // Filter to only activity invitations (not trip invitations)
     // and map by activity ID
     myInvitations.forEach((inv: { invitation: string; event: string; acceptedStatus: "Yes" | "No" | "Maybe" }) => {
@@ -612,10 +624,20 @@ async function loadInvitations() {
       // Check if this event is an activity (not a trip)
       const isActivity = props.activities.some(a => a.id === inv.event);
       if (isActivity) {
+        // Store current user's invitation
         activityInvitations.value[inv.event] = {
           invitation: inv.invitation,
           accepted: accepted,
         };
+        
+        // Store in all invitations (we only have current user's for now)
+        if (!allActivityInvitations.value[inv.event]) {
+          allActivityInvitations.value[inv.event] = [];
+        }
+        allActivityInvitations.value[inv.event].push({
+          invitee: currentUserId.value,
+          accepted: accepted,
+        });
         
         // Update opted-in status based on invitation
         if (accepted === "Yes") {
@@ -674,9 +696,22 @@ function formatRating(score: number): string {
   return score.toFixed(1);
 }
 
+function getVoteCount(activityId: string): number {
+  return (ratings.value[activityId] || []).length;
+}
+
 function getOptedInCount(activityId: string): number {
   const activity = props.activities.find(a => a.id === activityId);
-  return activity?.attendees?.length || 0;
+  if (!activity) return 0;
+  
+  // Only count invitations with accepted === "Yes"
+  // Don't count the creator automatically - they must opt in like everyone else
+  const invitations = allActivityInvitations.value[activityId] || [];
+  const acceptedCount = invitations.filter(inv => inv.accepted === "Yes").length;
+  
+  // Return the count of people who have actually opted in
+  // If we don't have invitation data yet, return 0 (not a fallback count)
+  return acceptedCount;
 }
 
 function getUserRating(activityId: string): number {
@@ -797,11 +832,36 @@ async function handleToggleOptIn(activityId: string) {
       await invitationApi.rejectInvitation({ invitation: invitation.invitation });
       activityInvitations.value[activityId].accepted = "No";
       optedInAttractions.value.delete(activityId);
+      
+      // Update allActivityInvitations
+      if (allActivityInvitations.value[activityId]) {
+        const userInv = allActivityInvitations.value[activityId].find(inv => inv.invitee === currentUserId.value);
+        if (userInv) {
+          userInv.accepted = "No";
+        }
+      }
     } else {
       // Opt in: accept the invitation
       await invitationApi.acceptInvitation({ invitation: invitation.invitation });
       activityInvitations.value[activityId].accepted = "Yes";
       optedInAttractions.value.add(activityId);
+      
+      // Update allActivityInvitations
+      if (allActivityInvitations.value[activityId]) {
+        const userInv = allActivityInvitations.value[activityId].find(inv => inv.invitee === currentUserId.value);
+        if (userInv) {
+          userInv.accepted = "Yes";
+        } else {
+          // Add if doesn't exist
+          if (!allActivityInvitations.value[activityId]) {
+            allActivityInvitations.value[activityId] = [];
+          }
+          allActivityInvitations.value[activityId].push({
+            invitee: currentUserId.value,
+            accepted: "Yes",
+          });
+        }
+      }
     }
     
     // Reload invitations to ensure we have the latest state from backend
@@ -1329,32 +1389,42 @@ const newAttraction = ref({
   color: #1e3a5f;
 }
 
-.rating-slider {
-  width: 100%;
-  height: 6px;
-  border-radius: 3px;
-  background: #e2e8f0;
-  outline: none;
-  -webkit-appearance: none;
+.rating-buttons {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
 }
 
-.rating-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: #14b8a6;
+.rating-btn {
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 2px solid #e2e8f0;
+  background: white;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #64748b;
   cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.rating-slider::-moz-range-thumb {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
+.rating-btn:hover {
+  border-color: #14b8a6;
+  color: #14b8a6;
+  transform: scale(1.05);
+  background: #f0fdfa;
+}
+
+.rating-btn.active {
   background: #14b8a6;
-  cursor: pointer;
-  border: none;
+  border-color: #14b8a6;
+  color: white;
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(20, 184, 166, 0.3);
 }
 
 .opt-in-section {
