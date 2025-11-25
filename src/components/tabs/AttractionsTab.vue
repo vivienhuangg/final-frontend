@@ -93,7 +93,7 @@
                   <span>${{ activity.cost.toFixed(2) }}/person</span>
                 </div>
               </div>
-              <div class="activity-stats">
+              <div v-if="!activity.solo" class="activity-stats">
                 <div class="stat">
                   <span class="stat-value">{{ formatRating(getAverageScore(activity.id)) }}/10</span>
                   <span class="stat-label">Rating</span>
@@ -102,7 +102,7 @@
                   <span class="stat-value">{{ getVoteCount(activity.id) }}</span>
                   <span class="stat-label">Votes</span>
                 </div>
-                <div v-if="!activity.solo" class="stat">
+                <div class="stat">
                   <span class="stat-value">{{ getOptedInCount(activity.id) }}</span>
                   <span class="stat-label">Attending</span>
                 </div>
@@ -611,6 +611,11 @@ async function loadRatings() {
 
   try {
     for (const activity of props.activities) {
+      // Skip loading ratings for solo events
+      if (activity.solo) {
+        continue;
+      }
+      
       try {
         const response = await ratingApi.getRatingsByItem({ item: activity.id });
         const allRatings = response.results || [];
