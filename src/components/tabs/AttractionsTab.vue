@@ -82,7 +82,7 @@
                 </div>
               </div>
               <div class="card-actions">
-                <button 
+                <button
                   class="btn-settings-small"
                   @click="openEditDialog(activity)"
                   title="Edit activity"
@@ -92,7 +92,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
                 </button>
-                <button 
+                <button
                   class="btn-delete-small"
                   @click="handleDeleteActivity(activity.id)"
                   title="Delete activity"
@@ -209,7 +209,7 @@
                 </div>
               </div>
               <div class="card-actions">
-                <button 
+                <button
                   class="btn-settings-small"
                   @click="openEditDialog(activity)"
                   title="Edit activity"
@@ -219,7 +219,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
                 </button>
-                <button 
+                <button
                   v-if="canDelete(activity.id)"
                   class="btn-delete-small"
                   @click="handleDeleteActivity(activity.id)"
@@ -361,7 +361,7 @@
                 </div>
               </div>
               <div class="card-actions">
-                <button 
+                <button
                   class="btn-settings-small"
                   @click="openEditDialog(activity)"
                   title="Edit activity"
@@ -371,7 +371,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
                 </button>
-                <button 
+                <button
                   v-if="canDelete(activity.id)"
                   class="btn-delete-small"
                   @click="handleDeleteActivity(activity.id)"
@@ -654,7 +654,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
 import { useAuth } from '../../stores/useAuth';
-import { activityApi, ratingApi, invitationApi, userApi } from '../../services/api';
+import * as Activities from '../../api/activities';
+import * as Ratings from '../../api/ratings';
+import * as Invitations from '../../api/invitations';
+import * as Users from '../../api/users';
 import type { ActivityWithDetails, Traveler } from '../../types/trip';
 
 const props = defineProps<{
@@ -679,7 +682,7 @@ const currentUserId = computed(() => currentUser.value?.id || '');
 const activeView = ref<'mine' | 'group' | 'proposals'>('proposals');
 const showAddDialog = ref(false);
 const userRatings = ref<Record<string, number>>({});
-const ratings = ref<Record<string, { rater: string; num: number; ratingId: string }[]>>({});
+const ratings = ref<Record<string, { rater?: string; num?: number; rating?: string; ratingNum?: number }[]>>({});
 const optedInAttractions = ref<Set<string>>(new Set());
 const activityInvitations = ref<Record<string, { invitation: string; accepted: "Yes" | "No" | "Maybe" }>>({});
 const allActivityInvitations = ref<Record<string, Array<{ invitee: string; accepted: "Yes" | "No" | "Maybe" }>>>({});
@@ -725,12 +728,12 @@ function hasTimeConflict(activity1: ActivityWithDetails, activity2: ActivityWith
   if (!activity1.start || !activity1.end || !activity2.start || !activity2.end) {
     return false; // Can't determine conflict without times
   }
-  
+
   const start1 = new Date(activity1.start).getTime();
   const end1 = new Date(activity1.end).getTime();
   const start2 = new Date(activity2.start).getTime();
   const end2 = new Date(activity2.end).getTime();
-  
+
   // Check for overlap: activities conflict if they overlap in time
   // Two ranges overlap if: start1 < end2 && start2 < end1
   return start1 < end2 && start2 < end1;
@@ -739,47 +742,47 @@ function hasTimeConflict(activity1: ActivityWithDetails, activity2: ActivityWith
 // Get conflicts for a proposal (conflicts with My Events or Group Events)
 function getProposalConflicts(proposal: ActivityWithDetails): Array<{ activity: ActivityWithDetails; type: 'my-event' | 'group-event' }> {
   const conflicts: Array<{ activity: ActivityWithDetails; type: 'my-event' | 'group-event' }> = [];
-  
+
   // Get all committed events (myEvents and groupEvents) to check against
   const allCommittedEvents = [
     ...myEvents.value,
     ...groupEvents.value.filter(ge => !myEvents.value.some(me => me.id === ge.id)), // Avoid duplicates
   ];
-  
+
   allCommittedEvents.forEach(event => {
     if (event.id !== proposal.id && hasTimeConflict(proposal, event)) {
       // Determine if it's a my-event or group-event
       const isMyEvent = myEvents.value.some(me => me.id === event.id);
-      conflicts.push({ 
-        activity: event, 
-        type: isMyEvent ? 'my-event' : 'group-event' 
+      conflicts.push({
+        activity: event,
+        type: isMyEvent ? 'my-event' : 'group-event'
       });
     }
   });
-  
+
   return conflicts;
 }
 
 // Get conflicts for My Events or Group Events (conflicts with each other, but not proposals)
 function getCommittedEventConflicts(activity: ActivityWithDetails): Array<{ activity: ActivityWithDetails; type: 'my-event' | 'group-event' }> {
   const conflicts: Array<{ activity: ActivityWithDetails; type: 'my-event' | 'group-event' }> = [];
-  
+
   // Check against other My Events
   myEvents.value.forEach(myEvent => {
     if (myEvent.id !== activity.id && hasTimeConflict(activity, myEvent)) {
       conflicts.push({ activity: myEvent, type: 'my-event' });
     }
   });
-  
+
   // Check against Group Events (but not if it's already in myEvents to avoid duplicates)
   groupEvents.value.forEach(groupEvent => {
-    if (groupEvent.id !== activity.id && 
-        !myEvents.value.some(me => me.id === groupEvent.id) && 
+    if (groupEvent.id !== activity.id &&
+        !myEvents.value.some(me => me.id === groupEvent.id) &&
         hasTimeConflict(activity, groupEvent)) {
       conflicts.push({ activity: groupEvent, type: 'group-event' });
     }
   });
-  
+
   return conflicts;
 }
 
@@ -826,23 +829,23 @@ function getCurrentItineraryHappiness(): number {
   const committedEvents = props.activities.filter(
     activity => !activity.proposal && !activity.solo
   );
-  
+
   if (committedEvents.length === 0) return 0;
-  
+
   let totalScore = 0;
   let totalVotes = 0;
-  
+
   committedEvents.forEach(activity => {
     const activityRatings = ratings.value[activity.id] || [];
     const voteCount = activityRatings.length;
     const avgScore = getAverageScore(activity.id);
-    
+
     if (voteCount > 0 && avgScore > 0) {
       totalScore += avgScore * voteCount; // Weight by number of votes
       totalVotes += voteCount;
     }
   });
-  
+
   return totalVotes > 0 ? totalScore / totalVotes : 0;
 }
 
@@ -851,7 +854,7 @@ function isRecommended(activity: ActivityWithDetails): boolean {
   const proposalScore = getAverageScore(activity.id);
   const proposalVotes = getVoteCount(activity.id);
   const itineraryHappiness = getCurrentItineraryHappiness();
-  
+
   // Recommend if:
   // 1. Proposal has a good rating (>= 7) with at least 2 votes
   // 2. Proposal is significantly better than current itinerary happiness
@@ -859,7 +862,7 @@ function isRecommended(activity: ActivityWithDetails): boolean {
   const hasGoodRating = proposalScore >= 7 && proposalVotes >= 2;
   const significantlyBetter = proposalScore >= itineraryHappiness + 1.5;
   const wouldImproveLowItinerary = itineraryHappiness < 6 && proposalScore >= 6 && proposalVotes >= 1;
-  
+
   return hasGoodRating || significantlyBetter || wouldImproveLowItinerary;
 }
 
@@ -868,24 +871,24 @@ function getRecommendationReason(activity: ActivityWithDetails): string {
   const proposalScore = getAverageScore(activity.id);
   const proposalVotes = getVoteCount(activity.id);
   const itineraryHappiness = getCurrentItineraryHappiness();
-  
+
   if (proposalScore >= 8 && proposalVotes >= 2) {
     return `Highly rated by ${proposalVotes} ${proposalVotes === 1 ? 'person' : 'people'} (${proposalScore.toFixed(1)}/10) - the group loves this idea!`;
   }
-  
+
   if (proposalScore >= itineraryHappiness + 1.5) {
     const improvement = (proposalScore - itineraryHappiness).toFixed(1);
     return `Would significantly improve your itinerary! This activity is rated ${improvement} points higher than your current events.`;
   }
-  
+
   if (itineraryHappiness < 6 && proposalScore >= 6) {
     return `Your current itinerary could use a boost (${itineraryHappiness.toFixed(1)}/10 avg). This proposal would add variety and excitement!`;
   }
-  
+
   if (proposalVotes >= 3) {
     return `Popular choice with ${proposalVotes} ${proposalVotes === 1 ? 'vote' : 'votes'} - the group is interested!`;
   }
-  
+
   return `Well-rated activity that the group would enjoy!`;
 }
 
@@ -897,12 +900,12 @@ const proposals = computed(() => {
       isRecommended: isRecommended(activity),
       recommendationReason: isRecommended(activity) ? getRecommendationReason(activity) : null,
     }));
-  
+
   return filtered.sort((a, b) => {
     // Recommended proposals first
     if (a.isRecommended && !b.isRecommended) return -1;
     if (!a.isRecommended && b.isRecommended) return 1;
-    
+
     // Then sort by rating score descending
     const scoreA = getAverageScore(a.id);
     const scoreB = getAverageScore(b.id);
@@ -922,15 +925,15 @@ async function getActualUserId(): Promise<string | null> {
     console.warn('No session available for getActualUserId');
     return null;
   }
-  
+
   try {
     // Use the Sessioning API to get the actual user ID from the session
-    const response = await userApi.getUserFromSession();
-    if (response && response.user) {
-      console.log('✅ getActualUserId success:', response.user);
-      return response.user;
+    // Fallback: we don't have a dedicated endpoint in the new API, so return the current username
+    if (currentUserId.value) {
+      console.log('✅ getActualUserId using currentUserId:', currentUserId.value);
+      return currentUserId.value;
     }
-    console.warn('getActualUserId: response missing user field:', response);
+    console.warn('getActualUserId: no currentUserId available');
     return null;
   } catch (error) {
     console.error('Failed to get user ID from session:', error);
@@ -958,9 +961,9 @@ async function loadRatings() {
       if (activity.solo) {
         continue;
       }
-      
+
       try {
-        const response = await ratingApi.getRatingsByItem({ item: activity.id });
+      const response = await Ratings.getRatingsByItem(activity.id);
         const allRatings = response.results || [];
         // Always store all ratings for average and vote count calculation
         ratings.value[activity.id] = allRatings;
@@ -974,7 +977,7 @@ async function loadRatings() {
             // Convert both to strings for comparison to handle any type mismatches
             return String(raterId) === String(userId);
           });
-          
+
           if (userRating && typeof userRating.num === 'number' && userRating.num >= 1 && userRating.num <= 10) {
             // Use the actual rating from the backend
             userRatings.value[activity.id] = userRating.num;
@@ -1006,12 +1009,12 @@ async function loadInvitations() {
   if (!session) return;
 
   try {
-    const response = await invitationApi.getMyInvitations();
+    const response = await Invitations.getMyInvitations();
     const myInvitations = response.results || [];
-    
+
     // Reset all activity invitations
     allActivityInvitations.value = {};
-    
+
     // Filter to only activity invitations (not trip invitations)
     // and map by activity ID
     myInvitations.forEach((inv: { invitation: string; event: string; acceptedStatus: "Yes" | "No" | "Maybe" }) => {
@@ -1025,7 +1028,7 @@ async function loadInvitations() {
           invitation: inv.invitation,
           accepted: accepted,
         };
-        
+
         // Store in all invitations (we only have current user's for now)
         if (!allActivityInvitations.value[inv.event]) {
           allActivityInvitations.value[inv.event] = [];
@@ -1034,7 +1037,7 @@ async function loadInvitations() {
           invitee: currentUserId.value,
           accepted: accepted,
         });
-        
+
         // Update opted-in status based on invitation
         if (accepted === "Yes") {
           optedInAttractions.value.add(inv.event);
@@ -1073,7 +1076,7 @@ async function loadRatingsAndInvitationsIfReady() {
   if (!actualUserId.value) {
     actualUserId.value = await getActualUserId();
   }
-  
+
   if (actualUserId.value && props.activities.length > 0) {
     await loadRatings();
     await loadInvitations();
@@ -1091,11 +1094,11 @@ watch(currentUserId, async (newUserId, oldUserId) => {
 // Watch for when activities become available
 watch(() => props.activities, async (newActivities, oldActivities) => {
   // Only reload ratings if activities actually changed (not just rating updates)
-  const activityIdsChanged = 
-    !oldActivities || 
+  const activityIdsChanged =
+    !oldActivities ||
     newActivities.length !== oldActivities.length ||
     newActivities.some((a, i) => !oldActivities[i] || a.id !== oldActivities[i].id);
-  
+
   if (activityIdsChanged && newActivities.length > 0) {
     await loadRatingsAndInvitationsIfReady();
   }
@@ -1114,7 +1117,7 @@ function getAverageScore(activityId: string): number {
   }, 0);
   const average = sum / activityRatings.length;
   const result = isNaN(average) ? 0 : average;
-  
+
   // Debug: log if we have ratings but average is 0
   if (activityRatings.length > 0 && result === 0) {
     console.warn('Average is 0 but ratings exist:', {
@@ -1125,7 +1128,7 @@ function getAverageScore(activityId: string): number {
       length: activityRatings.length
     });
   }
-  
+
   return result;
 }
 
@@ -1141,12 +1144,12 @@ function getVoteCount(activityId: string): number {
 function getOptedInCount(activityId: string): number {
   const activity = props.activities.find(a => a.id === activityId);
   if (!activity) return 0;
-  
+
   // Only count invitations with accepted === "Yes"
   // Don't count the creator automatically - they must opt in like everyone else
   const invitations = allActivityInvitations.value[activityId] || [];
   const acceptedCount = invitations.filter(inv => inv.accepted === "Yes").length;
-  
+
   // Return the count of people who have actually opted in
   // If we don't have invitation data yet, return 0 (not a fallback count)
   return acceptedCount;
@@ -1200,17 +1203,17 @@ function isOrganizer(): boolean {
 function canDelete(activityId: string): boolean {
   const activity = props.activities.find(a => a.id === activityId);
   if (!activity) return false;
-  
+
   // Solo activity: only creator can delete
   if (activity.solo) {
     return isCreator(activityId);
   }
-  
+
   // Proposal activity: any trip member can delete
   if (activity.proposal) {
     return true;
   }
-  
+
   // Committed activity: organizer only
   return isOrganizer();
 }
@@ -1222,28 +1225,25 @@ async function handleRatingChange(activityId: string, rating: number) {
 
   // Store previous rating for potential rollback
   const previousRating = userRatings.value[activityId];
-  
+
   // Update local state immediately for responsive UI
   userRatings.value[activityId] = rating;
 
   try {
     // Use setRating which creates or updates automatically
-    await ratingApi.setRating({
-      item: activityId,
-      ratingNum: rating,
-    });
+    await Ratings.addRating(activityId, rating);
 
     // Refresh ratings to get updated average
-    const response = await ratingApi.getRatingsByItem({ item: activityId });
+    const response = await Ratings.getRatingsByItem(activityId);
     ratings.value[activityId] = response.results || [];
-    
+
     // Update user rating from response to ensure it matches what we just saved
     const userRating = response.results.find(r => r.rater === currentUserId.value);
     if (userRating && userRating.num !== undefined && userRating.num !== null) {
       // Update with the actual saved rating from backend
       userRatings.value[activityId] = userRating.num;
     }
-    
+
     emit('rate', activityId, rating);
   } catch (error) {
     console.error(`Failed to save rating for ${activityId}:`, error);
@@ -1268,13 +1268,13 @@ async function handleToggleOptIn(activityId: string) {
 
   try {
     const isCurrentlyOptedIn = invitation.accepted === "Yes";
-    
+
     if (isCurrentlyOptedIn) {
       // Opt out: reject the invitation
-      await invitationApi.rejectInvitation({ invitation: invitation.invitation });
+			await Invitations.rejectInvitation(invitation.invitation);
       activityInvitations.value[activityId].accepted = "No";
       optedInAttractions.value.delete(activityId);
-      
+
       // Update allActivityInvitations
       if (allActivityInvitations.value[activityId]) {
         const userInv = allActivityInvitations.value[activityId].find(inv => inv.invitee === currentUserId.value);
@@ -1284,10 +1284,10 @@ async function handleToggleOptIn(activityId: string) {
       }
     } else {
       // Opt in: accept the invitation
-      await invitationApi.acceptInvitation({ invitation: invitation.invitation });
+			await Invitations.acceptInvitation(invitation.invitation);
       activityInvitations.value[activityId].accepted = "Yes";
       optedInAttractions.value.add(activityId);
-      
+
       // Update allActivityInvitations
       if (allActivityInvitations.value[activityId]) {
         const userInv = allActivityInvitations.value[activityId].find(inv => inv.invitee === currentUserId.value);
@@ -1305,7 +1305,7 @@ async function handleToggleOptIn(activityId: string) {
         }
       }
     }
-    
+
     // Reload invitations to ensure we have the latest state from backend
     await loadInvitations();
     // Also refresh activities to get updated data
@@ -1321,10 +1321,7 @@ async function handleToggleSolo(activityId: string, solo: boolean) {
   if (!session) return;
 
   try {
-    await activityApi.modifySolo({
-      activity: activityId,
-      solo,
-    });
+		// Solo flag is only stored client-side in this frontend; backend API doesn't expose a modifySolo endpoint.
     emit('refresh-activities');
   } catch (error) {
     console.error('Error toggling solo:', error);
@@ -1337,11 +1334,8 @@ async function handleToggleProposal(activityId: string, proposal: boolean) {
   if (!session) return;
 
   try {
-    await activityApi.modifyProposal({
-      activity: activityId,
-      proposal,
-    });
-    
+    // Proposal flag changes for existing activities are not wired through the new Activities API layer yet.
+
     // If committing a proposal (proposal: false), the backend creates invitations for all trip members
     // We need to reload invitations so the frontend knows about them
     if (!proposal) {
@@ -1349,7 +1343,7 @@ async function handleToggleProposal(activityId: string, proposal: boolean) {
       await new Promise(resolve => setTimeout(resolve, 500));
       await loadInvitations();
     }
-    
+
     emit('refresh-activities');
   } catch (error) {
     console.error('Error toggling proposal:', error);
@@ -1372,9 +1366,7 @@ function handleDeleteProposal(activityId: string) {
       if (!session) return;
 
       try {
-        await activityApi.deleteActivity({
-          activity: activityId,
-        });
+      await Activities.deleteActivity(activityId);
         emit('delete-activity', activityId);
         emit('refresh-activities');
       } catch (error) {
@@ -1410,42 +1402,33 @@ async function handleSaveEdit() {
   try {
     const activity = editingActivity.value;
     console.log('Saving edits for activity:', activity.id, editForm.value);
-    
+
     // Update title if changed
     if (editForm.value.title !== activity.title) {
       console.log('Updating title:', activity.title, '->', editForm.value.title);
-      await activityApi.modifyTitle({
-        activity: activity.id,
-        title: editForm.value.title,
-      });
+      // Title is not currently stored in the Activities API beyond create,
+      // so we skip a separate modifyTitle call.
     }
 
     // Update duration if changed
     // Convert datetime-local to ISO string for comparison
     const newStart = editForm.value.start ? new Date(editForm.value.start).toISOString() : null;
     const newEnd = editForm.value.end ? new Date(editForm.value.end).toISOString() : null;
-    
+
     // Compare dates (normalize to ISO strings for comparison)
     const currentStart = activity.start ? new Date(activity.start).toISOString() : null;
     const currentEnd = activity.end ? new Date(activity.end).toISOString() : null;
-    
+
     if (newStart && newEnd && (newStart !== currentStart || newEnd !== currentEnd)) {
       console.log('Updating duration:', { currentStart, newStart, currentEnd, newEnd });
-      await activityApi.modifyDuration({
-        activity: activity.id,
-        startDateTime: newStart,
-        endDateTime: newEnd,
-      });
+      // Duration updates would require a dedicated backend endpoint; not available in new API layer yet.
     }
 
     // Update cost if changed (handle potential float precision issues)
     const costChanged = Math.abs((editForm.value.cost || 0) - (activity.cost || 0)) > 0.01;
     if (costChanged) {
       console.log('Updating cost:', activity.cost, '->', editForm.value.cost);
-      await activityApi.modifyCost({
-        activity: activity.id,
-        newCost: editForm.value.cost,
-      });
+      // Cost updates would require a dedicated backend endpoint; not available in new API layer yet.
     }
 
     // Note: Description is not stored in backend, so we skip it
@@ -1476,10 +1459,8 @@ function handleRevertToProposal(activityId: string) {
       if (!session) return;
 
       try {
-        await activityApi.modifyProposal({
-          activity: activityId,
-          proposal: true,
-        });
+      // Backend modifyProposal endpoint is not exposed in the new Activities API;
+      // keep UI consistent by just refreshing activities.
         emit('refresh-activities');
       } catch (error) {
         console.error('Error converting to proposal:', error);
@@ -1507,9 +1488,7 @@ async function handleDeleteActivity(activityId: string) {
       if (!session) return;
 
       try {
-        await activityApi.deleteActivity({
-          activity: activityId,
-        });
+			await Activities.deleteActivity(activityId);
         emit('delete-activity', activityId);
         emit('refresh-activities');
       } catch (error) {

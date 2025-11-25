@@ -11,7 +11,8 @@ import { useRoute, useRouter } from 'vue-router';
 import TripView from '../components/TripView.vue';
 import type { Trip } from '../types/trip';
 import { useAuth } from '../stores/useAuth';
-import { tripApi, userApi } from '../services/api';
+import * as Trips from '../api/trips';
+import * as Users from '../api/users';
 import { transformApiTripToTrip } from '../utils/dataTransformers';
 
 const route = useRoute();
@@ -31,7 +32,7 @@ async function loadTrip() {
     return;
   }
   try {
-    const response = await tripApi.getTrip({ trip: id });
+    const response = await Trips.getTrip(id);
     // Fetch traveler names
     const travelerIds = new Set<string>();
     travelerIds.add(response.trip.organizer);
@@ -39,7 +40,7 @@ async function loadTrip() {
     const travelerNames = new Map<string, { firstName?: string; lastName?: string; username: string }>();
     for (const userId of travelerIds) {
       try {
-        const name = await userApi.getName({ targetUser: userId });
+        const name = await Users.getUserName(userId);
         travelerNames.set(userId, { firstName: name.firstName, lastName: name.lastName, username: userId });
       } catch {
         travelerNames.set(userId, { username: userId });

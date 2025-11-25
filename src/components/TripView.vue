@@ -105,7 +105,8 @@
           v-if="activeTab === 'costs'"
           :expenses="expenses"
           :travelers="trip.travelers"
-          @add-expense="handleAddExpense"
+			@add-expense="handleAddExpense"
+			@delete-expense="handleDeleteExpense"
         />
         <PackingTab
           v-if="activeTab === 'packing'"
@@ -126,7 +127,9 @@
 
 <script setup lang="ts">
 import { ref, watch } from "vue";
-import { activityApi, costTrackerApi, packingListApi } from "../services/api";
+import * as Activities from "../api/activities";
+import * as CostTracker from "../api/costtracker";
+import * as PackingLists from "../api/packinglists";
 import { useAuth } from "../stores/useAuth";
 import type {
 	ActivityWithDetails,
@@ -180,9 +183,7 @@ async function loadActivities() {
 	if (!session || !props.trip.id) return;
 
 	try {
-		const response = await activityApi.getActivitiesByTrip({
-			trip: props.trip.id,
-		});
+		const response = await Activities.getActivitiesByTrip(props.trip.id);
 
 		activities.value = response.results.map(({ activity }) => {
 			const transformed = transformApiActivityToActivity(activity);
@@ -201,8 +202,8 @@ async function loadExpenses() {
 	try {
 		// Load both percentage and money expenses
 		const [percentageExpenses, moneyExpenses] = await Promise.all([
-			costTrackerApi.listPercentageExpenses(),
-			costTrackerApi.listMoneyExpenses(),
+			CostTracker.listPercentageExpenses(),
+			CostTracker.listMoneyExpenses(),
 		]);
 
 		// Transform to component Expense type
@@ -211,14 +212,9 @@ async function loadExpenses() {
 		const allExpenses: Expense[] = [];
 
 		// Process percentage expenses
-		for (const {
-			expense: expenseId,
-			totalCost,
-		} of percentageExpenses.listedExpenses) {
+		for (const { expense: expenseId, totalCost } of percentageExpenses.listedExpenses) {
 			try {
-				const details = await costTrackerApi.getPercentageExpenseDetails({
-					expense: expenseId,
-				});
+				const details = await CostTracker.getPercentageExpenseDetails(expenseId);
 				allExpenses.push({
 					id: expenseId,
 					title: `Expense ${expenseId}`,
@@ -237,14 +233,9 @@ async function loadExpenses() {
 		}
 
 		// Process money expenses
-		for (const {
-			expense: expenseId,
-			totalCost,
-		} of moneyExpenses.listedExpenses) {
+		for (const { expense: expenseId, totalCost } of moneyExpenses.listedExpenses) {
 			try {
-				const details = await costTrackerApi.getMoneyExpenseDetails({
-					expense: expenseId,
-				});
+				const details = await CostTracker.getMoneyExpenseDetails(expenseId);
 				allExpenses.push({
 					id: expenseId,
 					title: `Expense ${expenseId}`,
@@ -277,9 +268,7 @@ async function loadPackingItems() {
 		// The API will return existing list if it exists, or create a new one
 		if (!packingListId.value) {
 			try {
-				const createResponse = await packingListApi.createPackingList({
-					trip: props.trip.id,
-				});
+				const createResponse = await PackingLists.createPackingList(props.trip.id);
 				packingListId.value = createResponse.packinglist;
 			} catch (e: any) {
 				console.error("Failed to get or create packing list:", e);
@@ -288,9 +277,7 @@ async function loadPackingItems() {
 		}
 
 		if (packingListId.value) {
-			const response = await packingListApi.getItems({
-				packinglist: packingListId.value,
-			});
+			const response = await PackingLists.getItems(packingListId.value);
 
 			if (!response.results || !Array.isArray(response.results)) {
 				packingItems.value = [];
@@ -353,15 +340,13 @@ async function handleAddActivity(activity: ActivityWithDetails) {
 
 	try {
 		loading.value = true;
-		await activityApi.createActivity({
-			title: activity.title,
-			startDateTime: activity.start,
-			endDateTime: activity.end,
-			cost: activity.cost,
-			trip: props.trip.id,
-			solo: activity.solo ?? false,
-			proposal: activity.proposal ?? true,
-		});
+		await Activities.createActivity(
+			activity.title,
+			activity.start,
+			activity.end,
+			activity.cost,
+			props.trip.id,
+		);
 
 		// Reload activities
 		await loadActivities();
@@ -409,20 +394,20 @@ async function handleAddExpense(expense: Expense) {
 			const users = expense.splitBetween.map((s) => s.userId);
 			const costs = expense.splitBetween.map((s) => s.cost || 0);
 
-			await costTrackerApi.createMoneyExpense({
-				totalCost: expense.totalCost,
+			await CostTracker.createMoneyExpense(
+				expense.totalCost,
 				users,
 				costs,
-			});
+			);
 		} else {
 			const users = expense.splitBetween.map((s) => s.userId);
 			const percentages = expense.splitBetween.map((s) => s.percentage || 0);
 
-			await costTrackerApi.createPercentageExpense({
-				totalCost: expense.totalCost,
+			await CostTracker.createPercentageExpense(
+				expense.totalCost,
 				users,
 				percentages,
-			});
+			);
 		}
 
 		// Reload expenses
@@ -437,6 +422,24 @@ async function handleAddExpense(expense: Expense) {
 	}
 }
 
+async function handleDeleteExpense(expenseId: string) {
+	const session = getSession();
+	if (!session) return;
+
+	try {
+		loading.value = true;
+		await CostTracker.deleteExpense(expenseId);
+		await loadExpenses();
+	} catch (error: any) {
+		console.error("Failed to delete expense:", error);
+		const errorMessage =
+			error instanceof Error ? error.message : "Failed to delete expense";
+		alert(errorMessage);
+	} finally {
+		loading.value = false;
+	}
+}
+
 async function handleToggleItem(itemId: string) {
 	const session = getSession();
 	if (!session || !packingListId.value) return;
@@ -445,11 +448,11 @@ async function handleToggleItem(itemId: string) {
 	if (!item) return;
 
 	try {
-		await packingListApi.toggleCompletion({
-			packinglist: packingListId.value,
-			item: itemId,
-			finishedFlag: !item.finished,
-		});
+		await PackingLists.toggleCompletion(
+			packingListId.value,
+			itemId,
+			!item.finished,
+		);
 
 		// Update local state
 		item.finished = !item.finished;
@@ -502,10 +505,7 @@ async function generatePackingList(regenerate: boolean = false) {
 			try {
 				generationStage.value = regenerate ? "Regenerating packing list..." : "Creating packing list...";
 				generationProgress.value = regenerate ? 20 : 10;
-				const createResponse = await packingListApi.createPackingList({
-					trip: props.trip.id,
-					...(regenerate && { regenerate: true }),
-				});
+				const createResponse = await PackingLists.createPackingList(props.trip.id);
 				packingListId.value = createResponse.packinglist;
 
 				// After creating/regenerating, clear local items to ensure fresh start
@@ -528,10 +528,7 @@ async function generatePackingList(regenerate: boolean = false) {
 			// Delete all items in parallel for better performance
 			await Promise.allSettled(
 				itemsToDelete.map((item) =>
-					packingListApi.deleteItem({
-						packinglist: packingListId.value || "",
-						item: item.id,
-					}).catch((e) => {
+					PackingLists.deleteItem(packingListId.value || "", item.id).catch((e) => {
 						console.warn("Failed to delete item:", e);
 						return null; // Continue even if some deletions fail
 					})
@@ -560,10 +557,7 @@ async function generatePackingList(regenerate: boolean = false) {
 		// Request suggestions from LLM
 		generationStage.value = "Requesting AI suggestions...";
 		generationProgress.value = regenerate ? 40 : 30;
-		await packingListApi.requestSuggestions({
-			packinglist: packingListId.value,
-			additionalInput: additionalInput,
-		});
+		await PackingLists.requestSuggestions(packingListId.value, additionalInput);
 
 		// Poll for items with progress updates
 		generationStage.value = "Generating items...";
@@ -580,9 +574,7 @@ async function generatePackingList(regenerate: boolean = false) {
 			generationProgress.value = 50 + Math.min(40, (attempts / maxAttempts) * 40);
 
 			try {
-				const response = await packingListApi.getItems({
-					packinglist: packingListId.value,
-				});
+				const response = await PackingLists.getItems(packingListId.value);
 
 				if (response.results && response.results.length > 0) {
 					generationStage.value = "Finalizing...";
@@ -637,9 +629,7 @@ async function handleDeleteActivity(activityId: string) {
 
 	try {
 		loading.value = true;
-		await activityApi.deleteActivity({
-			activity: activityId,
-		});
+		await Activities.deleteActivity(activityId);
 
 		// Remove from local state
 		const index = activities.value.findIndex((a) => a.id === activityId);

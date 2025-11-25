@@ -144,7 +144,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
-import { invitationApi, tripApi, userApi } from "../services/api";
+import * as Invitations from "../api/invitations";
+import * as Trips from "../api/trips";
+import * as Users from "../api/users";
 import { useAuth } from "../stores/useAuth";
 import type { Trip, TripInvitation } from "../types/trip";
 import {
@@ -184,7 +186,7 @@ async function loadTrips() {
 
 	try {
 		loading.value = true;
-		const response = await tripApi.getMyTrips();
+    const response = await Trips.getMyTrips();
 
 		// Fetch user names for all travelers
 		const travelerIds = new Set<string>();
@@ -199,7 +201,7 @@ async function loadTrips() {
 		>();
 		for (const userId of travelerIds) {
 			try {
-				const nameResponse = await userApi.getName({ targetUser: userId });
+        const nameResponse = await Users.getUserName(userId);
 				travelerNames.set(userId, {
 					firstName: nameResponse.firstName,
 					lastName: nameResponse.lastName,
@@ -227,7 +229,7 @@ async function loadInvitations() {
 	if (!session || !currentUser.value) return;
 
 	try {
-		const response = await invitationApi.getMyInvitations();
+    const response = await Invitations.getMyInvitations();
 
 		// Fetch trip details for each invitation
 		const invitationTrips: TripInvitation[] = [];
@@ -235,7 +237,7 @@ async function loadInvitations() {
 			if (apiInv.acceptedStatus !== "No") {
 				try {
 					// Get trip details
-					const tripResponse = await tripApi.getTrip({ trip: apiInv.event });
+          const tripResponse = await Trips.getTrip(apiInv.event);
 
 					// Fetch traveler names
 					const travelerIds = new Set<string>();
@@ -248,9 +250,7 @@ async function loadInvitations() {
 					>();
 					for (const userId of travelerIds) {
 						try {
-							const nameResponse = await userApi.getName({
-								targetUser: userId,
-							});
+              const nameResponse = await Users.getUserName(userId);
 							travelerNames.set(userId, {
 								firstName: nameResponse.firstName,
 								lastName: nameResponse.lastName,
@@ -321,7 +321,7 @@ async function getTravelerName(travelerId: string): Promise<string> {
 	if (!session) return travelerId;
 
 	try {
-		const nameResponse = await userApi.getName({ targetUser: travelerId });
+    const nameResponse = await Users.getUserName(travelerId);
 		if (nameResponse.firstName && nameResponse.lastName) {
 			return `${nameResponse.firstName} ${nameResponse.lastName}`;
 		}
@@ -336,7 +336,7 @@ async function acceptInvitation(invitationId: string) {
 	if (!session) return;
 
 	try {
-		await invitationApi.acceptInvitation({ invitation: invitationId });
+    await Invitations.acceptInvitation(invitationId);
 
 		// Update local state
 		const invitation = invitations.value.find((inv) => inv.id === invitationId);
@@ -358,7 +358,7 @@ async function declineInvitation(invitationId: string) {
 	if (!session) return;
 
 	try {
-		await invitationApi.rejectInvitation({ invitation: invitationId });
+    await Invitations.rejectInvitation(invitationId);
 
 		// Update local state
 		const invitation = invitations.value.find((inv) => inv.id === invitationId);
@@ -432,7 +432,7 @@ async function handleDeleteTrip(tripId: string) {
 
 	try {
 		loading.value = true;
-		await tripApi.deleteTrip({ trip: tripId });
+    await Trips.deleteTrip(tripId);
 		await loadTrips();
 	} catch (error: any) {
 		console.error("Failed to delete trip:", error);
@@ -460,11 +460,11 @@ async function createTrip() {
 	try {
 		createLoading.value = true;
 		createError.value = '';
-		const response = await tripApi.createTrip({
-			title: newTrip.value.title,
-			startDate: newTrip.value.startDate,
-			endDate: newTrip.value.endDate,
-		});
+    const response = await Trips.createTrip(
+      newTrip.value.title,
+      newTrip.value.startDate,
+      newTrip.value.endDate,
+    );
 
 		// Reload trips to get the new trip with full details
 		await loadTrips();

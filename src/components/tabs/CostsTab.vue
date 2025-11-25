@@ -83,7 +83,7 @@
                     Paid by {{ getTravelerName(expense.paidBy) }} · Split {{ expense.splitBetween?.length || 1 }} ways
                   </p>
                   <p class="expense-per-person">
-                    {{ formatCurrency((expense.totalCost || 0) / (expense.splitBetween?.length || 1)) }} per person
+                    {{ formatCurrency(getPerPersonAmount(expense)) }} per person
                   </p>
                 </div>
                 <div class="expense-amount-wrapper">
@@ -224,6 +224,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'add-expense', expense: Expense): void;
+  (e: 'delete-expense', id: string): void;
 }>();
 
 const showAddExpenseDialog = ref(false);
@@ -299,8 +300,38 @@ function getAvatarColor(index: number): string {
 }
 
 function handleDeleteExpense(expenseId: string) {
-  // This would call the API to delete the expense
-  console.log('Delete expense:', expenseId);
+  emit('delete-expense', expenseId);
+}
+
+function getPerPersonAmount(expense: Expense): number {
+  const total =
+    typeof expense.totalCost === "number"
+      ? expense.totalCost
+      : Number(expense.totalCost) || 0;
+
+  if (
+    Array.isArray(expense.splitBetween) &&
+    expense.splitBetween.length > 0 &&
+    expense.splitType === "money"
+  ) {
+    const costs = (expense.splitBetween as any[])
+      .map((s) =>
+        typeof s.cost === "number" ? s.cost : Number(s.cost),
+      )
+      .filter((c) => typeof c === "number" && !isNaN(c));
+
+    if (costs.length > 0) {
+      const sum = costs.reduce((acc, c) => acc + c, 0);
+      return sum / costs.length;
+    }
+  }
+
+  const count =
+    Array.isArray(expense.splitBetween) && expense.splitBetween.length > 0
+      ? expense.splitBetween.length
+      : 1;
+
+  return total / count;
 }
 
 function formatDate(dateString: string): string {
