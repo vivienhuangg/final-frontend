@@ -2,6 +2,7 @@ import { createRouter, createWebHistory, type RouteLocationNormalized } from 'vu
 import LoginPage from '../views/LoginPage.vue';
 import Dashboard from '../views/Dashboard.vue';
 import TripPage from '../views/TripPage.vue';
+import InvitationsPage from '../views/InvitationsPage.vue';
 import { useAuthStore } from '../stores/authStore';
 
 const router = createRouter({
@@ -11,6 +12,7 @@ const router = createRouter({
     { path: '/auth', name: 'auth', component: LoginPage, meta: { public: true } },
     { path: '/dashboard', name: 'dashboard', component: Dashboard },
     { path: '/trip/:id', name: 'trip', component: TripPage, props: true },
+    { path: '/invitations', name: 'invitations', component: InvitationsPage },
   ],
 });
 

@@ -6,12 +6,18 @@
         <div class="logo">
           <h1 class="text-2xl font-bold text-[#1e3a5f]">TripSync</h1>
         </div>
-        <button class="btn-sign-out" @click="handleLogout">
-          <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-          </svg>
-          Sign Out
-        </button>
+        <div class="actions-row">
+          <button class="btn-secondary flex items-center gap-2" type="button" @click="goToInvitations">
+            <span>Invitations</span>
+            <span v-if="pendingInvitations.length > 0" class="notification-badge">{{ pendingInvitations.length }}</span>
+          </button>
+          <button class="btn-sign-out" @click="handleLogout">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 00-2-2V7a2 2 0 002-2h4a3 3 0 013 3v1" />
+            </svg>
+            Sign Out
+          </button>
+        </div>
       </div>
 
       <!-- Welcome + Invitations section -->
@@ -25,7 +31,7 @@
             v-if="pendingInvitations.length > 0"
             class="btn-primary flex items-center gap-2"
             type="button"
-            @click="scrollToInvitations"
+            @click="goToInvitations"
           >
             <span class="notification-badge">{{ pendingInvitations.length }}</span>
             <span>View invites</span>
@@ -305,21 +311,26 @@ async function loadInvitations() {
 	if (!session || !currentUser.value) return;
 
 	try {
-    const response = await Invitations.getMyInvitations();
+  const response = await Invitations.getMyInvitations();
 
 		// Fetch trip details for each invitation
 		const invitationTrips: TripInvitation[] = [];
-		for (const apiInv of response.results) {
-      // Only include pending invitations (acceptedStatus === "No")
-      if (apiInv.acceptedStatus === "No") {
+  for (const apiInv of response.results) {
+      // Include pending invitations (acceptedStatus === "No" or "Maybe")
+      if (apiInv.acceptedStatus === "No" || apiInv.acceptedStatus === "Maybe") {
 				try {
-					// Get trip details
-          const tripResponse = await Trips.getTrip(apiInv.event);
+          // Prefer embedded trip details from backend to avoid authorization issues
+          const tripBase = (apiInv.tripDetails || apiInv.trip);
+          let tripSummary: any = tripBase;
+          if (!tripSummary) {
+            const tripResponse = await Trips.getTrip(apiInv.event);
+            tripSummary = tripResponse.trip;
+          }
 
 					// Fetch traveler names
 					const travelerIds = new Set<string>();
-					travelerIds.add(tripResponse.trip.organizer);
-					tripResponse.trip.travellers.forEach((id) => travelerIds.add(id));
+          travelerIds.add(tripSummary.organizer);
+          (tripSummary.travellers || []).forEach((id: string) => travelerIds.add(id));
 
 					const travelerNames = new Map<
 						string,
@@ -341,19 +352,19 @@ async function loadInvitations() {
 						}
 					}
 
-					const trip = transformApiTripToTrip(
-						tripResponse.trip,
-						undefined,
-						travelerNames,
-					);
-					const invitation = transformApiInvitationToTripInvitation(
-						{
-							invitation: apiInv.invitation,
-							event: apiInv.event,
-							accepted: apiInv.acceptedStatus,
-						},
-						trip,
-					);
+          const trip = transformApiTripToTrip(
+            tripSummary,
+            undefined,
+            travelerNames,
+          );
+          const invitation = transformApiInvitationToTripInvitation(
+            {
+              invitation: apiInv.invitation,
+              event: apiInv.event,
+              accepted: apiInv.acceptedStatus,
+            },
+            trip,
+          );
 					invitation.invitee = currentUser.value.id;
 					invitationTrips.push(invitation);
 				} catch (e) {
@@ -453,11 +464,8 @@ async function declineInvitation(invitationId: string) {
 	}
 }
 
-function scrollToInvitations() {
-	const invitationsSection = document.querySelector(".invitations-section");
-  if (invitationsSection) {
-		invitationsSection.scrollIntoView({ behavior: "smooth", block: "start" });
-	}
+function goToInvitations() {
+  router.push({ name: 'invitations' });
 }
 
 function selectTrip(tripId: string) {
@@ -1088,6 +1096,8 @@ async function handleLogout() {
 .btn-secondary:hover {
   background: #e0e0e0;
 }
+
+.actions-row { display: flex; align-items: center; gap: 0.75rem; }
 
 .dialog-overlay {
   position: fixed;

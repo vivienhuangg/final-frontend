@@ -26,10 +26,21 @@ export async function createActivity(
   startDateTime: string,
   endDateTime: string,
   cost: number,
-  trip: string
+  trip: string,
+  options?: { solo?: boolean; proposal?: boolean }
 ): Promise<{ activity: string }> {
   const session = getSession();
-  const { data } = await http.post('/activities/create', { session, title, startDateTime, endDateTime, cost, trip });
+  const { data } = await http.post('/activities/create', {
+    session,
+    title,
+    startDateTime,
+    endDateTime,
+    cost,
+    trip,
+    // Ensure keys expected by backend 'when' clause are present
+    solo: options?.solo ?? false,
+    proposal: options?.proposal ?? true,
+  });
   if (data && typeof data === 'object' && 'error' in data && (data as any).error) throw new Error((data as any).error);
   return data as { activity: string };
 }

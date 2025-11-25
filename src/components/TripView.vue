@@ -144,6 +144,7 @@ import {
 } from "../utils/dataTransformers";
 import AttractionsTab from "./tabs/AttractionsTab.vue";
 import CostsTab from "./tabs/CostsTab.vue";
+import DiscoverTab from "./tabs/DiscoverTab.vue";
 import OverviewTab from "./tabs/OverviewTab.vue";
 import PackingTab from "./tabs/PackingTab.vue";
 
@@ -352,6 +353,7 @@ async function handleAddActivity(activity: ActivityWithDetails) {
 			activity.end,
 			activity.cost,
 			props.trip.id,
+			{ solo: false, proposal: true },
 		);
 
 		// Reload activities

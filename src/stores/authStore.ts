@@ -79,7 +79,8 @@ export const useAuthStore = defineStore('auth', {
           this.sessionId = storedSession;
           this.currentUser = JSON.parse(storedUser);
           try { setSessionToken(this.sessionId); } catch {}
-          try { await getUserName(); } catch { this.logout(); }
+          // Attempt to refresh display name; do not force logout on failure
+          try { await getUserName(); } catch (e) { console.warn('Name refresh failed; preserving session:', e); }
         } catch {
           localStorage.removeItem('currentUser');
           localStorage.removeItem('sessionId');

@@ -72,12 +72,13 @@ export function transformApiInvitationToTripInvitation(
 		tripId: apiInvitation.event,
 		invitee: "", // Will be set from current user context
 		inviter: inviterId || "",
+		// Treat 'No' and 'Maybe' as pending, 'Yes' as accepted.
+		// Backend currently uses 'accepted' = 'Yes' | 'No' | 'Maybe'
+		// where 'No' indicates not yet accepted.
 		status:
 			apiInvitation.accepted === "Yes"
 				? "accepted"
-				: apiInvitation.accepted === "No"
-					? "declined"
-					: "pending",
+				: "pending",
 		createdAt: new Date().toISOString(), // API doesn't provide this
 		trip,
 	};
