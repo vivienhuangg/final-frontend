@@ -525,7 +525,7 @@ async function generatePackingList(regenerate: boolean = false) {
 			await Promise.allSettled(
 				itemsToDelete.map((item) =>
 					packingListApi.deleteItem({
-						packinglist: packingListId.value,
+						packinglist: packingListId.value || "",
 						item: item.id,
 					}).catch((e) => {
 						console.warn("Failed to delete item:", e);
