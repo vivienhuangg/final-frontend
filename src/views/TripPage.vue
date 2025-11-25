@@ -40,12 +40,21 @@ async function loadTrip() {
     const travelerNames = new Map<string, { firstName?: string; lastName?: string; username: string }>();
     for (const userId of travelerIds) {
       try {
-        const name = await Users.getUserName(userId);
-        travelerNames.set(userId, { firstName: name.firstName, lastName: name.lastName, username: userId });
+        const [usernameResp, nameResp] = await Promise.all([
+          Users.getUsername(userId).catch(() => ({ username: userId })),
+          Users.getUserName(userId).catch(() => ({ firstName: undefined, lastName: undefined } as any)),
+        ]);
+        travelerNames.set(userId, {
+          firstName: (nameResp as any).firstName,
+          lastName: (nameResp as any).lastName,
+          username: usernameResp.username || userId,
+        });
       } catch {
         travelerNames.set(userId, { username: userId });
       }
     }
+    console.log('Trip travellers from API:', response.trip.travellers);
+    console.log('Traveler names map:', Array.from(travelerNames.entries()));
     trip.value = transformApiTripToTrip(response.trip, undefined, travelerNames);
   } catch (e) {
     console.error('Failed to load trip', e);

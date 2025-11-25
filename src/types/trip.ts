@@ -18,6 +18,7 @@ export interface Traveler {
   firstName?: string;
   lastName?: string;
   avatar?: string;
+  username?: string;
 }
 
 export interface Activity {
@@ -114,5 +115,3 @@ export interface ActivityWithDetails extends Activity {
 export interface PackingItem extends ChecklistItem {
   category: string;
 }
-
-

@@ -36,7 +36,7 @@
               </div>
               <div class="member-info">
                 <p class="member-name">{{ traveler.name }}</p>
-                <p class="member-email">{{ traveler.email }}</p>
+		        <p class="member-username">{{ traveler.username || traveler.id }}</p>
               </div>
               <!-- traveler.role doesn't exist in Trip/Traveler types; derive ownership from trip.organizer -->
               <span v-if="traveler.id === trip.organizer" class="owner-badge">Owner</span>
@@ -243,7 +243,7 @@ function getAvatarColor(index: number): string {
   margin-bottom: 0.25rem;
 }
 
-.member-email {
+.member-username {
   font-size: 0.875rem;
   color: #64748b;
 }

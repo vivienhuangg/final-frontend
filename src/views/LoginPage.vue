@@ -271,9 +271,29 @@ async function handleRegister() {
 }
 
 .form-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
   gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.form-row .form-group {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* Ensure consistent sizing to avoid overflow of last name field */
+.login-container, .login-container * {
+  box-sizing: border-box;
+}
+
+.form-group input {
+  width: 100%;
+}
+
+@media (max-width: 520px) {
+  .form-row {
+    flex-direction: column;
+  }
 }
 
 .error-message {

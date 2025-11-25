@@ -274,12 +274,15 @@ async function loadTrips() {
 		>();
 		for (const userId of travelerIds) {
 			try {
-        const nameResponse = await Users.getUserName(userId);
-				travelerNames.set(userId, {
-					firstName: nameResponse.firstName,
-					lastName: nameResponse.lastName,
-					username: userId,
-				});
+        const [usernameResponse, nameResponse] = await Promise.all([
+          Users.getUsername(userId).catch(() => ({ username: userId })),
+          Users.getUserName(userId).catch(() => ({ firstName: undefined, lastName: undefined } as any)),
+        ]);
+        travelerNames.set(userId, {
+          firstName: (nameResponse as any).firstName,
+          lastName: (nameResponse as any).lastName,
+          username: usernameResponse.username || userId,
+        });
 			} catch (e) {
 				// User name not set, use username
 				travelerNames.set(userId, { username: userId });
@@ -324,12 +327,15 @@ async function loadInvitations() {
 					>();
 					for (const userId of travelerIds) {
 						try {
-              const nameResponse = await Users.getUserName(userId);
-							travelerNames.set(userId, {
-								firstName: nameResponse.firstName,
-								lastName: nameResponse.lastName,
-								username: userId,
-							});
+                const [usernameResponse, nameResponse] = await Promise.all([
+                  Users.getUsername(userId).catch(() => ({ username: userId })),
+                  Users.getUserName(userId).catch(() => ({ firstName: undefined, lastName: undefined } as any)),
+                ]);
+                travelerNames.set(userId, {
+                  firstName: (nameResponse as any).firstName,
+                  lastName: (nameResponse as any).lastName,
+                  username: usernameResponse.username || userId,
+                });
 						} catch (e) {
 							travelerNames.set(userId, { username: userId });
 						}

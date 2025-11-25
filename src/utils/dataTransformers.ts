@@ -39,6 +39,7 @@ export function transformApiTripToTrip(
 			email: `${userId}@example.com`, // Placeholder
 			firstName: nameInfo?.firstName,
 			lastName: nameInfo?.lastName,
+			username: nameInfo?.username || userId,
 		};
 	});
 

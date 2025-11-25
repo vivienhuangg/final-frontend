@@ -43,6 +43,13 @@ export async function getUserName(targetUser?: string): Promise<{ firstName: str
   return data as { firstName: string; lastName: string };
 }
 
+export async function getUsername(user: string): Promise<{ username: string }> {
+  // Direct concept endpoint; no wrapping needed
+  const { data } = await http.post('/UserAuthentication/getUsername', { user });
+  if (data && typeof data === 'object' && 'error' in data && (data as any).error) throw new Error((data as any).error);
+  return data as { username: string };
+}
+
 export async function deleteUserName(): Promise<{ status: string }> {
   const session = getSession();
   const { data } = await http.post('/user/deleteName', { session });

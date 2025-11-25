@@ -198,27 +198,24 @@ async function loadActivities() {
 
 async function loadExpenses() {
 	const session = getSession();
-	if (!session) return;
+	if (!session || !props.trip.id) return;
 
 	try {
-		// Load both percentage and money expenses
+		// Load trip-specific expenses
 		const [percentageExpenses, moneyExpenses] = await Promise.all([
-			CostTracker.listPercentageExpenses(),
-			CostTracker.listMoneyExpenses(),
+			CostTracker.listPercentageExpensesByTrip(props.trip.id),
+			CostTracker.listMoneyExpensesByTrip(props.trip.id),
 		]);
 
-		// Transform to component Expense type
-		// Note: The API doesn't associate expenses with trips, so we'll show all expenses
-		// In a real app, you'd want to add trip association to expenses
 		const allExpenses: Expense[] = [];
 
 		// Process percentage expenses
-		for (const { expense: expenseId, totalCost } of percentageExpenses.listedExpenses) {
+		for (const { expense: expenseId, totalCost, title } of percentageExpenses.listedExpenses) {
 			try {
 				const details = await CostTracker.getPercentageExpenseDetails(expenseId);
 				allExpenses.push({
 					id: expenseId,
-					title: `Expense ${expenseId}`,
+					title: title || details.title || `Expense ${expenseId}`,
 					totalCost,
 					paidBy: details.users[0]?.user || "",
 					splitBetween: details.users.map((u) => ({
@@ -234,12 +231,12 @@ async function loadExpenses() {
 		}
 
 		// Process money expenses
-		for (const { expense: expenseId, totalCost } of moneyExpenses.listedExpenses) {
+		for (const { expense: expenseId, totalCost, title } of moneyExpenses.listedExpenses) {
 			try {
 				const details = await CostTracker.getMoneyExpenseDetails(expenseId);
 				allExpenses.push({
 					id: expenseId,
-					title: `Expense ${expenseId}`,
+					title: title || details.title || `Expense ${expenseId}`,
 					totalCost,
 					paidBy: details.users[0]?.user || "",
 					splitBetween: details.users.map((u) => ({
@@ -399,28 +396,44 @@ async function handleAddExpense(expense: Expense) {
 	try {
 		loading.value = true;
 
+		let createdId: string | null = null;
 		if (expense.splitType === "money") {
 			const users = expense.splitBetween.map((s) => s.userId);
 			const costs = expense.splitBetween.map((s) => s.cost || 0);
-
-			await CostTracker.createMoneyExpense(
+			const result = await CostTracker.createMoneyExpense(
 				expense.totalCost,
 				users,
 				costs,
+				expense.title,
+				props.trip.id,
 			);
+			createdId = result.expense;
 		} else {
 			const users = expense.splitBetween.map((s) => s.userId);
 			const percentages = expense.splitBetween.map((s) => s.percentage || 0);
-
-			await CostTracker.createPercentageExpense(
+			const result = await CostTracker.createPercentageExpense(
 				expense.totalCost,
 				users,
 				percentages,
+				expense.title,
+				props.trip.id,
 			);
+			createdId = result.expense;
 		}
 
-		// Reload expenses
-		await loadExpenses();
+		if (createdId) {
+			expenses.value.push({
+				id: createdId,
+				title: expense.title,
+				totalCost: expense.totalCost,
+				paidBy: expense.paidBy,
+				splitBetween: expense.splitBetween,
+				date: expense.date,
+				splitType: expense.splitType,
+			});
+		} else {
+			await loadExpenses();
+		}
 	} catch (error: any) {
 		console.error("Failed to add expense:", error);
 		const errorMessage =
