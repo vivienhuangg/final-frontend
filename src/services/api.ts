@@ -306,6 +306,8 @@ export const activityApi = {
 		endDateTime: string;
 		cost: number;
 		trip: string;
+		solo?: boolean;
+		proposal?: boolean;
 	}): Promise<{ activity: string }> {
 		return apiRequest<{ activity: string }>("/activities/create", data);
 	},
@@ -317,6 +319,22 @@ export const activityApi = {
 		return apiRequest<{ activity: string }>("/activities/delete", data);
 	},
 
+	// Modify proposal flag
+	async modifyProposal(data: {
+		activity: string;
+		proposal: boolean;
+	}): Promise<{ status: string }> {
+		return apiRequest<{ status: string }>("/activities/modifyProposal", data);
+	},
+
+	// Modify solo flag
+	async modifySolo(data: {
+		activity: string;
+		solo: boolean;
+	}): Promise<{ status: string }> {
+		return apiRequest<{ status: string }>("/activities/modifySolo", data);
+	},
+
 	// Get all activities for a trip
 	async getActivitiesByTrip(data: { trip: string }): Promise<{
 		results: Array<{
@@ -326,6 +344,9 @@ export const activityApi = {
 				start: string;
 				end: string;
 				cost: number;
+				solo: boolean;
+				proposal: boolean;
+				createdBy: string;
 			};
 		}>;
 	}> {
@@ -341,6 +362,9 @@ export const activityApi = {
 			start: string;
 			end: string;
 			cost: number;
+			solo: boolean;
+			proposal: boolean;
+			createdBy: string;
 		};
 	}> {
 		return apiRequest("/activities/details", data);

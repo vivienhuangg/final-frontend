@@ -42,7 +42,7 @@ export function PackingTab({ tripId, trip }: PackingTabProps) {
 
   const loadPackingList = async () => {
     try {
-      // Use mock data from trip prop
+      // Load packing list from trip prop (populated via API)
       if (trip && trip.packingLists && trip.packingLists.personal) {
         // Get current user's personal items (using user-1 as default)
         const personalItems = trip.packingLists.personal['user-1'] || [];
@@ -57,7 +57,7 @@ export function PackingTab({ tripId, trip }: PackingTabProps) {
 
   const loadSharedItems = async () => {
     try {
-      // Use mock data from trip prop
+      // Load shared items from trip prop (populated via API)
       if (trip && trip.packingLists && trip.packingLists.shared) {
         setSharedItems(trip.packingLists.shared);
       }

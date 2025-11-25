@@ -32,6 +32,9 @@ export interface Activity {
   groupSize?: string;
   pricePerPerson?: number;
   source?: 'discover' | 'manual';
+  solo?: boolean; // If true, only creator can see it
+  proposal?: boolean; // If true, it's a proposal; if false, committed
+  createdBy?: string; // User ID of creator
 }
 
 export interface Invitation {

@@ -94,10 +94,12 @@
           :activities="activities"
           :travelers="trip.travelers"
           :trip-id="trip.id"
+          :organizer-id="trip.organizer"
           @rate="handleRate"
           @toggle-attendance="handleToggleAttendance"
           @add-activity="handleAddActivity"
           @delete-activity="handleDeleteActivity"
+          @refresh-activities="loadActivities"
         />
         <CostsTab
           v-if="activeTab === 'costs'"
@@ -357,6 +359,8 @@ async function handleAddActivity(activity: ActivityWithDetails) {
 			endDateTime: activity.end,
 			cost: activity.cost,
 			trip: props.trip.id,
+			solo: activity.solo ?? false,
+			proposal: activity.proposal ?? true,
 		});
 
 		// Reload activities

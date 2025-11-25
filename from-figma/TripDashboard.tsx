@@ -1,6 +1,6 @@
 import { Calendar, LogOut, MapPin, Plus, Trash2, Users } from "lucide-react";
 import React, { useEffect, useState } from "react";
-import { mockTrips } from "../utils/mockData";
+import { tripApi } from "../src/services/api.ts";
 import { Logo } from "./Logo";
 import {
 	AlertDialog,
@@ -65,8 +65,18 @@ export function TripDashboard({ onTripSelect, onSignOut }: TripDashboardProps) {
 
   const loadTrips = async () => {
     try {
-      // Use mock data instead of API call
-      setTrips(mockTrips as any);
+      setLoading(true);
+      const response = await tripApi.getMyTrips();
+      // Transform API response to match component's Trip interface
+      const transformedTrips = response.results.map((result) => ({
+        id: result.trip._id,
+        name: result.trip.title,
+        destination: result.trip.title, // API doesn't have destination, use title
+        startDate: result.trip.startDate,
+        endDate: result.trip.endDate,
+        members: [], // Will need to be populated separately if needed
+      }));
+      setTrips(transformedTrips);
     } catch (error) {
       console.error('Error loading trips:', error);
       setTrips([]);

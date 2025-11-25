@@ -1,6 +1,6 @@
 import { ArrowLeft, Calendar, MapPin, Settings, Users } from "lucide-react";
 import React, { useEffect, useState } from "react";
-import { getMockTripById } from "../utils/mockData";
+import { tripApi } from "../src/services/api.ts";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { AttractionsTab } from "./trip/AttractionsTab";
 import { CostsTab } from "./trip/CostsTab";
@@ -43,11 +43,23 @@ export function TripDetail({ tripId, onBack }: TripDetailProps) {
 
   const loadTrip = async () => {
     try {
-      // Use mock data instead of API call
-      const mockTrip = getMockTripById(tripId);
-      setTrip(mockTrip);
+      setLoading(true);
+      const response = await tripApi.getTrip({ trip: tripId });
+      // Transform API response to match component's expected format
+      const tripData = response.trip;
+      setTrip({
+        id: tripData._id,
+        name: tripData.title,
+        destination: tripData.title, // API doesn't have destination, use title
+        startDate: tripData.startDate,
+        endDate: tripData.endDate,
+        organizer: tripData.organizer,
+        members: tripData.travellers.map((userId: string) => ({ id: userId })), // Simplified member structure
+        travellers: tripData.travellers,
+      });
     } catch (error) {
       console.error('Error loading trip:', error);
+      setTrip(null);
     } finally {
       setLoading(false);
     }

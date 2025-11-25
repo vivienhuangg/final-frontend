@@ -7,7 +7,7 @@ import {
 	Users,
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
-import { calculateCostSummary } from "../../utils/mockData";
+import { costTrackerApi } from "../src/services/api.ts";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import {
@@ -58,14 +58,28 @@ export function CostsTab({ tripId, trip }: CostsTabProps) {
 
   const loadCosts = async () => {
     try {
-      // Use mock data from trip prop
-      if (trip && trip.costs) {
-        setCosts(trip.costs);
-        const summary = calculateCostSummary(trip);
-        setBalances(summary.balances);
-      }
+      // Load expenses from API
+      const [percentageExpenses, moneyExpenses] = await Promise.all([
+        costTrackerApi.listPercentageExpenses(),
+        costTrackerApi.listMoneyExpenses(),
+      ]);
+      
+      // Combine and transform expenses
+      const allExpenses = [
+        ...percentageExpenses.listedExpenses.map(exp => ({ ...exp, type: 'percentage' })),
+        ...moneyExpenses.listedExpenses.map(exp => ({ ...exp, type: 'money' })),
+      ];
+      
+      setCosts(allExpenses);
+      
+      // Calculate balances from expenses
+      // This is a simplified calculation - you may want to enhance this
+      const balances: Record<string, number> = {};
+      // TODO: Implement proper balance calculation from expense details
+      setBalances(balances);
     } catch (error) {
       console.error('Error loading costs:', error);
+      setCosts([]);
     }
   };
 

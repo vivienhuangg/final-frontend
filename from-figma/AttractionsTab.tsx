@@ -71,11 +71,11 @@ export function AttractionsTab({ tripId, currentUserId, trip }: AttractionsTabPr
 
   const loadAttractions = async () => {
     try {
-      // Use mock data from trip prop
+      // Load attractions from trip prop (populated via API)
       if (trip && trip.attractions) {
         setAttractions(trip.attractions);
         
-        // Set user rankings from mock data
+        // Set user rankings from trip data
         const myRankings: { [key: string]: number } = {};
         const optedIn = new Set<string>();
         

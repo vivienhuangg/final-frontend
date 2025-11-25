@@ -61,6 +61,24 @@
               <div class="title-row">
                 <h3 class="attraction-title">{{ attraction.name }}</h3>
                 <div class="badges">
+                  <span v-if="attraction.solo" class="badge solo-badge">
+                    <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    Solo
+                  </span>
+                  <span v-if="attraction.proposal" class="badge proposal-badge">
+                    <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Proposal
+                  </span>
+                  <span v-else class="badge committed-badge">
+                    <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Committed
+                  </span>
                   <span v-if="attraction.isHiddenGem" class="badge hidden-gem">
                     <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
@@ -130,8 +148,8 @@
               </div>
             </div>
 
-            <!-- Rating Slider -->
-            <div class="rating-section">
+            <!-- Rating Slider (only for proposals) -->
+            <div v-if="attraction.proposal" class="rating-section">
               <div class="rating-header">
                 <label class="rating-label">Your Rating</label>
                 <div class="rating-display">
@@ -152,8 +170,8 @@
               />
             </div>
 
-            <!-- Opt-in Switch -->
-            <div class="opt-in-section">
+            <!-- Opt-in Switch (only show for committed activities) -->
+            <div v-if="!attraction.proposal" class="opt-in-section">
               <label :for="`opt-in-${attraction.id}`" class="opt-in-label">
                 {{ isOptedIn(attraction.id) ? "I'm attending this activity" : "Opt in to this activity" }}
               </label>
@@ -166,6 +184,62 @@
                 />
                 <span class="slider"></span>
               </label>
+            </div>
+
+            <!-- Activity Controls (for creator or organizer) -->
+            <div v-if="isCreator(attraction.id) || isOrganizer()" class="activity-controls">
+              <div class="control-row">
+                <!-- Solo Toggle (creator only) -->
+                <div v-if="isCreator(attraction.id)" class="control-item">
+                  <label :for="`solo-${attraction.id}`" class="control-label">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    Solo Activity
+                  </label>
+                  <label class="switch">
+                    <input
+                      :id="`solo-${attraction.id}`"
+                      type="checkbox"
+                      :checked="attraction.solo"
+                      @change="handleToggleSolo(attraction.id, ($event.target as HTMLInputElement).checked)"
+                    />
+                    <span class="slider"></span>
+                  </label>
+                </div>
+
+                <!-- Proposal/Commit Toggle -->
+                <div class="control-item">
+                  <label :for="`proposal-${attraction.id}`" class="control-label">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    {{ attraction.proposal ? 'Commit Activity' : 'Revert to Proposal' }}
+                  </label>
+                  <button
+                    :id="`proposal-${attraction.id}`"
+                    class="btn-toggle-proposal"
+                    :class="{ 'committed': !attraction.proposal }"
+                    @click="handleToggleProposal(attraction.id, !attraction.proposal)"
+                  >
+                    {{ attraction.proposal ? 'Commit' : 'Revert' }}
+                  </button>
+                </div>
+
+                <!-- Delete Button -->
+                <div class="control-item">
+                  <button
+                    class="btn-delete-activity"
+                    @click="handleDeleteActivity(attraction.id)"
+                    :disabled="!canDelete(attraction.id)"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    Delete
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -242,6 +316,25 @@
               />
             </div>
           </div>
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input
+                type="checkbox"
+                v-model="newAttraction.solo"
+              />
+              <span>Make this a solo activity (only visible to me)</span>
+            </label>
+          </div>
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input
+                type="checkbox"
+                v-model="newAttraction.proposal"
+                :checked="true"
+              />
+              <span>Start as proposal (can be committed later)</span>
+            </label>
+          </div>
           <button type="submit" class="btn-submit">Add Attraction</button>
         </form>
       </div>
@@ -259,6 +352,7 @@ const props = defineProps<{
   activities: ActivityWithDetails[];
   travelers: Traveler[];
   tripId: string;
+  organizerId?: string;
 }>();
 
 const emit = defineEmits<{
@@ -266,6 +360,7 @@ const emit = defineEmits<{
   (e: 'toggle-attendance', activityId: string, travelerId: string): void;
   (e: 'add-activity', activity: ActivityWithDetails): void;
   (e: 'delete-activity', activityId: string): void;
+  (e: 'refresh-activities'): void;
 }>();
 
 const { currentUser, getSession } = useAuth();
@@ -290,7 +385,10 @@ const attractions = computed(() => {
     date: activity.start ? new Date(activity.start).toISOString().split('T')[0] : '',
     time: activity.start ? new Date(activity.start).toTimeString().slice(0, 5) : '',
     endTime: activity.end ? new Date(activity.end).toTimeString().slice(0, 5) : '',
-    addedBy: activity.attendees?.[0] || currentUserId.value,
+    addedBy: activity.createdBy || activity.attendees?.[0] || currentUserId.value,
+    createdBy: activity.createdBy || currentUserId.value,
+    solo: activity.solo ?? false,
+    proposal: activity.proposal ?? true,
     isHiddenGem: false, // Could be determined by rating/attendance ratio
   }));
 });
@@ -374,6 +472,85 @@ function isOptedIn(activityId: string): boolean {
 function getSubmitterName(userId: string): string {
   const traveler = props.travelers.find(t => t.id === userId);
   return traveler?.name || 'Unknown';
+}
+
+function isCreator(activityId: string): boolean {
+  const attraction = attractions.value.find(a => a.id === activityId);
+  return attraction?.createdBy === currentUserId.value;
+}
+
+function isOrganizer(): boolean {
+  return props.organizerId === currentUserId.value;
+}
+
+function canDelete(activityId: string): boolean {
+  const attraction = attractions.value.find(a => a.id === activityId);
+  if (!attraction) return false;
+  
+  // Solo activity: only creator can delete
+  if (attraction.solo) {
+    return isCreator(activityId);
+  }
+  
+  // Proposal activity: any trip member can delete
+  if (attraction.proposal) {
+    return true; // Any trip member
+  }
+  
+  // Committed activity: organizer only
+  return isOrganizer();
+}
+
+async function handleToggleSolo(activityId: string, solo: boolean) {
+  const session = getSession();
+  if (!session) return;
+
+  try {
+    await activityApi.modifySolo({
+      activity: activityId,
+      solo,
+    });
+    emit('refresh-activities');
+  } catch (error) {
+    console.error('Error toggling solo:', error);
+    alert('Failed to update solo status');
+  }
+}
+
+async function handleToggleProposal(activityId: string, proposal: boolean) {
+  const session = getSession();
+  if (!session) return;
+
+  try {
+    await activityApi.modifyProposal({
+      activity: activityId,
+      proposal,
+    });
+    emit('refresh-activities');
+  } catch (error) {
+    console.error('Error toggling proposal:', error);
+    alert('Failed to update proposal status');
+  }
+}
+
+async function handleDeleteActivity(activityId: string) {
+  if (!confirm('Are you sure you want to delete this activity?')) {
+    return;
+  }
+
+  const session = getSession();
+  if (!session) return;
+
+  try {
+    await activityApi.deleteActivity({
+      activity: activityId,
+    });
+    emit('delete-activity', activityId);
+    emit('refresh-activities');
+  } catch (error) {
+    console.error('Error deleting activity:', error);
+    alert('Failed to delete activity');
+  }
 }
 
 function formatDate(dateString: string): string {
@@ -503,6 +680,9 @@ async function handleAddAttraction() {
       rating: 0,
       votes: 0,
       attendees: [currentUserId.value],
+      solo: newAttraction.value.solo,
+      proposal: newAttraction.value.proposal,
+      createdBy: currentUserId.value,
     };
 
     emit('add-activity', activity);
@@ -516,6 +696,8 @@ async function handleAddAttraction() {
       date: '',
       time: '',
       endTime: '',
+      solo: false,
+      proposal: true,
     };
 
     showAddDialog.value = false;
@@ -532,6 +714,8 @@ const newAttraction = ref({
   date: '',
   time: '',
   endTime: '',
+  solo: false,
+  proposal: true,
 });
 </script>
 
@@ -805,6 +989,24 @@ input:checked + .slider:before {
   background: transparent;
   color: #64748b;
   border: 1px solid #e2e8f0;
+}
+
+.badge.solo-badge {
+  background: rgba(139, 92, 246, 0.2);
+  color: #7c3aed;
+  border: 1px solid rgba(139, 92, 246, 0.4);
+}
+
+.badge.proposal-badge {
+  background: rgba(59, 130, 246, 0.2);
+  color: #2563eb;
+  border: 1px solid rgba(59, 130, 246, 0.4);
+}
+
+.badge.committed-badge {
+  background: rgba(34, 197, 94, 0.2);
+  color: #16a34a;
+  border: 1px solid rgba(34, 197, 94, 0.4);
 }
 
 .attraction-description {
@@ -1098,5 +1300,98 @@ input:checked + .slider:before {
 
 .btn-submit:hover {
   background: #0d9488;
+}
+
+.activity-controls {
+  padding: 0.75rem;
+  background: rgba(241, 245, 249, 0.5);
+  border-radius: 0.5rem;
+  border-top: 1px solid #e2e8f0;
+  margin-top: 0.5rem;
+}
+
+.control-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.control-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.control-label {
+  display: flex;
+  align-items: center;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #1e3a5f;
+  cursor: pointer;
+}
+
+.btn-toggle-proposal {
+  padding: 0.375rem 0.75rem;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-toggle-proposal:hover {
+  background: #2563eb;
+}
+
+.btn-toggle-proposal.committed {
+  background: #f59e0b;
+}
+
+.btn-toggle-proposal.committed:hover {
+  background: #d97706;
+}
+
+.btn-delete-activity {
+  padding: 0.375rem 0.75rem;
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.btn-delete-activity:hover:not(:disabled) {
+  background: #dc2626;
+}
+
+.btn-delete-activity:disabled {
+  background: #cbd5e1;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #1e3a5f;
+  cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: auto;
+  cursor: pointer;
 }
 </style>

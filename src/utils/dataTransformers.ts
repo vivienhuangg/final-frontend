@@ -91,6 +91,9 @@ export function transformApiActivityToActivity(apiActivity: {
 	start: string;
 	end: string;
 	cost: number;
+	solo?: boolean;
+	proposal?: boolean;
+	createdBy?: string;
 }): ActivityWithDetails {
 	return {
 		id: apiActivity._id,
@@ -101,6 +104,9 @@ export function transformApiActivityToActivity(apiActivity: {
 		cost: apiActivity.cost,
 		source: "manual",
 		attendees: [],
+		solo: apiActivity.solo ?? false,
+		proposal: apiActivity.proposal ?? true,
+		createdBy: apiActivity.createdBy,
 	};
 }
 
