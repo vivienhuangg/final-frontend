@@ -80,10 +80,10 @@
                     <h3>{{ expense.title }}</h3>
                   </div>
                   <p class="expense-details">
-                    Paid by {{ getTravelerName(expense.paidBy) }} · Split {{ expense.splitBetween.length }} ways
+                    Paid by {{ getTravelerName(expense.paidBy) }} · Split {{ expense.splitBetween?.length || 1 }} ways
                   </p>
                   <p class="expense-per-person">
-                    {{ formatCurrency(expense.totalCost / expense.splitBetween.length) }} per person
+                    {{ formatCurrency((expense.totalCost || 0) / (expense.splitBetween?.length || 1)) }} per person
                   </p>
                 </div>
                 <div class="expense-amount-wrapper">
@@ -248,14 +248,23 @@ const memberBalances = computed<MemberBalance[]>(() => {
 
   // Calculate balances from expenses
   props.expenses.forEach(expense => {
+    // Guard against invalid totalCost
+    const validTotalCost = typeof expense.totalCost === 'number' && !isNaN(expense.totalCost) ? expense.totalCost : 0;
+
     // Person who paid gets positive balance (owed money)
-    balances[expense.paidBy] = (balances[expense.paidBy] || 0) + expense.totalCost;
+    balances[expense.paidBy] = (balances[expense.paidBy] || 0) + validTotalCost;
 
     // People who split get negative balance (owe money)
-    expense.splitBetween.forEach(splitUser => {
-      const cost = splitUser.cost || 0;
-      balances[splitUser.userId] = (balances[splitUser.userId] || 0) - cost;
-    });
+    if (Array.isArray(expense.splitBetween)) {
+      expense.splitBetween.forEach(splitUser => {
+        // Handle both object shape and ensure userId exists
+        const userId = typeof splitUser === 'string' ? splitUser : splitUser.userId;
+        const cost = typeof splitUser === 'object' && splitUser.cost ? splitUser.cost : (validTotalCost / expense.splitBetween.length);
+        if (userId && balances[userId] !== undefined) {
+          balances[userId] = (balances[userId] || 0) - cost;
+        }
+      });
+    }
   });
 
   return Object.entries(balances).map(([travelerId, balance]) => ({
@@ -276,10 +285,12 @@ function formatBalance(balance: number): string {
 }
 
 function formatCurrency(amount: number): string {
+  // Guard against NaN, null, undefined
+  const validAmount = typeof amount === 'number' && !isNaN(amount) ? amount : 0;
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD'
-  }).format(amount);
+  }).format(validAmount);
 }
 
 function getAvatarColor(index: number): string {

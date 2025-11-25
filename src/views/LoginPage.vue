@@ -108,12 +108,14 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { useAuth } from '../stores/useAuth';
 
 const emit = defineEmits<{
   (e: 'authenticated'): void;
 }>();
 
+const router = useRouter();
 const { login, register } = useAuth();
 const activeTab = ref<'login' | 'register'>('login');
 const loading = ref(false);
@@ -135,35 +137,35 @@ const registerForm = ref({
 async function handleLogin() {
   loading.value = true;
   loginError.value = '';
-  
+
   const result = await login(loginForm.value.username, loginForm.value.password);
-  
+
   if (result.success) {
-    emit('authenticated');
+    router.push({ name: 'dashboard' });
   } else {
     loginError.value = result.error || 'Login failed';
   }
-  
+
   loading.value = false;
 }
 
 async function handleRegister() {
   loading.value = true;
   registerError.value = '';
-  
+
   const result = await register(
     registerForm.value.username,
     registerForm.value.password,
     registerForm.value.firstName,
     registerForm.value.lastName
   );
-  
+
   if (result.success) {
-    emit('authenticated');
+    router.push({ name: 'dashboard' });
   } else {
     registerError.value = result.error || 'Registration failed';
   }
-  
+
   loading.value = false;
 }
 </script>
@@ -305,4 +307,3 @@ async function handleRegister() {
   cursor: not-allowed;
 }
 </style>
-

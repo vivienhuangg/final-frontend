@@ -112,13 +112,17 @@ const tripResponse = await tripService.newTrip({
 - **Axios** - HTTP client for API requests
 - **shadcn/ui** - UI component library (in `ui-from-figma/` directory)
 
-## API Configuration
+## API configuration and spec
 
-The API client is configured in `src/api/client.ts` with:
+The API client is configured in `src/api/http.ts` with:
 
 - Automatic error handling
 - Request/response interceptors
 - Configurable base URL from environment variables
 - 10-second request timeout
 
-To customize the API configuration, modify `src/api/client.ts`.
+The OpenAPI definition lives in the backend repo and is the single source of truth:
+
+- `../final-backend/openapi.yaml`
+
+This frontend does not consume the YAML at runtime. If you want codegen in the future, point your generator at the backend spec and generate typed clients into `src/api/`.

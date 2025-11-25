@@ -143,6 +143,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
+import { useRouter } from "vue-router";
 import { invitationApi, tripApi, userApi } from "../services/api";
 import { useAuth } from "../stores/useAuth";
 import type { Trip, TripInvitation } from "../types/trip";
@@ -156,6 +157,7 @@ const emit = defineEmits<{
 	(e: "logout"): void;
 }>();
 
+const router = useRouter();
 const { currentUser, getSession } = useAuth();
 const trips = ref<Trip[]>([]);
 const invitations = ref<TripInvitation[]>([]);
@@ -442,10 +444,7 @@ async function handleDeleteTrip(tripId: string) {
 }
 
 function selectTrip(tripId: string) {
-	const trip = trips.value.find((t) => t.id === tripId);
-	if (trip) {
-		emit("select-trip", trip);
-	}
+	router.push({ name: 'trip', params: { id: tripId } });
 }
 
 function isOrganizer(trip: Trip): boolean {
@@ -473,11 +472,8 @@ async function createTrip() {
 		showNewTripDialog.value = false;
 		newTrip.value = { title: "", destination: "", startDate: "", endDate: "" };
 
-		// Select the newly created trip
-		const createdTrip = trips.value.find((t) => t.id === response.trip);
-		if (createdTrip) {
-			emit("select-trip", createdTrip);
-		}
+		// Navigate to the newly created trip
+		router.push({ name: 'trip', params: { id: response.trip } });
 	} catch (error: any) {
 		console.error("Failed to create trip:", error);
 		createError.value = error instanceof Error ? error.message : "Failed to create trip";
@@ -486,8 +482,10 @@ async function createTrip() {
 	}
 }
 
-function handleLogout() {
-	emit("logout");
+async function handleLogout() {
+	const { logout } = useAuth();
+	await logout();
+	router.push({ name: 'auth' });
 }
 </script>
 
