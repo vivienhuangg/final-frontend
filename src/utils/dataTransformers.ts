@@ -17,6 +17,8 @@ export function transformApiTripToTrip(
 		endDate: string;
 		organizer: string;
 		travellers: string[];
+		destination?: string;
+		location?: string;
 	},
 	organizerName?: string,
 	travelerNames?: Map<
@@ -46,7 +48,8 @@ export function transformApiTripToTrip(
 	return {
 		id: apiTrip._id,
 		title: apiTrip.title,
-		destination: apiTrip.title, // API doesn't have destination, use title as fallback
+		// Prefer explicit destination/location fields; fallback to title only if absent
+		destination: apiTrip.destination || apiTrip.location || apiTrip.title,
 		startDate: apiTrip.startDate,
 		endDate: apiTrip.endDate,
 		organizer: apiTrip.organizer,

@@ -66,14 +66,14 @@
           @click="selectTrip(trip.id)"
         >
           <div class="trip-card-gradient"></div>
-          <div class="trip-card-delete" @click.stop="selectTrip(trip.id)">
+          <div class="trip-card-delete" @click.stop="handleDeleteTrip(trip.id)">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
             </svg>
           </div>
           <div class="trip-card-content-inner">
             <h3 class="trip-card-title">{{ trip.title }}</h3>
-            <div class="trip-card-destination">
+            <div class="trip-card-destination" v-if="trip.destination && trip.destination !== trip.title">
               <svg class="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -447,6 +447,7 @@ async function createTrip() {
       newTrip.value.title,
       newTrip.value.startDate,
       newTrip.value.endDate,
+      newTrip.value.destination,
     );
 
 		// Reload trips to get the new trip with full details
@@ -469,6 +470,29 @@ async function handleLogout() {
 	const { logout } = useAuth();
 	await logout();
 	router.push({ name: 'auth' });
+}
+
+async function handleDeleteTrip(tripId: string) {
+  const session = getSession();
+  if (!session) return;
+
+  const confirmed = window.confirm('Delete this trip? This action cannot be undone.');
+  if (!confirmed) return;
+
+  try {
+    loading.value = true;
+    await Trips.deleteTrip(tripId);
+    // Remove from local state optimistically
+    trips.value = trips.value.filter(t => t.id !== tripId);
+    // Optionally reload to ensure consistency
+    await loadTrips();
+  } catch (error: any) {
+    console.error('Failed to delete trip:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to delete trip';
+    alert(errorMessage);
+  } finally {
+    loading.value = false;
+  }
 }
 </script>
 
