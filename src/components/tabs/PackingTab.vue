@@ -46,23 +46,20 @@
             <h2 class="card-title">Packing List</h2>
             <p class="card-description">Track your packing list</p>
           </div>
-          <div>
-            <div class="progress-pill">
-              <span class="progress-label">Progress</span>
-              <span class="progress-value">{{ checkedCount }}/{{ personalItems.length }}</span>
-            </div>
-
-            <form class="add-item-form" @submit.prevent="submitNewItem">
-              <input class="add-item-input" v-model="newItemName" type="text" placeholder="Add item"
-                :disabled="generating" />
-              <button class="btn-add" type="submit" :disabled="generating || !newItemName.trim()">
-                Add
-              </button>
-            </form>
+          <div class="header-controls">
+            <button class="btn-add-manual" @click="showManualModal = true" :disabled="generating">
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+              </svg>
+              Add item manually
+            </button>
 
             <div class="ai-actions">
               <template v-if="personalItems.length > 0">
-
+                <div class="progress-pill">
+                  <span class="progress-label">Progress</span>
+                  <span class="progress-value">{{ checkedCount }}/{{ personalItems.length }}</span>
+                </div>
                 <button class="btn-regenerate" @click="$emit('regenerate')" :disabled="generating">
                   <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -71,7 +68,6 @@
                   {{ generating ? "Generating..." : "Regenerate List" }}
                 </button>
               </template>
-
               <template v-else>
                 <button class="btn-generate" @click="$emit('generate')" :disabled="generating">
                   <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -154,6 +150,26 @@
         </div>
       </div>
     </div>
+    <div v-if="showManualModal" class="manual-modal-backdrop" @click.self="closeManualModal">
+      <div class="manual-modal">
+        <h3>Add manual item</h3>
+        <p class="manual-modal-text">Type the item you want to track in your personal packing list.</p>
+        <form class="manual-modal-form" @submit.prevent="submitNewItem">
+          <input v-model="newItemName" class="manual-modal-input" type="text" placeholder="e.g. Sunscreen" autofocus />
+          <label class="manual-modal-checkbox">
+            <input type="checkbox" v-model="newItemShared" />
+            <span>Add as shared item</span>
+          </label>
+          <div class="manual-modal-actions">
+            <button type="button" class="btn-secondary" @click="closeManualModal">Cancel</button>
+            <button type="submit" class="btn-primary" :disabled="props.addingItem || !newItemName.trim()">
+              <span v-if="props.addingItem" class="modal-spinner"></span>
+              <span>{{ props.addingItem ? "Adding..." : "Add item" }}</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -167,23 +183,32 @@ const props = withDefaults(defineProps<{
   generating?: boolean;
   generationStage?: string;
   generationProgress?: number;
+  addingItem?: boolean;
 }>(), {
   generating: false,
   generationStage: "",
   generationProgress: 0,
+  addingItem: false,
 });
 
 const newItemName = ref("");
+const newItemShared = ref(false);
+const showManualModal = ref(false);
+
+function closeManualModal() {
+  showManualModal.value = false;
+  newItemName.value = "";
+  newItemShared.value = false;
+}
 
 function submitNewItem() {
   const name = newItemName.value.trim();
-  if (!name) return;
-  emit("add-item", name);
-  newItemName.value = "";
+  if (!name || props.generating || props.addingItem) return;
+  emit("add-item", name, newItemShared.value);
+  closeManualModal();
 }
-
 const emit = defineEmits<{
-  (e: "add-item", itemName: string): void;
+  (e: "add-item", itemName: string, isShared: boolean): void;
   (e: "toggle-item", itemId: string): void;
   (e: "quantity-change", itemId: string, quantity: number): void;
   (e: "regenerate"): void;
@@ -195,7 +220,6 @@ const personalItems = computed(() => {
 });
 
 const sharedItems = computed(() => {
-  console.log("Shared Items:", props.items);
   return props.items.filter((item) => item.isShared);
 });
 
@@ -732,115 +756,157 @@ function handleQuantityChange(itemId: string, quantity: number) {
   padding: 1.25rem 1.5rem;
 }
 
-.card-heading {
-  flex: 1 1 100%;
-  margin-bottom: 0.5rem;
-}
-
-.add-item-form {
+.header-controls {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  flex: 1 1 260px;
-}
-
-.add-item-input {
-  flex: 1;
-  min-width: 160px;
-  padding: 0.45rem 0.75rem;
-  border: 1px solid #d4d8e1;
-  border-radius: 9999px;
-  font-size: 0.9rem;
-  color: #1e293b;
-}
-
-.add-item-input:focus {
-  outline: none;
-  border-color: #7ba3d1;
-  box-shadow: 0 0 0 2px rgba(123, 163, 209, 0.25);
-}
-
-.btn-add {
-  padding: 0.45rem 1.15rem;
-  border: none;
-  border-radius: 9999px;
-  background: #1e3a5f;
-  color: #f8fafc;
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.btn-add:hover:not(:disabled) {
-  background: #162b45;
-}
-
-.btn-add:disabled,
-.add-item-input:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.ai-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
+  gap: 1rem;
   flex-wrap: wrap;
   justify-content: flex-end;
 }
 
-.progress-pill {
-  display: flex;
-  align-items: baseline;
-  gap: 0.35rem;
-  padding: 0.35rem 0.75rem;
+.btn-add-manual {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 1.2rem;
   border-radius: 9999px;
-  background: rgba(123, 163, 209, 0.15);
+  border: 1px solid rgba(30, 58, 95, 0.15);
+  background: white;
+  color: #1e3a5f;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border 0.2s ease, box-shadow 0.2s ease;
 }
 
-.progress-label {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+.btn-add-manual:hover:not(:disabled) {
+  border-color: rgba(30, 58, 95, 0.4);
+  box-shadow: 0 6px 12px rgba(30, 58, 95, 0.12);
+}
+
+.btn-add-manual:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.manual-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+}
+
+.manual-modal {
+  width: min(420px, 92%);
+  background: white;
+  border-radius: 16px;
+  padding: 1.75rem;
+  box-shadow: 0 24px 40px rgba(15, 23, 42, 0.18);
+}
+
+.manual-modal h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.manual-modal-text {
+  margin-top: 0.35rem;
+  margin-bottom: 1.5rem;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.manual-modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.manual-modal-input {
+  width: 100%;
+  padding: 0.65rem 0.9rem;
+  border-radius: 12px;
+  border: 1px solid #cbd5f5;
+  font-size: 0.95rem;
+  color: #1e293b;
+}
+
+.manual-modal-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
   color: #475569;
 }
 
-.progress-value {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: #1e3a5f;
+.manual-modal-checkbox input {
+  width: 18px;
+  height: 18px;
 }
 
-.btn-generate,
-.btn-regenerate {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.55rem 1.2rem;
-  border: none;
+.manual-modal-input:focus {
+  outline: none;
+  border-color: #7ba3d1;
+  box-shadow: 0 0 0 3px rgba(123, 163, 209, 0.2);
+}
+
+.manual-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.btn-secondary,
+.btn-primary {
+  padding: 0.5rem 1.25rem;
   border-radius: 9999px;
   font-size: 0.9rem;
   font-weight: 600;
-  color: white;
   cursor: pointer;
+  border: none;
 }
 
-.btn-generate {
-  background: #7ba3d1;
+.btn-secondary {
+  background: #e2e8f0;
+  color: #475569;
 }
 
-.btn-regenerate {
-  background: #42b983;
+.btn-secondary:hover {
+  background: #cbd5f5;
 }
 
-.btn-generate:hover:not(:disabled),
-.btn-regenerate:hover:not(:disabled) {
-  filter: brightness(0.95);
+.btn-primary {
+  background: #1e3a5f;
+  color: #f8fafc;
 }
 
-.btn-generate:disabled,
-.btn-regenerate:disabled {
+.btn-primary:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.btn-primary:not(:disabled):hover {
+  background: #162b45;
+}
+
+.modal-spinner {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid rgba(248, 250, 252, 0.6);
+  border-top-color: #f8fafc;
+  animation: modal-spin 0.8s linear infinite;
+}
+
+@keyframes modal-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>

@@ -37,7 +37,7 @@ export async function addItem(
   name: string,
   assignee?: string
 ): Promise<{ message: string }> {
-  console.log("In packinglists.ts addItem:", { packinglist, name, assignee });
+
   const session = getSession();
   const payload: any = { session, packinglist, name };
   // if (assignee) payload.assignee = assignee;

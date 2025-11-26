@@ -115,6 +115,7 @@
           :generating="generatingPackingList"
           :generation-stage="generationStage"
           :generation-progress="generationProgress"
+					:adding-item="addingPackingItem"
 		  @add-item="handleAddItem"
           @toggle-item="handleToggleItem"
           @quantity-change="handleQuantityChange"
@@ -155,7 +156,7 @@ const props = defineProps<{
 
 const emit = defineEmits<(e: "back") => void>();
 
-const { getSession } = useAuth();
+const { currentUser, getSession } = useAuth();
 const activeTab = ref("overview");
 const activities = ref<ActivityWithDetails[]>([]);
 const expenses = ref<Expense[]>([]);
@@ -165,6 +166,7 @@ const loading = ref(false);
 const generatingPackingList = ref(false);
 const generationStage = ref("");
 const generationProgress = ref(0);
+const addingPackingItem = ref(false);
 
 // Load data when trip changes
 watch(
@@ -490,11 +492,11 @@ async function handleToggleItem(itemId: string) {
 	}
 }
 
-async function handleAddItem(name: string, assignee?: string) {
+async function handleAddItem(itemName: string, isShared: boolean) {
 	const session = getSession();
 	if (!session || !props.trip.id) return;
 
-	const trimmedName = name.trim();
+	const trimmedName = itemName.trim();
 	if (!trimmedName) return;
 
 	const duplicate = packingItems.value.some(
@@ -506,7 +508,7 @@ async function handleAddItem(name: string, assignee?: string) {
 	}
 
 	try {
-		loading.value = true;
+		addingPackingItem.value = true;
 
 		if (!packingListId.value) {
 			const createResponse = await PackingLists.createPackingList(props.trip.id);
@@ -517,7 +519,18 @@ async function handleAddItem(name: string, assignee?: string) {
 			throw new Error("Unable to create packing list");
 		}
 
-		await PackingLists.addItem(packingListId.value, trimmedName, assignee);
+		// TODO currentUser curr have id and username the same
+
+		// Set the assigned person to the creator by default
+		const assigneeId = isShared
+			? currentUser.value?.id || props.trip.travelers[0]?.id || props.trip.organizer
+			: undefined;
+
+		await PackingLists.addItem(
+			packingListId.value,
+			trimmedName,
+			isShared ? assigneeId : undefined,
+		);
 
 		await loadPackingItems();
 	} catch (error: any) {
@@ -526,7 +539,7 @@ async function handleAddItem(name: string, assignee?: string) {
 			error instanceof Error ? error.message : "Failed to add packing item";
 		alert(errorMessage);
 	} finally {
-		loading.value = false;
+		addingPackingItem.value = false;
 	}
 }
 
