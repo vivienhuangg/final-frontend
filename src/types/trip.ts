@@ -9,6 +9,10 @@ export interface Trip {
   organizer: string; // User ID
   travelers: Traveler[]; // Includes organizer
   headerImage?: string;
+  /**
+   * UI helper: resolved display name for organizer (first + last if available, else username, else ID)
+   */
+  organizerDisplayName?: string;
 }
 
 export interface Traveler {

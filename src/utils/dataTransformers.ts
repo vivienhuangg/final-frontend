@@ -50,6 +50,14 @@ export function transformApiTripToTrip(
 		startDate: apiTrip.startDate,
 		endDate: apiTrip.endDate,
 		organizer: apiTrip.organizer,
+		organizerDisplayName: (() => {
+			// Prefer explicitly provided organizerName override
+			if (organizerName) return organizerName;
+			const info = travelerNames?.get(apiTrip.organizer);
+			if (!info) return apiTrip.organizer;
+			if (info.firstName && info.lastName) return `${info.firstName} ${info.lastName}`;
+			return info.username || apiTrip.organizer;
+		})(),
 		travelers,
 	};
 }
@@ -67,19 +75,20 @@ export function transformApiInvitationToTripInvitation(
 	inviterId?: string,
 	inviterName?: string,
 ): TripInvitation {
+	const status: TripInvitation["status"] =
+		apiInvitation.accepted === "Yes"
+			? "accepted"
+			: apiInvitation.accepted === "No"
+				? "declined"
+				: "pending"; // Maybe
+
 	return {
 		id: apiInvitation.invitation,
 		tripId: apiInvitation.event,
-		invitee: "", // Will be set from current user context
+		invitee: "", // Will be set later
 		inviter: inviterId || "",
-		// Treat 'No' and 'Maybe' as pending, 'Yes' as accepted.
-		// Backend currently uses 'accepted' = 'Yes' | 'No' | 'Maybe'
-		// where 'No' indicates not yet accepted.
-		status:
-			apiInvitation.accepted === "Yes"
-				? "accepted"
-				: "pending",
-		createdAt: new Date().toISOString(), // API doesn't provide this
+		status,
+		createdAt: new Date().toISOString(),
 		trip,
 	};
 }

@@ -6,12 +6,18 @@
         <div class="logo">
           <h1 class="text-2xl font-bold text-[#1e3a5f]">TripSync</h1>
         </div>
-        <button class="btn-sign-out" @click="handleLogout">
-          <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-          </svg>
-          Sign Out
-        </button>
+        <div class="actions-row">
+          <button class="btn-secondary flex items-center gap-2" type="button" @click="goToInvitations">
+            <span>Invitations</span>
+            <span v-if="pendingInvitations.length > 0" class="notification-badge">{{ pendingInvitations.length }}</span>
+          </button>
+          <button class="btn-sign-out" @click="handleLogout">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 00-2-2V7a2 2 0 002-2h4a3 3 0 013 3v1" />
+            </svg>
+            Sign Out
+          </button>
+        </div>
       </div>
 
       <!-- Welcome + Invitations section -->
@@ -25,64 +31,22 @@
             v-if="pendingInvitations.length > 0"
             class="btn-primary flex items-center gap-2"
             type="button"
-            @click="scrollToInvitations"
+            @click="goToInvitations"
           >
             <span class="notification-badge">{{ pendingInvitations.length }}</span>
             <span>View invites</span>
           </button>
         </div>
 
-        <!-- Pending invitations list -->
-        <div v-if="pendingInvitations.length > 0" class="invitations-section">
-          <div class="section-header">
-            <div class="section-title-row">
-              <h2 class="text-xl font-semibold text-[#1e3a5f]">Pending Trip Invitations</h2>
-              <span class="notification-badge">{{ pendingInvitations.length }}</span>
-            </div>
-            <p class="text-muted-foreground mt-1">Trips you've been invited to join. Accept to add them to your list.
-            </p>
-          </div>
-
-          <div class="invitations-grid">
-            <div v-for="inv in pendingInvitations" :key="inv.id" class="invitation-card">
-              <div class="invitation-card-content">
-                <div class="invitation-header">
-                  <div>
-                    <h3>{{ inv.trip.title }}</h3>
-                    <p class="invitation-from">Organized by {{ inv.trip.organizer }}</p>
-                    <p class="trip-card-dates mt-1">
-                      <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                      <span>{{ formatDate(inv.trip.startDate) }} - {{ formatDate(inv.trip.endDate) }}</span>
-                    </p>
-                  </div>
-                  <span class="invitation-badge">Invitation</span>
-                </div>
-
-                <div class="invitation-actions">
-                  <button class="btn-accept" type="button" @click.stop="acceptInvitation(inv.id)">
-                    Accept
-                  </button>
-                  <button class="btn-decline" type="button" @click.stop="declineInvitation(inv.id)">
-                    Decline
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <!-- Invitations list removed: only show badge and button linking to Invitations page -->
       </div>
 
-      <div v-if="loading" class="loading-state" role="status" aria-live="polite">
-        <span class="loading-spinner"></span>
-        <span>Loading trips...</span>
-      </div>
-
-      <div v-else class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <!-- Create New Trip Card -->
-        <div class="trip-card create-card" @click="showNewTripDialog = true">
+        <div
+          class="trip-card create-card"
+          @click="showNewTripDialog = true"
+        >
           <div class="create-card-content">
             <div class="create-icon">
               <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -95,41 +59,45 @@
         </div>
 
         <!-- Trip Cards -->
-        <div v-for="trip in upcomingTrips" :key="trip.id" class="trip-card" @click="selectTrip(trip.id)">
+        <div
+          v-for="trip in upcomingTrips"
+          :key="trip.id"
+          class="trip-card"
+          @click="selectTrip(trip.id)"
+        >
           <div class="trip-card-gradient"></div>
           <div class="trip-card-delete" @click.stop="selectTrip(trip.id)">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
             </svg>
           </div>
           <div class="trip-card-content-inner">
             <h3 class="trip-card-title">{{ trip.title }}</h3>
             <div class="trip-card-destination">
               <svg class="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
               {{ trip.destination }}
             </div>
             <div class="trip-card-dates">
               <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
               <span>{{ formatDate(trip.startDate) }} - {{ formatDate(trip.endDate) }}</span>
             </div>
             <div class="trip-card-members">
               <div class="member-avatars">
-                <div v-for="(traveler, idx) in trip.travelers.slice(0, 3)" :key="traveler.id" class="member-avatar"
-                  :style="{ backgroundColor: getAvatarColor(idx) }">
+                <div
+                  v-for="(traveler, idx) in trip.travelers.slice(0, 3)"
+                  :key="traveler.id"
+                  class="member-avatar"
+                  :style="{ backgroundColor: getAvatarColor(idx) }"
+                >
                   {{ traveler.name.charAt(0).toUpperCase() }}
                 </div>
               </div>
-              <span class="member-count">{{ trip.travelers.length }} {{ trip.travelers.length === 1 ? 'member' :
-                'members' }}</span>
+              <span class="member-count">{{ trip.travelers.length }} {{ trip.travelers.length === 1 ? 'member' : 'members' }}</span>
             </div>
           </div>
         </div>
@@ -146,22 +114,42 @@
         <form @submit.prevent="createTrip" class="dialog-form">
           <div class="form-group">
             <label for="tripName">Trip Name</label>
-            <input id="tripName" v-model="newTrip.title" type="text" required
-              placeholder="e.g., Spring Break in Miami" />
+            <input
+              id="tripName"
+              v-model="newTrip.title"
+              type="text"
+              required
+              placeholder="e.g., Spring Break in Miami"
+            />
           </div>
           <div class="form-group">
             <label for="destination">Destination</label>
-            <input id="destination" v-model="newTrip.destination" type="text" required placeholder="e.g., Miami, FL" />
+            <input
+              id="destination"
+              v-model="newTrip.destination"
+              type="text"
+              required
+              placeholder="e.g., Miami, FL"
+            />
           </div>
           <div class="form-row">
             <div class="form-group">
               <label for="startDate">Start Date</label>
-              <input id="startDate" v-model="newTrip.startDate" type="date" required />
+              <input
+                id="startDate"
+                v-model="newTrip.startDate"
+                type="date"
+                required
+              />
             </div>
             <div class="form-group">
               <label for="endDate">End Date</label>
-              <input id="endDate" v-model="newTrip.endDate" type="date" :min="newTrip.startDate || undefined"
-                required />
+              <input
+                id="endDate"
+                v-model="newTrip.endDate"
+                type="date"
+                required
+              />
             </div>
           </div>
           <div v-if="createError" class="error-message">{{ createError }}</div>
@@ -175,7 +163,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import * as Invitations from "../api/invitations";
 import * as Trips from "../api/trips";
@@ -183,13 +171,13 @@ import * as Users from "../api/users";
 import { useAuth } from "../stores/useAuth";
 import type { Trip, TripInvitation } from "../types/trip";
 import {
-  transformApiInvitationToTripInvitation,
-  transformApiTripToTrip,
+	transformApiInvitationToTripInvitation,
+	transformApiTripToTrip,
 } from "../utils/dataTransformers";
 
 const emit = defineEmits<{
-  (e: "select-trip", trip: Trip): void;
-  (e: "logout"): void;
+	(e: "select-trip", trip: Trip): void;
+	(e: "logout"): void;
 }>();
 
 const router = useRouter();
@@ -202,21 +190,11 @@ const loading = ref(false);
 const createLoading = ref(false);
 const createError = ref('');
 const newTrip = ref({
-  title: "",
-  destination: "",
-  startDate: "",
-  endDate: "",
+	title: "",
+	destination: "",
+	startDate: "",
+	endDate: "",
 });
-
-watch(
-  () => newTrip.value.startDate,
-  (startDate) => {
-    if (!startDate) return;
-    if (newTrip.value.endDate && newTrip.value.endDate < startDate) {
-      newTrip.value.endDate = startDate;
-    }
-  },
-);
 
 function formatDate(dateStr: string): string {
   if (!dateStr) return "";
@@ -235,31 +213,31 @@ function getAvatarColor(index: number): string {
 
 // Fetch trips and invitations on mount
 onMounted(async () => {
-  await loadTrips();
-  await loadInvitations();
+	await loadTrips();
+	await loadInvitations();
 });
 
 async function loadTrips() {
-  const session = getSession();
-  if (!session) return;
+	const session = getSession();
+	if (!session) return;
 
-  try {
-    loading.value = true;
+	try {
+		loading.value = true;
     const response = await Trips.getMyTrips();
 
-    // Fetch user names for all travelers
-    const travelerIds = new Set<string>();
-    response.results.forEach(({ trip }) => {
-      travelerIds.add(trip.organizer);
-      trip.travellers.forEach((id) => travelerIds.add(id));
-    });
+		// Fetch user names for all travelers
+		const travelerIds = new Set<string>();
+		response.results.forEach(({ trip }) => {
+			travelerIds.add(trip.organizer);
+			trip.travellers.forEach((id) => travelerIds.add(id));
+		});
 
-    const travelerNames = new Map<
-      string,
-      { firstName?: string; lastName?: string; username: string }
-    >();
-    for (const userId of travelerIds) {
-      try {
+		const travelerNames = new Map<
+			string,
+			{ firstName?: string; lastName?: string; username: string }
+		>();
+		for (const userId of travelerIds) {
+			try {
         const [usernameResponse, nameResponse] = await Promise.all([
           Users.getUsername(userId).catch(() => ({ username: userId })),
           Users.getUserName(userId).catch(() => ({ firstName: undefined, lastName: undefined } as any)),
@@ -269,77 +247,82 @@ async function loadTrips() {
           lastName: (nameResponse as any).lastName,
           username: usernameResponse.username || userId,
         });
-      } catch (e) {
-        // User name not set, use username
-        travelerNames.set(userId, { username: userId });
-      }
-    }
+			} catch (e) {
+				// User name not set, use username
+				travelerNames.set(userId, { username: userId });
+			}
+		}
 
-    // Transform API trips to component trips
-    trips.value = response.results.map(({ trip }) =>
-      transformApiTripToTrip(trip, undefined, travelerNames),
-    );
-  } catch (error: any) {
-    console.error("Failed to load trips:", error);
-  } finally {
-    loading.value = false;
-  }
+		// Transform API trips to component trips
+		trips.value = response.results.map(({ trip }) =>
+			transformApiTripToTrip(trip, undefined, travelerNames),
+		);
+	} catch (error: any) {
+		console.error("Failed to load trips:", error);
+	} finally {
+		loading.value = false;
+	}
 }
 
 async function loadInvitations() {
-  const session = getSession();
-  if (!session || !currentUser.value) return;
+	const session = getSession();
+	if (!session || !currentUser.value) return;
 
 	try {
-    const response = await Invitations.getMyInvitations();
+  const response = await Invitations.getMyInvitations();
 
 		// Fetch trip details for each invitation
 		const invitationTrips: TripInvitation[] = [];
-		for (const apiInv of response.results) {
-      // Only include pending invitations (acceptedStatus === "No")
-      if (apiInv.acceptedStatus === "No") {
+  for (const apiInv of response.results) {
+      // Include pending invitations (acceptedStatus === "No" or "Maybe")
+      if (apiInv.acceptedStatus === "No" || apiInv.acceptedStatus === "Maybe") {
 				try {
-					// Get trip details
-          const tripResponse = await Trips.getTrip(apiInv.event);
+          // Prefer embedded trip details from backend to avoid authorization issues
+          const tripBase = (apiInv.tripDetails || apiInv.trip);
+          let tripSummary: any = tripBase;
+          if (!tripSummary) {
+            const tripResponse = await Trips.getTrip(apiInv.event);
+            tripSummary = tripResponse.trip;
+          }
 
 					// Fetch traveler names
 					const travelerIds = new Set<string>();
-					travelerIds.add(tripResponse.trip.organizer);
-					tripResponse.trip.travellers.forEach((id) => travelerIds.add(id));
+          travelerIds.add(tripSummary.organizer);
+          (tripSummary.travellers || []).forEach((id: string) => travelerIds.add(id));
 
-          const travelerNames = new Map<
-            string,
-            { firstName?: string; lastName?: string; username: string }
-          >();
-          for (const userId of travelerIds) {
-            try {
-              const [usernameResponse, nameResponse] = await Promise.all([
-                Users.getUsername(userId).catch(() => ({ username: userId })),
-                Users.getUserName(userId).catch(() => ({ firstName: undefined, lastName: undefined } as any)),
-              ]);
-              travelerNames.set(userId, {
-                firstName: (nameResponse as any).firstName,
-                lastName: (nameResponse as any).lastName,
-                username: usernameResponse.username || userId,
-              });
-            } catch (e) {
-              travelerNames.set(userId, { username: userId });
-            }
-          }
+					const travelerNames = new Map<
+						string,
+						{ firstName?: string; lastName?: string; username: string }
+					>();
+					for (const userId of travelerIds) {
+						try {
+                const [usernameResponse, nameResponse] = await Promise.all([
+                  Users.getUsername(userId).catch(() => ({ username: userId })),
+                  Users.getUserName(userId).catch(() => ({ firstName: undefined, lastName: undefined } as any)),
+                ]);
+                travelerNames.set(userId, {
+                  firstName: (nameResponse as any).firstName,
+                  lastName: (nameResponse as any).lastName,
+                  username: usernameResponse.username || userId,
+                });
+						} catch (e) {
+							travelerNames.set(userId, { username: userId });
+						}
+					}
 
-					const trip = transformApiTripToTrip(
-						tripResponse.trip,
-						undefined,
-						travelerNames,
-					);
-					const invitation = transformApiInvitationToTripInvitation(
-						{
-							invitation: apiInv.invitation,
-							event: apiInv.event,
-							accepted: apiInv.acceptedStatus,
-						},
-						trip,
-					);
+          const trip = transformApiTripToTrip(
+            tripSummary,
+            undefined,
+            travelerNames,
+          );
+          const invitation = transformApiInvitationToTripInvitation(
+            {
+              invitation: apiInv.invitation,
+              event: apiInv.event,
+              accepted: apiInv.acceptedStatus,
+            },
+            trip,
+          );
 					invitation.invitee = currentUser.value.id;
 					invitationTrips.push(invitation);
 				} catch (e) {
@@ -348,106 +331,103 @@ async function loadInvitations() {
 			}
 		}
 
-    invitations.value = invitationTrips;
-  } catch (error: any) {
-    console.error("Failed to load invitations:", error);
-  }
+		invitations.value = invitationTrips;
+	} catch (error: any) {
+		console.error("Failed to load invitations:", error);
+	}
 }
 
 // Separate trips into upcoming and past
 const upcomingTrips = computed(() => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return trips.value.filter((trip) => {
-    const endDate = new Date(trip.endDate);
-    endDate.setHours(0, 0, 0, 0);
-    return endDate >= today;
-  });
+	const today = new Date();
+	today.setHours(0, 0, 0, 0);
+	return trips.value.filter((trip) => {
+		const endDate = new Date(trip.endDate);
+		endDate.setHours(0, 0, 0, 0);
+		return endDate >= today;
+	});
 });
 
 const pastTrips = computed(() => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return trips.value.filter((trip) => {
-    const endDate = new Date(trip.endDate);
-    endDate.setHours(0, 0, 0, 0);
-    return endDate < today;
-  });
+	const today = new Date();
+	today.setHours(0, 0, 0, 0);
+	return trips.value.filter((trip) => {
+		const endDate = new Date(trip.endDate);
+		endDate.setHours(0, 0, 0, 0);
+		return endDate < today;
+	});
 });
 
 const pendingInvitations = computed(() => {
-  if (!currentUser.value) return [];
-  return invitations.value.filter(
-    (inv) => inv.invitee === currentUser.value?.id && inv.status === "pending",
-  );
+	if (!currentUser.value) return [];
+	return invitations.value.filter(
+		(inv) => inv.invitee === currentUser.value?.id && inv.status === "pending",
+	);
 });
 
 async function getTravelerName(travelerId: string): Promise<string> {
-  const session = getSession();
-  if (!session) return travelerId;
+	const session = getSession();
+	if (!session) return travelerId;
 
-  try {
+	try {
     const nameResponse = await Users.getUserName(travelerId);
-    if (nameResponse.firstName && nameResponse.lastName) {
-      return `${nameResponse.firstName} ${nameResponse.lastName}`;
-    }
-    return travelerId;
-  } catch (e) {
-    return travelerId;
-  }
-}
-
-async function acceptInvitation(invitationId: string) {
-  const session = getSession();
-  if (!session) return;
-
-  try {
-    await Invitations.acceptInvitation(invitationId);
-
-    // Update local state
-    const invitation = invitations.value.find((inv) => inv.id === invitationId);
-    if (invitation) {
-      invitation.status = "accepted";
-      // Reload trips to get updated trip data
-      await loadTrips();
-    }
-  } catch (error: any) {
-    console.error("Failed to accept invitation:", error);
-    const errorMessage =
-      error instanceof Error ? error.message : "Failed to accept invitation";
-    alert(errorMessage);
-  }
-}
-
-async function declineInvitation(invitationId: string) {
-  const session = getSession();
-  if (!session) return;
-
-  try {
-    await Invitations.rejectInvitation(invitationId);
-
-    // Update local state
-    const invitation = invitations.value.find((inv) => inv.id === invitationId);
-    if (invitation) {
-      invitation.status = "declined";
-    }
-  } catch (error: any) {
-    console.error("Failed to decline invitation:", error);
-    const errorMessage =
-      error instanceof Error ? error.message : "Failed to decline invitation";
-    alert(errorMessage);
-  }
-}
-
-function scrollToInvitations() {
-	const invitationsSection = document.querySelector(".invitations-section");
-  if (invitationsSection) {
-		invitationsSection.scrollIntoView({ behavior: "smooth", block: "start" });
+		if (nameResponse.firstName && nameResponse.lastName) {
+			return `${nameResponse.firstName} ${nameResponse.lastName}`;
+		}
+		return travelerId;
+	} catch (e) {
+		return travelerId;
 	}
 }
 
+async function acceptInvitation(invitationId: string) {
+	const session = getSession();
+	if (!session) return;
+
+	try {
+    await Invitations.acceptInvitation(invitationId);
+
+		// Update local state
+		const invitation = invitations.value.find((inv) => inv.id === invitationId);
+		if (invitation) {
+			invitation.status = "accepted";
+			// Reload trips to get updated trip data
+			await loadTrips();
+		}
+	} catch (error: any) {
+		console.error("Failed to accept invitation:", error);
+		const errorMessage =
+			error instanceof Error ? error.message : "Failed to accept invitation";
+		alert(errorMessage);
+	}
+}
+
+async function declineInvitation(invitationId: string) {
+	const session = getSession();
+	if (!session) return;
+
+	try {
+    await Invitations.rejectInvitation(invitationId);
+
+		// Update local state
+		const invitation = invitations.value.find((inv) => inv.id === invitationId);
+		if (invitation) {
+			invitation.status = "declined";
+		}
+	} catch (error: any) {
+		console.error("Failed to decline invitation:", error);
+		const errorMessage =
+			error instanceof Error ? error.message : "Failed to decline invitation";
+		alert(errorMessage);
+	}
+}
+
+function goToInvitations() {
+  router.push({ name: 'invitations' });
+}
+
 function selectTrip(tripId: string) {
-  router.push({ name: 'trip', params: { id: tripId } });
+	router.push({ name: 'trip', params: { id: tripId } });
 }
 
 function isOrganizer(trip: Trip): boolean {
@@ -457,38 +437,38 @@ function isOrganizer(trip: Trip): boolean {
 }
 
 async function createTrip() {
-  const session = getSession();
-  if (!session || !currentUser.value) return;
+	const session = getSession();
+	if (!session || !currentUser.value) return;
 
-  try {
-    createLoading.value = true;
-    createError.value = '';
+	try {
+		createLoading.value = true;
+		createError.value = '';
     const response = await Trips.createTrip(
       newTrip.value.title,
       newTrip.value.startDate,
       newTrip.value.endDate,
     );
 
-    // Reload trips to get the new trip with full details
-    await loadTrips();
+		// Reload trips to get the new trip with full details
+		await loadTrips();
 
-    showNewTripDialog.value = false;
-    newTrip.value = { title: "", destination: "", startDate: "", endDate: "" };
+		showNewTripDialog.value = false;
+		newTrip.value = { title: "", destination: "", startDate: "", endDate: "" };
 
-    // Navigate to the newly created trip
-    router.push({ name: 'trip', params: { id: response.trip } });
-  } catch (error: any) {
-    console.error("Failed to create trip:", error);
-    createError.value = error instanceof Error ? error.message : "Failed to create trip";
-  } finally {
-    createLoading.value = false;
-  }
+		// Navigate to the newly created trip
+		router.push({ name: 'trip', params: { id: response.trip } });
+	} catch (error: any) {
+		console.error("Failed to create trip:", error);
+		createError.value = error instanceof Error ? error.message : "Failed to create trip";
+	} finally {
+		createLoading.value = false;
+	}
 }
 
 async function handleLogout() {
-  const { logout } = useAuth();
-  await logout();
-  router.push({ name: 'auth' });
+	const { logout } = useAuth();
+	await logout();
+	router.push({ name: 'auth' });
 }
 </script>
 
@@ -622,35 +602,6 @@ async function handleLogout() {
   display: flex;
   flex-direction: column;
   border: 0;
-}
-
-.loading-state {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  padding: 2rem;
-  color: #1e3a5f;
-  font-size: 1rem;
-}
-
-.loading-spinner {
-  width: 1.5rem;
-  height: 1.5rem;
-  border-radius: 9999px;
-  border: 3px solid rgba(20, 184, 166, 0.2);
-  border-top-color: #14b8a6;
-  animation: loading-spin 0.8s linear infinite;
-}
-
-@keyframes loading-spin {
-  0% {
-    transform: rotate(0deg);
-  }
-
-  100% {
-    transform: rotate(360deg);
-  }
 }
 
 .trip-card:hover {

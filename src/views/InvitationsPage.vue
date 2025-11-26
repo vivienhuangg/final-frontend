@@ -8,45 +8,92 @@
 
       <div v-if="loading" class="empty-state">Loading invitations…</div>
       <div v-else>
-        <section class="mb-8" v-if="pendingInvites.length">
-          <div class="section-title-row mb-3">
-            <h2 class="text-xl font-semibold text-[#1e3a5f]">Pending</h2>
-            <span class="notification-badge">{{ pendingInvites.length }}</span>
+        <section class="section-block" v-if="pendingInvites.length">
+          <div class="section-header">
+            <div class="section-title-row">
+              <h2 class="text-xl font-semibold text-[#1e3a5f]">Pending Invitations</h2>
+              <span class="notification-badge">{{ pendingInvites.length }}</span>
+            </div>
+            <p class="section-description">Trips you've been invited to join. Accept to add them to your dashboard.</p>
           </div>
-          <div class="invites-list">
-            <InvitationCard
-              v-for="inv in pendingInvites"
-              :key="inv.id"
-              :invitation="inv"
-              @accept="acceptInvitation(inv.id)"
-              @decline="rejectInvitation(inv.id)"
-            />
+          <div class="invitations-grid">
+            <div v-for="inv in pendingInvites" :key="inv.id" class="invitation-card">
+              <div class="invitation-card-content">
+                <div class="invitation-header">
+                  <div>
+                    <h3 class="trip-title">{{ inv.trip.title }}</h3>
+                    <p class="invitation-from">Organized by <span class="organizer-name">{{ inv.trip.organizerDisplayName || inv.trip.organizer }}</span></p>
+                    <p class="trip-card-dates mt-2">
+                      <svg class="date-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <span>{{ formatDateRange(inv.trip.startDate, inv.trip.endDate) }}</span>
+                    </p>
+                  </div>
+                  <span class="invitation-badge">Invitation</span>
+                </div>
+                <div class="invitation-actions">
+                  <button class="btn-accept" type="button" @click.stop="acceptInvitation(inv.id)">Accept</button>
+                  <button class="btn-decline" type="button" @click.stop="rejectInvitation(inv.id)">Decline</button>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
-        <section class="mb-8" v-if="acceptedInvites.length">
-          <h2 class="text-xl font-semibold text-[#1e3a5f] mb-3">Accepted</h2>
-          <div class="invites-list">
-            <InvitationCard
-              v-for="inv in acceptedInvites"
-              :key="inv.id"
-              :invitation="inv"
-              :readonly="true"
-              @delete="deleteInvitation(inv.id)"
-            />
+        <section class="section-block" v-if="acceptedInvites.length">
+          <div class="section-header">
+            <h2 class="text-xl font-semibold text-[#1e3a5f] mb-3">Accepted Trips</h2>
+          </div>
+          <div class="invitations-grid">
+            <div v-for="inv in acceptedInvites" :key="inv.id" class="invitation-card accepted">
+              <div class="invitation-card-content">
+                <div class="invitation-header">
+                  <div>
+                    <h3 class="trip-title">{{ inv.trip.title }}</h3>
+                    <p class="invitation-from">Organizer: <span class="organizer-name">{{ inv.trip.organizerDisplayName || inv.trip.organizer }}</span></p>
+                    <p class="trip-card-dates mt-2">
+                      <svg class="date-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <span>{{ formatDateRange(inv.trip.startDate, inv.trip.endDate) }}</span>
+                    </p>
+                  </div>
+                  <span class="invitation-badge accepted">Accepted</span>
+                </div>
+                <div class="invitation-actions">
+                  <button class="btn-secondary remove-btn" type="button" @click.stop="deleteInvitation(inv.id)">Remove</button>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
-        <section v-if="declinedInvites.length">
-          <h2 class="text-xl font-semibold text-[#1e3a5f] mb-3">Declined</h2>
-          <div class="invites-list">
-            <InvitationCard
-              v-for="inv in declinedInvites"
-              :key="inv.id"
-              :invitation="inv"
-              :readonly="true"
-              @delete="deleteInvitation(inv.id)"
-            />
+        <section class="section-block" v-if="declinedInvites.length">
+          <div class="section-header">
+            <h2 class="text-xl font-semibold text-[#1e3a5f] mb-3">Declined</h2>
+          </div>
+          <div class="invitations-grid">
+            <div v-for="inv in declinedInvites" :key="inv.id" class="invitation-card declined">
+              <div class="invitation-card-content">
+                <div class="invitation-header">
+                  <div>
+                    <h3 class="trip-title">{{ inv.trip.title }}</h3>
+                    <p class="invitation-from">Organizer: <span class="organizer-name">{{ inv.trip.organizerDisplayName || inv.trip.organizer }}</span></p>
+                    <p class="trip-card-dates mt-2">
+                      <svg class="date-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <span>{{ formatDateRange(inv.trip.startDate, inv.trip.endDate) }}</span>
+                    </p>
+                  </div>
+                  <span class="invitation-badge declined">Declined</span>
+                </div>
+                <div class="invitation-actions">
+                  <button class="btn-secondary remove-btn" type="button" @click.stop="deleteInvitation(inv.id)">Remove</button>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -59,7 +106,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, defineComponent } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import * as Invitations from '../api/invitations';
 import * as Trips from '../api/trips';
@@ -74,47 +121,7 @@ const { currentUser, getSession } = useAuth();
 const loading = ref(false);
 const invitations = ref<TripInvitation[]>([]);
 
-// Define InvitationCard locally so it's available in template
-const InvitationCard = defineComponent({
-  name: 'InvitationCard',
-  props: {
-    invitation: { type: Object, required: true },
-    readonly: { type: Boolean, default: false },
-  },
-  emits: ['accept', 'decline', 'delete'],
-  setup(props, { emit }) {
-    function onAccept() { emit('accept'); }
-    function onDecline() { emit('decline'); }
-    function onDelete() { emit('delete'); }
-    return { onAccept, onDecline, onDelete };
-  },
-  template: `
-    <div class="invitation-card">
-      <div class="invitation-card-content">
-        <div class="invitation-header">
-          <div>
-            <h3>{{ invitation.trip.title }}</h3>
-            <p class="invitation-from">Organized by {{ invitation.trip.travelers.find(t => t.id === invitation.trip.organizer)?.name || invitation.trip.organizer }}</p>
-            <p class="trip-card-dates mt-1">
-              <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              <span>{{ new Date(invitation.trip.startDate).toLocaleDateString() }} - {{ new Date(invitation.trip.endDate).toLocaleDateString() }}</span>
-            </p>
-          </div>
-          <span class="invitation-badge">{{ invitation.status === 'pending' ? 'Invitation' : invitation.status }}</span>
-        </div>
-        <div class="invitation-actions" v-if="!readonly && invitation.status === 'pending'">
-          <button class="btn-accept" type="button" @click.stop="onAccept">Accept</button>
-          <button class="btn-decline" type="button" @click.stop="onDecline">Decline</button>
-        </div>
-        <div class="invitation-actions" v-else>
-          <button class="btn-secondary" type="button" @click.stop="onDelete">Remove</button>
-        </div>
-      </div>
-    </div>
-  `,
-});
+// (Inline InvitationCard component removed; using direct markup instead)
 
 function goBack() {
   router.push({ name: 'dashboard' });
@@ -195,6 +202,20 @@ const pendingInvites = computed(() => invitations.value.filter((inv) => inv.stat
 const acceptedInvites = computed(() => invitations.value.filter((inv) => inv.status === 'accepted'));
 const declinedInvites = computed(() => invitations.value.filter((inv) => inv.status === 'declined'));
 
+function formatDateRange(start: string, end: string) {
+  const startDate = new Date(start);
+  const endDate = new Date(end);
+  const sameMonth = startDate.getMonth() === endDate.getMonth() && startDate.getFullYear() === endDate.getFullYear();
+  const startFmt = startDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  const endFmt = endDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  if (sameMonth) {
+    // Example: Nov 23–29, 2025
+    return `${startFmt}–${endDate.getDate()}, ${endDate.getFullYear()}`;
+  }
+  // Example: Nov 29, 2025 – Dec 05, 2025
+  return `${startDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} – ${endDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`;
+}
+
 async function acceptInvitation(invitationId: string) {
   const session = getSession();
   if (!session) return;
@@ -256,19 +277,37 @@ async function deleteInvitation(invitationId: string) {
 .btn-secondary:hover { background: #e0e0e0; }
 .section-title-row { display: flex; align-items: center; gap: 0.75rem; }
 .notification-badge { background: #d32f2f; color: white; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 600; }
-.invites-list { display: flex; flex-direction: column; gap: 1rem; }
+.invitations-grid { display: flex; flex-direction: column; gap: 1.25rem; width: 100%; }
+.section-block { margin-bottom: 3rem; }
+.trip-title { font-size: 1.05rem; font-weight: 600; color: #1f2937; line-height: 1.35; }
+.organizer-name { font-weight: 500; color: #334155; }
+.date-icon { width: 1rem; height: 1rem; margin-right: 0.35rem; color: #2563eb; flex-shrink: 0; }
+.trip-card-dates { display: flex; align-items: center; font-size: 0.75rem; letter-spacing: .25px; color: #475569; font-weight: 500; }
 .empty-state { text-align: center; padding: 2rem; color: #888; }
-.invitation-card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); border: 2px solid #42b983; position: relative; width: 100%; }
-.invitation-card-content { padding: 1rem; }
+.invitation-card { background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.06); border: 1px solid #dbe9e3; position: relative; width: 100%; transition: box-shadow .18s ease, transform .18s ease; }
+.invitation-card:hover { box-shadow: 0 6px 18px rgba(0,0,0,0.08); transform: translateY(-2px); }
+.invitation-card.accepted { border-color: #c8dbff; }
+.invitation-card.declined { border-color: #f5c7c7; }
+.invitation-card-content { padding: 1.1rem 1.25rem 1.2rem; display: flex; flex-direction: column; gap: .75rem; }
 .invitation-header { display: flex; justify-content: space-between; align-items: flex-start; }
-.invitation-header h3 { font-size: 1.1rem; color: #333; }
+.invitation-header h3 { margin: 0; }
 .invitation-from { color: #666; font-size: 0.85rem; margin-top: 0.25rem; }
-.invitation-badge { background: #42b983; color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600; white-space: nowrap; }
-.invitation-actions { display: flex; gap: 0.75rem; margin-top: 1rem; }
-.btn-accept { flex: 1; background: #42b983; color: white; border: none; padding: 0.5rem 0.75rem; border-radius: 8px; font-size: 0.9rem; font-weight: 500; cursor: pointer; }
-.btn-accept:hover { background: #35a372; }
-.btn-decline { flex: 1; background: white; color: #666; border: 1.5px solid #e0e0e0; padding: 0.5rem 0.75rem; border-radius: 8px; font-size: 0.9rem; font-weight: 500; cursor: pointer; }
-.btn-decline:hover { background: #f5f5f5; border-color: #ccc; }
+.invitation-badge { background: #2f8f65; color: white; padding: 0.35rem .85rem; border-radius: 999px; font-size: 0.7rem; font-weight: 600; letter-spacing: .5px; display: inline-flex; align-items: center; gap: .4rem; }
+.invitation-badge.accepted { background: #1d4ed8; }
+.invitation-badge.declined { background: #b91c1c; }
+.invitation-actions { display: flex; gap: 0.65rem; margin-top: 0.35rem; }
+.invitation-actions.single { justify-content: flex-end; }
+.btn-accept { flex: 1; background: linear-gradient(135deg,#42b983,#3aa876); color: white; border: none; padding: 0.55rem 0.85rem; border-radius: 9px; font-size: 0.85rem; font-weight: 600; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,.12); transition: background .15s ease, box-shadow .15s ease; }
+.btn-accept:hover { background: linear-gradient(135deg,#3aa876,#319267); box-shadow: 0 3px 6px rgba(0,0,0,.16); }
+.btn-decline { flex: 1; background: #ffffff; color: #475569; border: 1.5px solid #d8dee2; padding: 0.55rem 0.85rem; border-radius: 9px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: background .15s ease, border-color .15s ease; }
+.btn-decline:hover { background: #f1f5f9; border-color: #c4ccd2; }
+.remove-btn { background: #f1f5f9; color: #475569; border: 1px solid #d8dee2; padding: 0.5rem 0.9rem; border-radius: 8px; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: background .15s ease, border-color .15s ease; }
+.remove-btn:hover { background: #e2e8f0; border-color: #c4ccd2; }
+.section-description { font-size: 0.75rem; color: #64748b; margin-top: 0.25rem; line-height: 1.4; }
+.invitations-grid { display: grid; grid-template-columns: 1fr; }
+@media (min-width: 640px) { .invitations-grid { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.25rem; } }
+@media (min-width: 860px) { .invitations-grid { gap: 1.5rem; } }
+.section-description { font-size: 0.8rem; color: #64748b; margin-top: 0.25rem; }
 .w-4 { width: 1rem; }
 .h-4 { height: 1rem; }
 .mt-1 { margin-top: 0.25rem; }
