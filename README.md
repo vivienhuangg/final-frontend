@@ -119,7 +119,7 @@ The API client is configured in `src/api/http.ts` with:
 - Automatic error handling
 - Request/response interceptors
 - Configurable base URL from environment variables
-- 10-second request timeout
+- 20-second request timeout
 
 The OpenAPI definition lives in the backend repo and is the single source of truth:
 

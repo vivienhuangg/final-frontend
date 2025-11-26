@@ -90,7 +90,7 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
 const http = axios.create({
   baseURL: API_BASE,
   headers: { 'Content-Type': 'application/json' },
-  timeout: 10000,
+  timeout: 20000,
 });
 
 function maskSensitive(v: any) {

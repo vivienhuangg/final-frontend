@@ -115,6 +115,7 @@
           :generating="generatingPackingList"
           :generation-stage="generationStage"
           :generation-progress="generationProgress"
+		  @add-item="handleAddItem"
           @toggle-item="handleToggleItem"
           @quantity-change="handleQuantityChange"
           @regenerate="handleRegeneratePackingList"
@@ -464,6 +465,7 @@ async function handleDeleteExpense(expenseId: string) {
 	}
 }
 
+// Packing List Functions
 async function handleToggleItem(itemId: string) {
 	const session = getSession();
 	if (!session || !packingListId.value) return;
@@ -485,6 +487,46 @@ async function handleToggleItem(itemId: string) {
 		const errorMessage =
 			error instanceof Error ? error.message : "Failed to toggle item";
 		alert(errorMessage);
+	}
+}
+
+async function handleAddItem(name: string, assignee?: string) {
+	const session = getSession();
+	if (!session || !props.trip.id) return;
+
+	const trimmedName = name.trim();
+	if (!trimmedName) return;
+
+	const duplicate = packingItems.value.some(
+		(item) => item.name.toLowerCase() === trimmedName.toLowerCase(),
+	);
+	if (duplicate) {
+		alert("Item already exists in your packing list.");
+		return;
+	}
+
+	try {
+		loading.value = true;
+
+		if (!packingListId.value) {
+			const createResponse = await PackingLists.createPackingList(props.trip.id);
+			packingListId.value = createResponse.packinglist;
+		}
+
+		if (!packingListId.value) {
+			throw new Error("Unable to create packing list");
+		}
+
+		await PackingLists.addItem(packingListId.value, trimmedName, assignee);
+
+		await loadPackingItems();
+	} catch (error: any) {
+		console.error("Failed to add packing item:", error);
+		const errorMessage =
+			error instanceof Error ? error.message : "Failed to add packing item";
+		alert(errorMessage);
+	} finally {
+		loading.value = false;
 	}
 }
 

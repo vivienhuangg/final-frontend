@@ -34,80 +34,82 @@
         </div>
       </div>
     </div>
-    
+
     <div class="space-y-6">
-      <!-- Packing List Header Card -->
+
       <div class="card">
         <div class="card-gradient-blue"></div>
+
+        <!-- Packing List Header Card -->
         <div class="card-header">
           <div>
             <h2 class="card-title">Packing List</h2>
-            <p class="card-description">AI-generated based on your trip details</p>
+            <p class="card-description">Track your packing list</p>
           </div>
-          <div v-if="personalItems.length > 0" class="progress-section">
-            <div class="progress-badge">
-              <p class="progress-label">Progress</p>
-              <p class="progress-value">{{ checkedCount }}/{{ personalItems.length }}</p>
+          <div>
+            <div class="progress-pill">
+              <span class="progress-label">Progress</span>
+              <span class="progress-value">{{ checkedCount }}/{{ personalItems.length }}</span>
             </div>
-            <button class="btn-regenerate" @click="$emit('regenerate')" :disabled="generating">
-              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              {{ generating ? 'Generating...' : 'Regenerate List' }}
-            </button>
+
+            <form class="add-item-form" @submit.prevent="submitNewItem">
+              <input class="add-item-input" v-model="newItemName" type="text" placeholder="Add item"
+                :disabled="generating" />
+              <button class="btn-add" type="submit" :disabled="generating || !newItemName.trim()">
+                Add
+              </button>
+            </form>
+
+            <div class="ai-actions">
+              <template v-if="personalItems.length > 0">
+
+                <button class="btn-regenerate" @click="$emit('regenerate')" :disabled="generating">
+                  <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  {{ generating ? "Generating..." : "Regenerate List" }}
+                </button>
+              </template>
+
+              <template v-else>
+                <button class="btn-generate" @click="$emit('generate')" :disabled="generating">
+                  <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                  </svg>
+                  {{ generating ? "Generating..." : "Generate List" }}
+                </button>
+              </template>
+            </div>
           </div>
-          <button v-else class="btn-generate" @click="$emit('generate')" :disabled="generating">
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-            </svg>
-            {{ generating ? 'Generating...' : 'Generate List' }}
-          </button>
         </div>
       </div>
 
-      <div class="packing-grid" v-if="personalItems.length > 0">
+      <div class="packing-grid">
         <!-- My Packing List -->
-        <div class="card">
+        <div class="card" v-if="personalItems.length > 0">
           <div class="card-header">
             <h2 class="card-title">My Packing List</h2>
           </div>
           <div class="card-content">
             <div class="packing-list">
-              <div
-                v-for="category in categories"
-                :key="category || 'uncategorized'"
-                class="category-section"
-              >
+              <div v-for="category in categories" :key="category || 'uncategorized'" class="category-section">
                 <h3 class="category-title">{{ category || 'Uncategorized' }}</h3>
                 <div class="items-list">
-                  <div
-                    v-for="item in getPersonalItemsByCategory(category || '')"
-                    :key="item.id"
-                    class="packing-item"
-                  >
+                  <div v-for="item in getPersonalItemsByCategory(category || '')" :key="item.id" class="packing-item">
                     <label class="packing-item-label">
-                      <input
-                        type="checkbox"
-                        :checked="item.finished"
-                        @change="toggleItem(item.id)"
-                      />
+                      <input type="checkbox" :checked="item.finished" @change="toggleItem(item.id)" />
                       <span :class="{ checked: item.finished }">{{ item.name }}</span>
                     </label>
                     <div class="quantity-controls">
-                      <button
-                        type="button"
-                        @click="handleQuantityChange(item.id, (item.quantity || 1) - 1)"
-                        class="quantity-btn"
-                        :disabled="(item.quantity || 1) <= 1"
-                      >
+                      <button type="button" @click="handleQuantityChange(item.id, (item.quantity || 1) - 1)"
+                        class="quantity-btn" :disabled="(item.quantity || 1) <= 1">
                         -
                       </button>
                       <span class="quantity-value">{{ item.quantity || 1 }}</span>
-                      <button
-                        type="button"
-                        @click="handleQuantityChange(item.id, (item.quantity || 1) + 1)"
-                        class="quantity-btn"
-                      >
+                      <button type="button" @click="handleQuantityChange(item.id, (item.quantity || 1) + 1)"
+                        class="quantity-btn">
                         +
                       </button>
                     </div>
@@ -127,23 +129,16 @@
           <div class="card-content">
             <div v-if="sharedItems.length === 0" class="empty-state">
               <svg class="w-12 h-12 mx-auto mb-3 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
               </svg>
               <p>No shared items yet</p>
               <p class="text-sm mt-1">Mark items as "shared" to coordinate with your group</p>
             </div>
             <div v-else class="shared-items-list">
-              <div
-                v-for="item in sharedItems"
-                :key="item.id"
-                class="shared-item"
-              >
+              <div v-for="item in sharedItems" :key="item.id" class="shared-item">
                 <label class="shared-item-checkbox">
-                  <input
-                    type="checkbox"
-                    :checked="item.finished"
-                    @change="toggleItem(item.id)"
-                  />
+                  <input type="checkbox" :checked="item.finished" @change="toggleItem(item.id)" />
                   <span :class="{ checked: item.finished }">{{ item.name }}</span>
                 </label>
                 <div class="assigned-to" v-if="item.assignee">
@@ -163,60 +158,71 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import type { ChecklistItem, Traveler } from "../../types/trip";
 
 const props = withDefaults(defineProps<{
-	items: ChecklistItem[];
-	travelers: Traveler[];
-	generating?: boolean;
-	generationStage?: string;
-	generationProgress?: number;
+  items: ChecklistItem[];
+  travelers: Traveler[];
+  generating?: boolean;
+  generationStage?: string;
+  generationProgress?: number;
 }>(), {
-	generating: false,
-	generationStage: "",
-	generationProgress: 0,
+  generating: false,
+  generationStage: "",
+  generationProgress: 0,
 });
 
+const newItemName = ref("");
+
+function submitNewItem() {
+  const name = newItemName.value.trim();
+  if (!name) return;
+  emit("add-item", name);
+  newItemName.value = "";
+}
+
 const emit = defineEmits<{
-	(e: "toggle-item", itemId: string): void;
-	(e: "quantity-change", itemId: string, quantity: number): void;
-	(e: "regenerate"): void;
-	(e: "generate"): void;
+  (e: "add-item", itemName: string): void;
+  (e: "toggle-item", itemId: string): void;
+  (e: "quantity-change", itemId: string, quantity: number): void;
+  (e: "regenerate"): void;
+  (e: "generate"): void;
 }>();
 
 const personalItems = computed(() => {
-	return props.items.filter((item) => !item.isShared);
+  return props.items.filter((item) => !item.isShared);
 });
 
 const sharedItems = computed(() => {
-	return props.items.filter((item) => item.isShared);
+  console.log("Shared Items:", props.items);
+  return props.items.filter((item) => item.isShared);
 });
 
 const checkedCount = computed(() => {
-	return personalItems.value.filter((item) => item.finished).length;
+  return personalItems.value.filter((item) => item.finished).length;
 });
 
 const categories = computed(() => {
-	const cats = new Set(
-		personalItems.value.map((item) => item.category || "Uncategorized"),
-	);
-	return Array.from(cats).sort();
+  const cats = new Set(
+    personalItems.value.map((item) => item.category || "Uncategorized"),
+  );
+  return Array.from(cats).sort();
 });
 
 function getPersonalItemsByCategory(category: string) {
-	return personalItems.value.filter(
-		(item) => (item.category || "Uncategorized") === category,
-	);
+  return personalItems.value.filter(
+    (item) => (item.category || "Uncategorized") === category,
+  );
 }
 
 function toggleItem(itemId: string) {
-	emit("toggle-item", itemId);
+  emit("toggle-item", itemId);
 }
 
 function handleQuantityChange(itemId: string, quantity: number) {
-	if (quantity < 1) return;
-	emit("quantity-change", itemId, quantity);
+  if (quantity < 1) return;
+  emit("quantity-change", itemId, quantity);
 }
 </script>
 
@@ -225,7 +231,7 @@ function handleQuantityChange(itemId: string, quantity: number) {
   width: 100%;
 }
 
-.space-y-6 > * + * {
+.space-y-6>*+* {
   margin-top: 1.5rem;
 }
 
@@ -578,6 +584,7 @@ function handleQuantityChange(itemId: string, quantity: number) {
     opacity: 0;
     transform: translateY(-20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -640,9 +647,12 @@ function handleQuantityChange(itemId: string, quantity: number) {
 }
 
 @keyframes pulse {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.8;
   }
@@ -712,5 +722,125 @@ function handleQuantityChange(itemId: string, quantity: number) {
 .step.active span {
   color: #1e3a5f;
 }
-</style>
 
+.card-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+}
+
+.card-heading {
+  flex: 1 1 100%;
+  margin-bottom: 0.5rem;
+}
+
+.add-item-form {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1 1 260px;
+}
+
+.add-item-input {
+  flex: 1;
+  min-width: 160px;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid #d4d8e1;
+  border-radius: 9999px;
+  font-size: 0.9rem;
+  color: #1e293b;
+}
+
+.add-item-input:focus {
+  outline: none;
+  border-color: #7ba3d1;
+  box-shadow: 0 0 0 2px rgba(123, 163, 209, 0.25);
+}
+
+.btn-add {
+  padding: 0.45rem 1.15rem;
+  border: none;
+  border-radius: 9999px;
+  background: #1e3a5f;
+  color: #f8fafc;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-add:hover:not(:disabled) {
+  background: #162b45;
+}
+
+.btn-add:disabled,
+.add-item-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.ai-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.progress-pill {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 9999px;
+  background: rgba(123, 163, 209, 0.15);
+}
+
+.progress-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #475569;
+}
+
+.progress-value {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1e3a5f;
+}
+
+.btn-generate,
+.btn-regenerate {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.55rem 1.2rem;
+  border: none;
+  border-radius: 9999px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: white;
+  cursor: pointer;
+}
+
+.btn-generate {
+  background: #7ba3d1;
+}
+
+.btn-regenerate {
+  background: #42b983;
+}
+
+.btn-generate:hover:not(:disabled),
+.btn-regenerate:hover:not(:disabled) {
+  filter: brightness(0.95);
+}
+
+.btn-generate:disabled,
+.btn-regenerate:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+</style>
