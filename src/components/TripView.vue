@@ -356,7 +356,7 @@ async function handleAddActivity(activity: ActivityWithDetails) {
 			activity.end,
 			activity.cost,
 			props.trip.id,
-			{ solo: false, proposal: true },
+			{solo: activity.solo, proposal: activity.proposal}
 		);
 
 		// Reload activities

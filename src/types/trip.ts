@@ -114,6 +114,8 @@ export interface ActivityWithDetails extends Activity {
   invitations?: Invitation[]; // All invitations for this activity
   description?: string; // Activity description
   image?: string; // Image URL for the activity
+  solo?: boolean;
+  proposal?: boolean;
 }
 
 export interface PackingItem extends ChecklistItem {

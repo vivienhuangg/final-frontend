@@ -21,22 +21,13 @@
       <!-- Tab Toggles -->
       <div class="tab-toggles-card">
         <div class="tab-toggles">
-          <button
-            :class="['toggle', { active: activeView === 'mine' }]"
-            @click="activeView = 'mine'"
-          >
+          <button :class="['toggle', { active: activeView === 'mine' }]" @click="activeView = 'mine'">
             My Events
           </button>
-          <button
-            :class="['toggle', { active: activeView === 'group' }]"
-            @click="activeView = 'group'"
-          >
+          <button :class="['toggle', { active: activeView === 'group' }]" @click="activeView = 'group'">
             Group Events
           </button>
-          <button
-            :class="['toggle', { active: activeView === 'proposals' }]"
-            @click="activeView = 'proposals'"
-          >
+          <button :class="['toggle', { active: activeView === 'proposals' }]" @click="activeView = 'proposals'">
             Proposals
           </button>
         </div>
@@ -45,11 +36,7 @@
       <!-- My Events Tab -->
       <div v-if="activeView === 'mine'">
         <div v-if="myEvents.length > 0" class="attractions-list">
-          <div
-            v-for="activity in myEvents"
-            :key="activity.id"
-            class="card attraction-card"
-          >
+          <div v-for="activity in myEvents" :key="activity.id" class="card attraction-card">
             <div class="card-gradient"></div>
             <div class="card-header">
               <div class="card-title-section">
@@ -65,40 +52,35 @@
                 <div v-if="getCommittedEventConflicts(activity).length > 0" class="conflict-warning">
                   <div class="conflict-header">
                     <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                      <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                      <path fill-rule="evenodd"
+                        d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                        clip-rule="evenodd" />
                     </svg>
                     <span class="conflict-title">Time Conflict</span>
                   </div>
                   <div class="conflict-list">
-                    <div
-                      v-for="conflict in getCommittedEventConflicts(activity)"
-                      :key="conflict.activity.id"
-                      class="conflict-item"
-                    >
+                    <div v-for="conflict in getCommittedEventConflicts(activity)" :key="conflict.activity.id"
+                      class="conflict-item">
                       <span class="conflict-event-name">{{ conflict.activity.title }}</span>
-                      <span class="conflict-event-type">({{ conflict.type === 'my-event' ? 'My Event' : 'Group Event' }})</span>
+                      <span class="conflict-event-type">({{ conflict.type === 'my-event' ? 'My Event' : 'Group Event'
+                      }})</span>
                     </div>
                   </div>
                 </div>
               </div>
               <div class="card-actions">
-                <button
-                  class="btn-settings-small"
-                  @click="openEditDialog(activity)"
-                  title="Edit activity"
-                >
+                <button class="btn-settings-small" @click="openEditDialog(activity)" title="Edit activity">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
                 </button>
-                <button
-                  class="btn-delete-small"
-                  @click="handleDeleteActivity(activity.id)"
-                  title="Delete activity"
-                >
+                <button class="btn-delete-small" @click="handleDeleteActivity(activity.id)" title="Delete activity">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                   </svg>
                 </button>
               </div>
@@ -107,19 +89,22 @@
               <div class="attraction-meta">
                 <div v-if="getActivityDate(activity)" class="meta-item">
                   <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                   <span>{{ formatDate(getActivityDate(activity)) }}</span>
                 </div>
                 <div v-if="getActivityTime(activity) || getActivityEndTime(activity)" class="meta-item">
                   <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <span>{{ formatTime(getActivityTime(activity), getActivityEndTime(activity)) }}</span>
                 </div>
                 <div v-if="activity.cost > 0" class="meta-item">
                   <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <span>${{ activity.cost.toFixed(2) }}/person</span>
                 </div>
@@ -144,12 +129,8 @@
                     {{ isOptedIn(activity.id) ? "I'm attending this activity" : "Opt in to this activity" }}
                   </label>
                   <label class="switch">
-                    <input
-                      :id="`opt-in-mine-${activity.id}`"
-                      type="checkbox"
-                      :checked="isOptedIn(activity.id)"
-                      @change="handleToggleOptIn(activity.id)"
-                    />
+                    <input :id="`opt-in-mine-${activity.id}`" type="checkbox" :checked="isOptedIn(activity.id)"
+                      @change="handleToggleOptIn(activity.id)" />
                     <span class="slider"></span>
                   </label>
                 </div>
@@ -170,12 +151,8 @@
       <!-- Group Events Tab -->
       <div v-if="activeView === 'group'">
         <div v-if="groupEvents.length > 0" class="attractions-list">
-          <div
-            v-for="activity in groupEvents"
-            :key="activity.id"
-            class="card attraction-card"
-            :class="{ 'opted-out': !isOptedIn(activity.id) }"
-          >
+          <div v-for="activity in groupEvents" :key="activity.id" class="card attraction-card"
+            :class="{ 'opted-out': !isOptedIn(activity.id) }">
             <div class="card-gradient"></div>
             <div class="card-header">
               <div class="card-title-section">
@@ -192,41 +169,36 @@
                 <div v-if="getCommittedEventConflicts(activity).length > 0" class="conflict-warning">
                   <div class="conflict-header">
                     <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                      <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                      <path fill-rule="evenodd"
+                        d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                        clip-rule="evenodd" />
                     </svg>
                     <span class="conflict-title">Time Conflict</span>
                   </div>
                   <div class="conflict-list">
-                    <div
-                      v-for="conflict in getCommittedEventConflicts(activity)"
-                      :key="conflict.activity.id"
-                      class="conflict-item"
-                    >
+                    <div v-for="conflict in getCommittedEventConflicts(activity)" :key="conflict.activity.id"
+                      class="conflict-item">
                       <span class="conflict-event-name">{{ conflict.activity.title }}</span>
-                      <span class="conflict-event-type">({{ conflict.type === 'my-event' ? 'My Event' : 'Group Event' }})</span>
+                      <span class="conflict-event-type">({{ conflict.type === 'my-event' ? 'My Event' : 'Group Event'
+                      }})</span>
                     </div>
                   </div>
                 </div>
               </div>
               <div class="card-actions">
-                <button
-                  class="btn-settings-small"
-                  @click="openEditDialog(activity)"
-                  title="Edit activity"
-                >
+                <button class="btn-settings-small" @click="openEditDialog(activity)" title="Edit activity">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
                 </button>
-                <button
-                  v-if="canDelete(activity.id)"
-                  class="btn-delete-small"
-                  @click="handleDeleteActivity(activity.id)"
-                  title="Delete activity"
-                >
+                <button v-if="canDelete(activity.id)" class="btn-delete-small"
+                  @click="handleDeleteActivity(activity.id)" title="Delete activity">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                   </svg>
                 </button>
               </div>
@@ -235,19 +207,22 @@
               <div class="attraction-meta">
                 <div v-if="getActivityDate(activity)" class="meta-item">
                   <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                   <span>{{ formatDate(getActivityDate(activity)) }}</span>
                 </div>
                 <div v-if="getActivityTime(activity) || getActivityEndTime(activity)" class="meta-item">
                   <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <span>{{ formatTime(getActivityTime(activity), getActivityEndTime(activity)) }}</span>
                 </div>
                 <div v-if="activity.cost > 0" class="meta-item">
                   <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <span>${{ activity.cost.toFixed(2) }}/person</span>
                 </div>
@@ -272,27 +247,17 @@
                     {{ isOptedIn(activity.id) ? "I'm attending this activity" : "Opt in to this activity" }}
                   </label>
                   <label class="switch">
-                    <input
-                      :id="`opt-in-${activity.id}`"
-                      type="checkbox"
-                      :checked="isOptedIn(activity.id)"
-                      @change="handleToggleOptIn(activity.id)"
-                    />
+                    <input :id="`opt-in-${activity.id}`" type="checkbox" :checked="isOptedIn(activity.id)"
+                      @change="handleToggleOptIn(activity.id)" />
                     <span class="slider"></span>
                   </label>
                 </div>
                 <div class="activity-controls">
-                  <button
-                    class="btn-revert-to-proposal"
-                    @click="handleRevertToProposal(activity.id)"
-                  >
+                  <button class="btn-revert-to-proposal" @click="handleRevertToProposal(activity.id)">
                     Convert to Proposal
                   </button>
-                  <button
-                    v-if="canDelete(activity.id)"
-                    class="btn-delete-activity"
-                    @click="handleDeleteActivity(activity.id)"
-                  >
+                  <button v-if="canDelete(activity.id)" class="btn-delete-activity"
+                    @click="handleDeleteActivity(activity.id)">
                     Delete
                   </button>
                 </div>
@@ -313,11 +278,8 @@
       <!-- Proposals Tab -->
       <div v-if="activeView === 'proposals'">
         <div v-if="proposals.length > 0" class="attractions-list">
-          <div
-            v-for="activity in proposals"
-            :key="activity.id"
-            :class="['card attraction-card', { 'recommended-card': activity.isRecommended }]"
-          >
+          <div v-for="activity in proposals" :key="activity.id"
+            :class="['card attraction-card', { 'recommended-card': activity.isRecommended }]">
             <div v-if="!activity.isRecommended" class="card-gradient"></div>
             <div class="card-header">
               <div class="card-title-section">
@@ -326,7 +288,8 @@
                   <div class="badges">
                     <span v-if="activity.isRecommended" class="badge recommended-badge">
                       <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                        <path
+                          d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                       </svg>
                       Recommended
                     </span>
@@ -336,7 +299,9 @@
                 <p v-if="activity.description" class="attraction-description">{{ activity.description }}</p>
                 <div v-if="activity.isRecommended && activity.recommendationReason" class="recommendation-reason">
                   <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                    <path fill-rule="evenodd"
+                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                      clip-rule="evenodd" />
                   </svg>
                   <span>{{ activity.recommendationReason }}</span>
                 </div>
@@ -344,41 +309,36 @@
                 <div v-if="getProposalConflicts(activity).length > 0" class="conflict-warning">
                   <div class="conflict-header">
                     <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                      <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                      <path fill-rule="evenodd"
+                        d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                        clip-rule="evenodd" />
                     </svg>
                     <span class="conflict-title">Time Conflict</span>
                   </div>
                   <div class="conflict-list">
-                    <div
-                      v-for="conflict in getProposalConflicts(activity)"
-                      :key="conflict.activity.id"
-                      class="conflict-item"
-                    >
+                    <div v-for="conflict in getProposalConflicts(activity)" :key="conflict.activity.id"
+                      class="conflict-item">
                       <span class="conflict-event-name">{{ conflict.activity.title }}</span>
-                      <span class="conflict-event-type">({{ conflict.type === 'my-event' ? 'My Event' : 'Group Event' }})</span>
+                      <span class="conflict-event-type">({{ conflict.type === 'my-event' ? 'My Event' : 'Group Event'
+                      }})</span>
                     </div>
                   </div>
                 </div>
               </div>
               <div class="card-actions">
-                <button
-                  class="btn-settings-small"
-                  @click="openEditDialog(activity)"
-                  title="Edit activity"
-                >
+                <button class="btn-settings-small" @click="openEditDialog(activity)" title="Edit activity">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
                 </button>
-                <button
-                  v-if="canDelete(activity.id)"
-                  class="btn-delete-small"
-                  @click="handleDeleteActivity(activity.id)"
-                  title="Delete activity"
-                >
+                <button v-if="canDelete(activity.id)" class="btn-delete-small"
+                  @click="handleDeleteActivity(activity.id)" title="Delete activity">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                   </svg>
                 </button>
               </div>
@@ -387,19 +347,22 @@
               <div class="attraction-meta">
                 <div v-if="getActivityDate(activity)" class="meta-item">
                   <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                   <span>{{ formatDate(getActivityDate(activity)) }}</span>
                 </div>
                 <div v-if="getActivityTime(activity) || getActivityEndTime(activity)" class="meta-item">
                   <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <span>{{ formatTime(getActivityTime(activity), getActivityEndTime(activity)) }}</span>
                 </div>
                 <div v-if="activity.cost > 0" class="meta-item">
                   <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <span>${{ activity.cost.toFixed(2) }}/person</span>
                 </div>
@@ -418,37 +381,24 @@
                 <div class="rating-section">
                   <label class="rating-label">Your Rating</label>
                   <div class="rating-buttons">
-                    <button
-                      v-for="i in 10"
-                      :key="i"
+                    <button v-for="i in 10" :key="i"
                       :class="['rating-btn', { active: hasUserRating(activity.id) && getUserRating(activity.id) >= i }]"
-                      @click="handleRatingChange(activity.id, i)"
-                      :title="`Rate ${i}/10`"
-                    >
+                      @click="handleRatingChange(activity.id, i)" :title="`Rate ${i}/10`">
                       {{ i }}
                     </button>
                   </div>
                 </div>
                 <div class="activity-controls">
-                  <button
-                    class="btn-commit-proposal"
-                    @click="handleToggleProposal(activity.id, false)"
-                  >
+                  <button class="btn-commit-proposal" @click="handleToggleProposal(activity.id, false)">
                     Commit to Group Event
                   </button>
                   <div class="activity-controls-secondary">
-                    <button
-                      class="btn-delete-proposal"
-                      @click="handleDeleteProposal(activity.id)"
-                    >
+                    <button class="btn-delete-proposal" @click="handleDeleteProposal(activity.id)">
                       Delete Proposal
                     </button>
                     <div v-if="isCreator(activity.id) || isOrganizer()" class="activity-controls-tertiary">
-                      <button
-                        v-if="isCreator(activity.id)"
-                        class="btn-toggle-solo"
-                        @click="handleToggleSolo(activity.id, !(activity.solo ?? false))"
-                      >
+                      <button v-if="isCreator(activity.id)" class="btn-toggle-solo"
+                        @click="handleToggleSolo(activity.id, !(activity.solo ?? false))">
                         {{ activity.solo ? 'Make Public' : 'Make Solo' }}
                       </button>
                     </div>
@@ -480,77 +430,43 @@
         <form @submit.prevent="handleAddAttraction" class="dialog-form">
           <div class="form-group">
             <label for="name">Name</label>
-            <input
-              id="name"
-              v-model="newAttraction.name"
-              type="text"
-              required
-              placeholder="e.g., South Beach"
-            />
+            <input id="name" v-model="newAttraction.name" type="text" required placeholder="e.g., South Beach" />
           </div>
           <div class="form-group">
             <label for="description">Description</label>
-            <textarea
-              id="description"
-              v-model="newAttraction.description"
-              placeholder="Why should we go here?"
-              rows="3"
-            ></textarea>
+            <textarea id="description" v-model="newAttraction.description" placeholder="Why should we go here?"
+              rows="3"></textarea>
           </div>
           <div class="form-group">
             <label for="cost">Estimated Cost per Person ($)</label>
-            <input
-              id="cost"
-              v-model.number="newAttraction.estimatedCost"
-              type="number"
-              step="0.01"
-              placeholder="0.00"
-            />
+            <input id="cost" v-model.number="newAttraction.estimatedCost" type="number" step="0.01"
+              placeholder="0.00" />
           </div>
           <div class="form-row">
             <div class="form-group">
               <label for="date">Date</label>
-              <input
-                id="date"
-                v-model="newAttraction.date"
-                type="date"
-              />
+              <input id="date" v-model="newAttraction.date" type="date" />
             </div>
           </div>
           <div class="form-row">
             <div class="form-group">
               <label for="time">Start Time</label>
-              <input
-                id="time"
-                v-model="newAttraction.time"
-                type="time"
-              />
+              <input id="time" v-model="newAttraction.time" type="time" />
             </div>
             <div class="form-group">
               <label for="endTime">End Time</label>
-              <input
-                id="endTime"
-                v-model="newAttraction.endTime"
-                type="time"
-              />
+              <input id="endTime" v-model="newAttraction.endTime" type="time" />
             </div>
           </div>
           <div class="form-group">
             <label class="checkbox-label">
-              <input
-                type="checkbox"
-                v-model="newAttraction.solo"
-              />
+              <input type="checkbox" v-model="newAttraction.solo" @change="handleSoloChange" />
               <span>Make this a solo activity (only visible to me)</span>
             </label>
           </div>
           <div class="form-group">
             <label class="checkbox-label">
-              <input
-                type="checkbox"
-                v-model="newAttraction.proposal"
-                :checked="true"
-              />
+              <input type="checkbox" v-model="newAttraction.proposal" :disabled="newAttraction.solo" :checked="true" />
               <span>Start as proposal (can be committed later)</span>
             </label>
           </div>
@@ -574,53 +490,26 @@
         <form @submit.prevent="handleSaveEdit" class="dialog-form">
           <div class="form-group">
             <label for="edit-title">Title</label>
-            <input
-              id="edit-title"
-              v-model="editForm.title"
-              type="text"
-              required
-              placeholder="Activity title"
-            />
+            <input id="edit-title" v-model="editForm.title" type="text" required placeholder="Activity title" />
           </div>
           <div class="form-group">
             <label for="edit-description">Description</label>
-            <textarea
-              id="edit-description"
-              v-model="editForm.description"
-              placeholder="Activity description"
-              rows="3"
-            ></textarea>
+            <textarea id="edit-description" v-model="editForm.description" placeholder="Activity description"
+              rows="3"></textarea>
           </div>
           <div class="form-row">
             <div class="form-group">
               <label for="edit-start">Start Date & Time</label>
-              <input
-                id="edit-start"
-                v-model="editForm.start"
-                type="datetime-local"
-                required
-              />
+              <input id="edit-start" v-model="editForm.start" type="datetime-local" required />
             </div>
             <div class="form-group">
               <label for="edit-end">End Date & Time</label>
-              <input
-                id="edit-end"
-                v-model="editForm.end"
-                type="datetime-local"
-                required
-              />
+              <input id="edit-end" v-model="editForm.end" type="datetime-local" required />
             </div>
           </div>
           <div class="form-group">
             <label for="edit-cost">Cost per Person ($)</label>
-            <input
-              id="edit-cost"
-              v-model.number="editForm.cost"
-              type="number"
-              step="0.01"
-              min="0"
-              placeholder="0.00"
-            />
+            <input id="edit-cost" v-model.number="editForm.cost" type="number" step="0.01" min="0" placeholder="0.00" />
           </div>
           <div class="form-actions">
             <button type="button" class="btn-secondary" @click="showEditDialog = false">
@@ -777,8 +666,8 @@ function getCommittedEventConflicts(activity: ActivityWithDetails): Array<{ acti
   // Check against Group Events (but not if it's already in myEvents to avoid duplicates)
   groupEvents.value.forEach(groupEvent => {
     if (groupEvent.id !== activity.id &&
-        !myEvents.value.some(me => me.id === groupEvent.id) &&
-        hasTimeConflict(activity, groupEvent)) {
+      !myEvents.value.some(me => me.id === groupEvent.id) &&
+      hasTimeConflict(activity, groupEvent)) {
       conflicts.push({ activity: groupEvent, type: 'group-event' });
     }
   });
@@ -893,6 +782,8 @@ function getRecommendationReason(activity: ActivityWithDetails): string {
 }
 
 const proposals = computed(() => {
+
+  // Filter to activities that are proposals and not solo activities only
   const filtered = props.activities
     .filter(activity => activity.proposal && !activity.solo)
     .map(activity => ({
@@ -929,6 +820,7 @@ async function getActualUserId(): Promise<string | null> {
   try {
     // Use the Sessioning API to get the actual user ID from the session
     // Fallback: we don't have a dedicated endpoint in the new API, so return the current username
+    // TODO: Update when a proper endpoint is available
     if (currentUserId.value) {
       console.log('✅ getActualUserId using currentUserId:', currentUserId.value);
       return currentUserId.value;
@@ -943,6 +835,8 @@ async function getActualUserId(): Promise<string | null> {
 
 // Load ratings for all activities
 async function loadRatings() {
+  console.log('Loading ratings for activities...');
+
   const session = getSession();
   if (!session) return;
 
@@ -957,13 +851,15 @@ async function loadRatings() {
 
   try {
     for (const activity of props.activities) {
+      console.log("Loading ratings for activity:", activity.id);
+
       // Skip loading ratings for solo events
       if (activity.solo) {
         continue;
       }
 
       try {
-      const response = await Ratings.getRatingsByItem(activity.id);
+        const response = await Ratings.getRatingsByItem(activity.id);
         const allRatings = response.results || [];
         // Always store all ratings for average and vote count calculation
         ratings.value[activity.id] = allRatings;
@@ -1005,13 +901,14 @@ async function loadRatings() {
 
 // Load invitations for all activities
 async function loadInvitations() {
+  console.log('Loading invitations for activities...');
   const session = getSession();
   if (!session) return;
 
   try {
     const response = await Invitations.getMyInvitations();
     const myInvitations = response.results || [];
-
+    console.log('Fetched invitations:', myInvitations);
     // Reset all activity invitations
     allActivityInvitations.value = {};
 
@@ -1023,6 +920,7 @@ async function loadInvitations() {
       // Check if this event is an activity (not a trip)
       const isActivity = props.activities.some(a => a.id === inv.event);
       if (isActivity) {
+        console.log('Processing invitation for activity:', inv.event, 'Accepted:', accepted);
         // Store current user's invitation
         activityInvitations.value[inv.event] = {
           invitation: inv.invitation,
@@ -1045,6 +943,7 @@ async function loadInvitations() {
           optedInAttractions.value.delete(inv.event);
         }
       }
+      console.log('all activity:', props.activities);
     });
   } catch (error) {
     console.error('Error loading invitations:', error);
@@ -1156,6 +1055,8 @@ function getOptedInCount(activityId: string): number {
 }
 
 function hasUserRating(activityId: string): boolean {
+  console.log('Checking user rating for activity:', activityId, 'Rating:', userRatings.value[activityId]);
+
   const rating = userRatings.value[activityId];
   return rating !== undefined && rating !== null && rating !== 0;
 }
@@ -1266,6 +1167,9 @@ async function handleToggleOptIn(activityId: string) {
   if (!session) return;
 
   const invitation = activityInvitations.value[activityId];
+  console.log('Toggling opt-in for activity:', activityId, 'Current invitation:', invitation);
+  // TODO: Getting error AttractionsTab.vue:1173 No invitation found for activity: 019ad29f-cb19-71e5-9240-aee8149f14bf
+
   if (!invitation) {
     console.error('No invitation found for activity:', activityId);
     return;
@@ -1276,7 +1180,7 @@ async function handleToggleOptIn(activityId: string) {
 
     if (isCurrentlyOptedIn) {
       // Opt out: reject the invitation
-			await Invitations.rejectInvitation(invitation.invitation);
+      await Invitations.rejectInvitation(invitation.invitation);
       activityInvitations.value[activityId].accepted = "No";
       optedInAttractions.value.delete(activityId);
 
@@ -1289,7 +1193,7 @@ async function handleToggleOptIn(activityId: string) {
       }
     } else {
       // Opt in: accept the invitation
-			await Invitations.acceptInvitation(invitation.invitation);
+      await Invitations.acceptInvitation(invitation.invitation);
       activityInvitations.value[activityId].accepted = "Yes";
       optedInAttractions.value.add(activityId);
 
@@ -1330,7 +1234,7 @@ async function handleToggleSolo(activityId: string, solo: boolean) {
   if (!session) return;
 
   try {
-		// Solo flag is only stored client-side in this frontend; backend API doesn't expose a modifySolo endpoint.
+    // Solo flag is only stored client-side in this frontend; backend API doesn't expose a modifySolo endpoint.
     emit('refresh-activities');
   } catch (error: any) {
     console.error('Error toggling solo:', error);
@@ -1342,12 +1246,21 @@ async function handleToggleSolo(activityId: string, solo: boolean) {
   }
 }
 
+/*
+Toggle proposal status (proposal <-> committed)
+
+activityId: ID of the activity to toggle
+proposal: true to mark as proposal, false to commit
+*/
 async function handleToggleProposal(activityId: string, proposal: boolean) {
   const session = getSession();
   if (!session) return;
 
   try {
-    // Proposal flag changes for existing activities are not wired through the new Activities API layer yet.
+    await Activities.modifyProposal(
+      activityId,
+      proposal,
+    );
 
     // If committing a proposal (proposal: false), the backend creates invitations for all trip members
     // We need to reload invitations so the frontend knows about them
@@ -1383,16 +1296,16 @@ function handleDeleteProposal(activityId: string) {
       if (!session) return;
 
       try {
-      await Activities.deleteActivity(activityId);
+        await Activities.deleteActivity(activityId);
         emit('delete-activity', activityId);
         emit('refresh-activities');
       } catch (error: any) {
-			console.error('Error deleting proposal:', error);
-			const message =
-				error?.response?.data?.error ||
-				(error instanceof Error ? error.message : null) ||
-				"Couldn't delete this proposal. Please refresh and try again.";
-			alert(message);
+        console.error('Error deleting proposal:', error);
+        const message =
+          error?.response?.data?.error ||
+          (error instanceof Error ? error.message : null) ||
+          "Couldn't delete this proposal. Please refresh and try again.";
+        alert(message);
       } finally {
         showConfirmDialog.value = false;
         confirmDialogConfig.value = null;
@@ -1403,11 +1316,24 @@ function handleDeleteProposal(activityId: string) {
 
 function openEditDialog(activity: ActivityWithDetails) {
   editingActivity.value = activity;
+
+  // Helper function to convert ISO string to local datetime format
+  const toLocalDatetimeString = (isoString: string): string => {
+    if (!isoString) return '';
+    const date = new Date(isoString);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  };
+
   editForm.value = {
     title: activity.title || '',
     description: activity.description || '',
-    start: activity.start ? new Date(activity.start).toISOString().slice(0, 16) : '',
-    end: activity.end ? new Date(activity.end).toISOString().slice(0, 16) : '',
+    start: activity.start ? toLocalDatetimeString(activity.start) : '',
+    end: activity.end ? toLocalDatetimeString(activity.end) : '',
     cost: activity.cost || 0,
   };
   showEditDialog.value = true;
@@ -1422,19 +1348,27 @@ async function handleSaveEdit() {
 
   try {
     const activity = editingActivity.value;
-    console.log('Saving edits for activity:', activity.id, editForm.value);
-
     // Update title if changed
     if (editForm.value.title !== activity.title) {
       console.log('Updating title:', activity.title, '->', editForm.value.title);
-      // Title is not currently stored in the Activities API beyond create,
-      // so we skip a separate modifyTitle call.
+      await Activities.modifyTitle(
+        activity.id,
+        editForm.value.title,
+      );
     }
 
     // Update duration if changed
-    // Convert datetime-local to ISO string for comparison
-    const newStart = editForm.value.start ? new Date(editForm.value.start).toISOString() : null;
-    const newEnd = editForm.value.end ? new Date(editForm.value.end).toISOString() : null;
+    // Helper to convert local datetime to ISO string
+    const toISOString = (localDatetimeString: string): string | null => {
+      if (!localDatetimeString) return null;
+      // localDatetimeString is in format "YYYY-MM-DDTHH:mm"
+      // Parse it as local time and convert to ISO
+      const date = new Date(localDatetimeString + ':00'); // Add seconds
+      return date.toISOString();
+    };
+
+    const newStart = toISOString(editForm.value.start);
+    const newEnd = toISOString(editForm.value.end);
 
     // Compare dates (normalize to ISO strings for comparison)
     const currentStart = activity.start ? new Date(activity.start).toISOString() : null;
@@ -1442,14 +1376,21 @@ async function handleSaveEdit() {
 
     if (newStart && newEnd && (newStart !== currentStart || newEnd !== currentEnd)) {
       console.log('Updating duration:', { currentStart, newStart, currentEnd, newEnd });
-      // Duration updates would require a dedicated backend endpoint; not available in new API layer yet.
+      await Activities.modifyDuration(
+        activity.id,
+        newStart,
+        newEnd,
+      );
     }
 
     // Update cost if changed (handle potential float precision issues)
     const costChanged = Math.abs((editForm.value.cost || 0) - (activity.cost || 0)) > 0.01;
     if (costChanged) {
       console.log('Updating cost:', activity.cost, '->', editForm.value.cost);
-      // Cost updates would require a dedicated backend endpoint; not available in new API layer yet.
+      await Activities.modifyCost(
+        activity.id,
+        editForm.value.cost,
+      );
     }
 
     // Note: Description is not stored in backend, so we skip it
@@ -1460,12 +1401,12 @@ async function handleSaveEdit() {
     editingActivity.value = null;
     emit('refresh-activities');
   } catch (error: any) {
-		console.error('Error saving activity edits:', error);
-		const backendMessage = error?.response?.data?.error;
-		const fallback =
-			error instanceof Error ? error.message : 'Unknown error';
-		alert(`Failed to save changes: ${backendMessage || fallback}`);
-  }
+    console.error('Error saving activity edits:', error);
+    const backendMessage = error?.response?.data?.error;
+    const fallback =
+      error instanceof Error ? error.message : 'Unknown error';
+    alert(`Failed to save changes: ${backendMessage || fallback}`);
+  } 
 }
 
 function handleRevertToProposal(activityId: string) {
@@ -1483,16 +1424,19 @@ function handleRevertToProposal(activityId: string) {
       if (!session) return;
 
       try {
-      // Backend modifyProposal endpoint is not exposed in the new Activities API;
-      // keep UI consistent by just refreshing activities.
+        await Activities.modifyProposal(
+          activityId,
+          true
+        );
+
         emit('refresh-activities');
       } catch (error: any) {
-			console.error('Error converting to proposal:', error);
-			const message =
-				error?.response?.data?.error ||
-				(error instanceof Error ? error.message : null) ||
-				"Couldn't convert this event back to a proposal.";
-			alert(message);
+        console.error('Error converting to proposal:', error);
+        const message =
+          error?.response?.data?.error ||
+          (error instanceof Error ? error.message : null) ||
+          "Couldn't convert this event back to a proposal.";
+        alert(message);
       } finally {
         showConfirmDialog.value = false;
         confirmDialogConfig.value = null;
@@ -1516,16 +1460,16 @@ async function handleDeleteActivity(activityId: string) {
       if (!session) return;
 
       try {
-			await Activities.deleteActivity(activityId);
+        await Activities.deleteActivity(activityId);
         emit('delete-activity', activityId);
         emit('refresh-activities');
       } catch (error: any) {
-			console.error('Error deleting activity:', error);
-			const message =
-				error?.response?.data?.error ||
-				(error instanceof Error ? error.message : null) ||
-				"Couldn't delete this activity. You might not have permission.";
-			alert(message);
+        console.error('Error deleting activity:', error);
+        const message =
+          error?.response?.data?.error ||
+          (error instanceof Error ? error.message : null) ||
+          "Couldn't delete this activity. You might not have permission.";
+        alert(message);
       } finally {
         showConfirmDialog.value = false;
         confirmDialogConfig.value = null;
@@ -1545,7 +1489,15 @@ function cancelConfirm() {
   confirmDialogConfig.value = null;
 }
 
+function handleSoloChange() {
+  // If solo is checked, automatically uncheck proposal (solo activities can't be proposals)
+  if (newAttraction.value.solo) {
+    newAttraction.value.proposal = false;
+  }
+}
+
 async function handleAddAttraction() {
+
   const session = getSession();
   if (!session) return;
 
@@ -1640,7 +1592,7 @@ const newAttraction = ref({
   width: 100%;
 }
 
-.space-y-6 > * + * {
+.space-y-6>*+* {
   margin-top: 1.5rem;
 }
 
@@ -2145,11 +2097,11 @@ const newAttraction = ref({
   border-radius: 50%;
 }
 
-input:checked + .slider {
+input:checked+.slider {
   background-color: #14b8a6;
 }
 
-input:checked + .slider:before {
+input:checked+.slider:before {
   transform: translateX(20px);
 }
 
@@ -2458,6 +2410,16 @@ input:checked + .slider:before {
 .checkbox-label input[type="checkbox"] {
   width: auto;
   cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.checkbox-label:has(input[type="checkbox"]:disabled) {
+  color: #94a3b8;
+  cursor: not-allowed;
 }
 
 .form-actions {
