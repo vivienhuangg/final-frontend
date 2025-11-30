@@ -55,10 +55,10 @@
             </button>
 
             <div class="ai-actions">
-              <template v-if="personalItems.length > 0">
+              <template v-if="myPersonalItems.length > 0">
                 <div class="progress-pill">
                   <span class="progress-label">Progress</span>
-                  <span class="progress-value">{{ checkedCount }}/{{ personalItems.length }}</span>
+                  <span class="progress-value">{{ checkedCount }}/{{ myPersonalItems.length }}</span>
                 </div>
                 <button class="btn-regenerate" @click="$emit('regenerate')" :disabled="generating">
                   <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -83,17 +83,49 @@
       </div>
 
       <div class="packing-grid">
-        <!-- My Packing List -->
-        <div class="card" v-if="personalItems.length > 0">
+        <!-- My Packing List (only items assigned to current user) -->
+        <div class="card">
           <div class="card-header">
             <h2 class="card-title">My Packing List</h2>
           </div>
           <div class="card-content">
-            <div class="packing-list">
+            <div v-if="myPersonalItems.length === 0 && myAssignedSharedItems.length === 0" class="empty-state">
+
+              <p>No items assigned to you yet</p>
+              <p class="text-sm mt-1">Add items or assign shared items to yourself to see them here.</p>
+            </div>
+            <div v-else class="packing-list">
+              <!-- Personal items (grouped by category) -->
               <div v-for="category in categories" :key="category || 'uncategorized'" class="category-section">
-                <h3 class="category-title">{{ category || 'Uncategorized' }}</h3>
+                <template v-if="getPersonalItemsByCategory(category || '').length > 0">
+                  <h3 class="category-title">{{ category || 'Uncategorized' }}</h3>
+                  <div class="items-list">
+                    <div v-for="item in getPersonalItemsByCategory(category || '')" :key="item.id" class="packing-item">
+                      <label class="packing-item-label">
+                        <input type="checkbox" :checked="item.finished" @change="toggleItem(item.id)" />
+                        <span :class="{ checked: item.finished }">{{ item.name }}</span>
+                      </label>
+                      <div class="quantity-controls">
+                        <button type="button" @click="handleQuantityChange(item.id, (item.quantity || 1) - 1)"
+                          class="quantity-btn" :disabled="(item.quantity || 1) <= 1">
+                          -
+                        </button>
+                        <span class="quantity-value">{{ item.quantity || 1 }}</span>
+                        <button type="button" @click="handleQuantityChange(item.id, (item.quantity || 1) + 1)"
+                          class="quantity-btn">
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </template>
+              </div>
+
+              <!-- Assigned shared items (flat list) -->
+              <div v-if="myAssignedSharedItems.length > 0" class="category-section">
+                <h3 class="category-title">Assigned Shared Items</h3>
                 <div class="items-list">
-                  <div v-for="item in getPersonalItemsByCategory(category || '')" :key="item.id" class="packing-item">
+                  <div v-for="item in myAssignedSharedItems" :key="item.id" class="packing-item">
                     <label class="packing-item-label">
                       <input type="checkbox" :checked="item.finished" @change="toggleItem(item.id)" />
                       <span :class="{ checked: item.finished }">{{ item.name }}</span>
@@ -137,8 +169,9 @@
                   <input type="checkbox" :checked="item.finished" @change="toggleItem(item.id)" />
                   <span :class="{ checked: item.finished }">{{ item.name }}</span>
                 </label>
-                <div class="assigned-to" v-if="item.assignee">
-                  <select class="assign-select" :value="item.assignee">
+                <div class="assigned-to">
+                  <select class="assign-select" :value="item.assignee" @change="onAssignChange(item.id, $event)">
+                    <option value="" disabled>Select assignee</option>
                     <option v-for="traveler in travelers" :key="traveler.id" :value="traveler.id">
                       {{ traveler.name }}
                     </option>
@@ -175,6 +208,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import { useAuth } from "../../stores/useAuth";
 import type { ChecklistItem, Traveler } from "../../types/trip";
 
 const props = withDefaults(defineProps<{
@@ -205,48 +239,81 @@ function submitNewItem() {
   const name = newItemName.value.trim();
   if (!name || props.generating || props.addingItem) return;
   emit("add-item", name, newItemShared.value);
+  console.log("Submitting new item:", name, "Shared:", newItemShared.value);
   closeManualModal();
 }
 const emit = defineEmits<{
   (e: "add-item", itemName: string, isShared: boolean): void;
-  (e: "toggle-item", itemId: string): void;
-  (e: "quantity-change", itemId: string, quantity: number): void;
+  (e: "toggle-item", itemId: string, isShared: boolean): void;
+  (e: "quantity-change", itemId: string, quantity: number, isShared: boolean): void;
   (e: "regenerate"): void;
   (e: "generate"): void;
+  (e: "assign-item", itemId: string, travelerId: string): void;
 }>();
 
-const personalItems = computed(() => {
-  return props.items.filter((item) => !item.isShared);
+const { currentUser } = useAuth();
+
+// reactive current user identifier (strictly server id only)
+const currentUserId = computed(() => {
+  return (currentUser.value?.id ?? "").toString();
 });
 
+// Personal items that belong to the current user (not shared and assigned to them)
+const myPersonalItems = computed(() => {
+  return props.items.filter((item) => {
+    const assignee = item.assignee ? String(item.assignee) : "";
+    return !item.isShared && assignee && assignee === currentUserId.value;
+  });
+});
+
+// Shared items that are assigned to the current user
+const myAssignedSharedItems = computed(() => {
+  return props.items.filter((item) => {
+    const assignee = item.assignee ? String(item.assignee) : "";
+    return item.isShared && assignee && assignee === currentUserId.value;
+  });
+});
+
+// All shared items (used for the Shared Items card)
 const sharedItems = computed(() => {
   return props.items.filter((item) => item.isShared);
 });
 
 const checkedCount = computed(() => {
-  return personalItems.value.filter((item) => item.finished).length;
+  return myPersonalItems.value.filter((item) => item.finished).length;
 });
 
 const categories = computed(() => {
-  const cats = new Set(
-    personalItems.value.map((item) => item.category || "Uncategorized"),
-  );
+  const cats = new Set(myPersonalItems.value.map((item) => item.category || "Uncategorized"));
   return Array.from(cats).sort();
 });
 
 function getPersonalItemsByCategory(category: string) {
-  return personalItems.value.filter(
+  return myPersonalItems.value.filter(
     (item) => (item.category || "Uncategorized") === category,
   );
 }
 
 function toggleItem(itemId: string) {
-  emit("toggle-item", itemId);
+  const item = props.items.find((i) => i.id === itemId);
+  const isSharedFlag = !!item?.isShared;
+  emit("toggle-item", itemId, isSharedFlag);
 }
 
 function handleQuantityChange(itemId: string, quantity: number) {
   if (quantity < 1) return;
-  emit("quantity-change", itemId, quantity);
+  const item = props.items.find((i) => i.id === itemId);
+  const isSharedFlag = !!item?.isShared;
+  emit("quantity-change", itemId, quantity, isSharedFlag);
+}
+
+function onAssignChange(itemId: string, e: Event) {
+  console.log("Assign change event for item:", itemId);
+  const target = e.target as HTMLSelectElement | null;
+  if (!target) return;
+  const travelerId = target.value || "";
+  console.log("Assigning item", itemId, "to traveler", travelerId);
+  emit("assign-item", itemId, travelerId);
 }
 </script>
 

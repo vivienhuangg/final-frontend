@@ -17,7 +17,7 @@ export function transformApiTripToTrip(
 		endDate: string;
 		organizer: string;
 		travellers: string[];
-		destination?: string;
+		destination?: string; // Q*: is there a diff btw destination and location?
 		location?: string;
 	},
 	organizerName?: string,
@@ -26,6 +26,8 @@ export function transformApiTripToTrip(
 		{ firstName?: string; lastName?: string; username: string }
 	>,
 ): Trip {
+	console.log("Transforming API trip:", apiTrip);
+
 	// Build travelers array
 	const travelers: Traveler[] = apiTrip.travellers.map((userId) => {
 		const nameInfo = travelerNames?.get(userId);
@@ -38,12 +40,14 @@ export function transformApiTripToTrip(
 		return {
 			id: userId,
 			name,
-			email: `${userId}@example.com`, // Placeholder
+			email: `${userId}@example.com`, // Q*: remove email?
 			firstName: nameInfo?.firstName,
 			lastName: nameInfo?.lastName,
 			username: nameInfo?.username || userId,
 		};
 	});
+
+	console.log("Transformed travelers:", travelers);
 
 	return {
 		id: apiTrip._id,
@@ -134,6 +138,7 @@ export function transformApiPackingItemToChecklistItem(apiItem: {
 	assignee?: string;
 	finishedBy?: string;
 	quantity?: number;
+	isShared?: boolean;
 }): ChecklistItem {
 	// Items without assignee are personal items (not shared)
 	// Items with assignee are shared/assigned items
@@ -143,8 +148,9 @@ export function transformApiPackingItemToChecklistItem(apiItem: {
 		finished: apiItem.finished,
 		assignee: apiItem.assignee,
 		finishedBy: apiItem.finishedBy,
-		isShared: !!apiItem.assignee, // Only shared if it has an assignee
+		isShared: apiItem.isShared ?? false,
 		category: undefined, // Category not provided by API, will default to "Uncategorized" in UI
 		quantity: apiItem.quantity ?? 1, // Default to 1 if not provided
 	};
 }
+ ``

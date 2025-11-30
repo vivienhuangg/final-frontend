@@ -18,10 +18,13 @@ export type PackingListItem = {
 };
 
 export async function createPackingList(
-  trip: string
+  trip: string,
+  isShared?: boolean,
 ): Promise<{ packinglist: string }> {
   const session = getSession();
-  const { data } = await http.post("/packinglists/create", { session, trip });
+  const payload: any = { session, trip };
+  if (typeof isShared !== "undefined") payload.isShared = isShared;
+  const { data } = await http.post("/packinglists/create", payload);
   if (
     data &&
     typeof data === "object" &&
@@ -35,15 +38,13 @@ export async function createPackingList(
 export async function addItem(
   packinglist: string,
   name: string,
-  assignee?: string
+  assignee?: string,
+  isShared?: boolean,
 ): Promise<{ message: string }> {
-
   const session = getSession();
   const payload: any = { session, packinglist, name };
-  // if (assignee) payload.assignee = assignee;
-  payload.assignee = assignee
-    ? assignee
-    : null;
+  payload.assignee = assignee ? assignee : null;
+  if (typeof isShared !== "undefined") payload.isShared = isShared;
   const { data } = await http.post("/packinglists/addItem", payload);
   if (
     data &&
@@ -57,14 +58,13 @@ export async function addItem(
 
 export async function deleteItem(
   packinglist: string,
-  item: string
+  item: string,
+  isShared?: boolean,
 ): Promise<{ message: string }> {
   const session = getSession();
-  const { data } = await http.post("/packinglists/deleteItem", {
-    session,
-    packinglist,
-    item,
-  });
+  const payload: any = { session, packinglist, item };
+  if (typeof isShared !== "undefined") payload.isShared = isShared;
+  const { data } = await http.post("/packinglists/deleteItem", payload);
   if (
     data &&
     typeof data === "object" &&
@@ -76,13 +76,13 @@ export async function deleteItem(
 }
 
 export async function deletePackingList(
-  packinglist: string
+  packinglist: string,
+  isShared?: boolean,
 ): Promise<{ message: string }> {
   const session = getSession();
-  const { data } = await http.post("/packinglists/delete", {
-    session,
-    packinglist,
-  });
+  const payload: any = { session, packinglist };
+  if (typeof isShared !== "undefined") payload.isShared = isShared;
+  const { data } = await http.post("/packinglists/delete", payload);
   if (
     data &&
     typeof data === "object" &&
@@ -96,15 +96,34 @@ export async function deletePackingList(
 export async function toggleCompletion(
   packinglist: string,
   item: string,
-  finishedFlag: boolean
+  finishedFlag: boolean,
+  isShared?: boolean,
 ): Promise<{ message: string }> {
   const session = getSession();
-  const { data } = await http.post("/packinglists/toggleCompletion", {
-    session,
-    packinglist,
-    item,
-    finishedFlag,
-  });
+  const payload: any = { session, packinglist, item, finishedFlag };
+  if (typeof isShared !== "undefined") payload.isShared = isShared;
+  const { data } = await http.post("/packinglists/toggleCompletion", payload);
+  if (
+    data &&
+    typeof data === "object" &&
+    "error" in data &&
+    (data as any).error
+  )
+    throw new Error((data as any).error);
+  return data as { message: string };
+}
+
+export async function assignItem(
+  packinglist: string,
+  item: string,
+  assignee?: string | null,
+  isShared?: boolean,
+): Promise<{ message: string }> {
+  const session = getSession();
+  const payload: any = { session, packinglist, item };
+  payload.assignee = assignee ? assignee : null;
+  if (typeof isShared !== "undefined") payload.isShared = isShared;
+  const { data } = await http.post("/packinglists/assignItem", payload);
   if (
     data &&
     typeof data === "object" &&
@@ -117,14 +136,13 @@ export async function toggleCompletion(
 
 export async function requestSuggestions(
   packinglist: string,
-  additionalInput: string
+  additionalInput: string,
+  isShared?: boolean,
 ): Promise<{ requestId: string; message: string }> {
   const session = getSession();
-  const { data } = await http.post("/packinglists/suggest", {
-    session,
-    packinglist,
-    additionalInput,
-  });
+  const payload: any = { session, packinglist, additionalInput };
+  if (typeof isShared !== "undefined") payload.isShared = isShared;
+  const { data } = await http.post("/packinglists/suggest", payload);
   if (
     data &&
     typeof data === "object" &&
@@ -138,11 +156,13 @@ export async function requestSuggestions(
 export async function addGeneratedItems(
   packinglist: string,
   itemNames: string[],
-  assignee?: string
+  assignee?: string,
+  isShared?: boolean,
 ): Promise<{ message: string }> {
   const session = getSession();
   const payload: any = { session, packinglist, itemNames };
   if (assignee) payload.assignee = assignee;
+  if (typeof isShared !== "undefined") payload.isShared = isShared;
   const { data } = await http.post("/packinglists/addGeneratedItems", payload);
   if (
     data &&
@@ -155,13 +175,13 @@ export async function addGeneratedItems(
 }
 
 export async function getItems(
-  packinglist: string
+  packinglist: string,
+  isShared?: boolean,
 ): Promise<{ results: Array<{ item: PackingListItem }> }> {
   const session = getSession();
-  const { data } = await http.post("/packinglists/items", {
-    session,
-    packinglist,
-  });
+  const payload: any = { session, packinglist };
+  if (typeof isShared !== "undefined") payload.isShared = isShared;
+  const { data } = await http.post("/packinglists/items", payload);
   if (data && typeof data === "object" && "results" in (data as any))
     return data as { results: Array<{ item: PackingListItem }> };
   if (

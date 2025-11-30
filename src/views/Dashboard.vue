@@ -28,11 +28,16 @@
             <h1 class="text-3xl font-semibold mb-2 text-[#1e3a5f]">Your Trips</h1>
             <p class="text-muted-foreground">Plan unforgettable adventures with your squad</p>
           </div>
-          <button v-if="pendingInvitations.length > 0" class="btn-primary flex items-center gap-2" type="button"
-            @click="goToInvitations">
-            <span class="notification-badge">{{ pendingInvitations.length }}</span>
-            <span>View invites</span>
-          </button>
+          <div class="flex items-center gap-2">
+            <button class="btn-secondary" type="button" @click="showPast = !showPast">
+              {{ showPast ? 'Hide past trips' : 'Show past trips' }}
+            </button>
+            <button v-if="pendingInvitations.length > 0" class="btn-primary flex items-center gap-2" type="button"
+              @click="goToInvitations">
+              <span class="notification-badge">{{ pendingInvitations.length }}</span>
+              <span>View invites</span>
+            </button>
+          </div>
         </div>
 
         <!-- Invitations list removed: only show badge and button linking to Invitations page -->
@@ -53,7 +58,8 @@
         </div>
 
         <!-- Trip Cards -->
-        <div v-for="trip in upcomingTrips" :key="trip.id" class="trip-card" @click="selectTrip(trip.id)">
+        <div v-for="trip in (showPast ? trips : upcomingTrips)" :key="trip.id" class="trip-card"
+          :class="{ 'past-trip': pastTrips.some(p => p.id === trip.id) }" @click="selectTrip(trip.id)">
           <div class="trip-card-gradient"></div>
           <div class="trip-card-delete" @click.stop="handleDeleteTrip(trip.id)">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -155,6 +161,7 @@ const { currentUser, getSession } = useAuth();
 const trips = ref<Trip[]>([]);
 const invitations = ref<TripInvitation[]>([]);
 const showInvitations = ref(false);
+const showPast = ref(false);
 const showNewTripDialog = ref(false);
 const loading = ref(false);
 const createLoading = ref(false);
@@ -184,10 +191,13 @@ function getAvatarColor(index: number): string {
 // Fetch trips and invitations on mount
 onMounted(async () => {
   await loadTrips();
+  console.log("Trips loaded:", trips.value);
   await loadInvitations();
 });
 
 async function loadTrips() {
+  console.log("Loading trips...");
+
   const session = getSession();
   if (!session) return;
 
@@ -195,19 +205,24 @@ async function loadTrips() {
     loading.value = true;
     const response = await Trips.getMyTrips();
 
+    console.log("Trips.getMyTrips response:", response);
+
     // Fetch user names for all travelers
     const travelerIds = new Set<string>();
+
     response.results.forEach(({ trip }) => {
       travelerIds.add(trip.organizer);
       trip.travellers.forEach((id) => travelerIds.add(id));
     });
 
+    // Fetch traveler names
     const travelerNames = new Map<
       string,
       { firstName?: string; lastName?: string; username: string }
     >();
     for (const userId of travelerIds) {
       try {
+        console.log("Fetching name for userId:", userId);
         const [usernameResponse, nameResponse] = await Promise.all([
           Users.getUsername(userId).catch(() => ({ username: userId })),
           Users.getUserName(userId).catch(() => ({ firstName: undefined, lastName: undefined } as any)),
@@ -223,10 +238,12 @@ async function loadTrips() {
       }
     }
 
+    console.log("Traveler names map:", travelerNames);
     // Transform API trips to component trips
     trips.value = response.results.map(({ trip }) =>
       transformApiTripToTrip(trip, undefined, travelerNames),
     );
+    console.log("Transformed trips:", trips.value);
   } catch (error: any) {
     console.error("Failed to load trips:", error);
   } finally {
@@ -235,11 +252,13 @@ async function loadTrips() {
 }
 
 async function loadInvitations() {
+  console.log("Loading invitations...");
   const session = getSession();
   if (!session || !currentUser.value) return;
 
   try {
     const response = await Invitations.getMyInvitations();
+    console.log("Invitations.getMyInvitations response:", response);
 
     // Fetch trip details for each invitation
     const invitationTrips: TripInvitation[] = [];
@@ -413,12 +432,17 @@ async function createTrip() {
   try {
     createLoading.value = true;
     createError.value = '';
+    console.log("creating trip with data:", newTrip.value);
+
     const response = await Trips.createTrip(
       newTrip.value.title,
       newTrip.value.startDate,
       newTrip.value.endDate,
       newTrip.value.destination,
     );
+
+
+    console.log("Trip created with ID:", response.trip);
 
     // Reload trips to get the new trip with full details
     await loadTrips();
@@ -1162,5 +1186,9 @@ async function handleDeleteTrip(tripId: string) {
 .btn-submit:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.trip-card.past-trip {
+  opacity: 0.7;
 }
 </style>
