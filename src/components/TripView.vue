@@ -25,7 +25,10 @@
 									d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
 							</svg>
 						</div>
-						<h1 class="hero-title">{{ trip.destination }}</h1>
+						<h1 class="hero-title">{{ trip.title }}</h1>
+						<p v-if="trip.destination && trip.destination !== trip.title" class="hero-destination">
+							{{ trip.destination }}
+						</p>
 						<div class="hero-meta">
 							<div class="hero-meta-item">
 								<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -364,6 +367,8 @@ function formatDate(dateString: string): string {
 		year: "numeric",
 	});
 }
+
+// (Debug destination helpers removed)
 
 async function handleInvite(username: string) {
 	const session = getSession();
@@ -1079,6 +1084,14 @@ async function handleDeleteItems(itemIds: string[]) {
 	color: white;
 	font-size: 2rem;
 	font-weight: 700;
+	margin-bottom: 0.75rem;
+}
+
+.hero-destination {
+	color: rgba(255, 255, 255, 0.95);
+	font-size: 1.125rem;
+	font-weight: 500;
+	margin-top: -0.25rem;
 	margin-bottom: 0.75rem;
 }
 
