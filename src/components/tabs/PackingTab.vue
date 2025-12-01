@@ -186,7 +186,9 @@
                           title="Remove item"
                           @click.stop="emit('delete-items', [item.id])"
                         >
-                          🗑️
+                          <svg class="delete-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
                         </button>
                       </div>
                     </div>
@@ -295,7 +297,9 @@
                     title="Remove shared item"
                     @click.stop="emit('delete-items', [item.id])"
                   >
-                    🗑️
+                    <svg class="delete-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
                   </button>
                 </div>
               </div>
@@ -906,23 +910,37 @@ watch(
 }
 
 .delete-btn {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
   background: transparent;
   border: none;
   color: #ef4444;
-  font-size: 0.875rem;
-  font-weight: 600;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
+  position: relative;
 }
 
 .delete-btn:hover {
-  background: rgba(239, 68, 68, 0.15);
+  background: rgba(239, 68, 68, 0.1);
+  transform: scale(1.1);
+}
+
+.delete-btn:active {
+  transform: scale(0.95);
+}
+
+.delete-icon {
+  width: 18px;
+  height: 18px;
+  transition: all 0.2s ease;
+}
+
+.delete-btn:hover .delete-icon {
+  transform: rotate(-10deg);
 }
 
 .shared-items-list {
@@ -985,6 +1003,47 @@ watch(
   font-size: 0.9rem;
   font-weight: 500;
   color: #42b983;
+}
+
+.assign-select {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  padding-right: 2.5rem;
+  border-radius: 8px;
+  border: 1.5px solid #e2e8f0;
+  background: white;
+  color: #1e3a5f;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%237ba3d1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 12px;
+}
+
+.assign-select:hover {
+  border-color: #7ba3d1;
+  box-shadow: 0 0 0 3px rgba(123, 163, 209, 0.1);
+}
+
+.assign-select:focus {
+  outline: none;
+  border-color: #7ba3d1;
+  box-shadow: 0 0 0 3px rgba(123, 163, 209, 0.15);
+}
+
+.assign-select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.assign-select option {
+  padding: 0.5rem;
+  background: white;
+  color: #1e3a5f;
 }
 
 /* Generation Overlay */
