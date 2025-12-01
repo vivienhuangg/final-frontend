@@ -87,8 +87,8 @@
 					:generating="generatingPackingList" :generation-stage="generationStage"
 					:generation-progress="generationProgress" :adding-item="addingPackingItem" @add-item="handleAddItem"
 					@toggle-item="handleToggleItem" @quantity-change="handleQuantityChange"
-					@assign-item="handleAssignItem" @regenerate="handleRegeneratePackingList"
-					@generate="handleGeneratePackingList" />
+					@assign-item="handleAssignItem" @move-items-to-shared="handleMoveItemsToShared" @delete-items="handleDeleteItems"
+					@regenerate="handleRegeneratePackingList" @generate="handleGeneratePackingList" />
 			</div>
 		</div>
 	</div>
@@ -465,9 +465,18 @@ async function handleAddItem(itemName: string, isShared: boolean) {
 	const trimmedName = itemName.trim();
 	if (!trimmedName) return;
 
-	const duplicate = packingItems.value.some(
-		(item) => item.name.toLowerCase() === trimmedName.toLowerCase(),
-	);
+	const duplicate = packingItems.value.some((item) => {
+		console.log("Checking item:", item.name, "isShared:", item.isShared)
+		const nameMatch = item.name.toLowerCase() === trimmedName.toLowerCase();
+		if (!nameMatch) return false;
+
+		if (isShared) {
+			return item.isShared;
+		}
+		console.log("currentUser.value?.id	", currentUser.value?.id, (item.assignee));
+		return !item.isShared && item.assignee === (currentUser.value?.id ?? "").toString();
+	});
+
 	if (duplicate) {
 		alert("Item already exists in your packing list.");
 		return;
@@ -716,6 +725,67 @@ async function handleAssignItem(itemId: string, travelerId: string | undefined) 
 		} catch (_) {
 			// ignore
 		}
+	}
+}
+
+// Move selected personal items to the shared list by re-creating them as shared
+// and deleting the originals. Then reload the list.
+async function handleMoveItemsToShared(itemIds: string[]) {
+	const session = getSession();
+	if (!session || !packingListId.value || !itemIds?.length) return;
+
+	try {
+		// Prepare operations: add shared then delete original
+		const ops: Promise<any>[] = [];
+		for (const id of itemIds) {
+			const item = packingItems.value.find((i) => i.id === id);
+			if (!item) continue;
+			if (item.isShared) continue; // already shared, skip
+
+			// Add new shared item with same name
+			ops.push(PackingLists.addItem(packingListId.value, item.name, undefined, true));
+			// Delete original personal item (omit isShared for personal)
+			ops.push(PackingLists.deleteItem(packingListId.value, id));
+		}
+
+		if (ops.length === 0) return;
+		await Promise.allSettled(ops);
+
+		// Reload to reflect changes
+		await loadPackingItems();
+	} catch (error: any) {
+		console.error("Failed to move items to shared:", error);
+		const errorMessage = error instanceof Error ? error.message : "Failed to move items to shared";
+		alert(errorMessage);
+		// Best effort reload
+		try { await loadPackingItems(); } catch {}
+	}
+}
+
+// Delete selected items (supports personal and assigned-shared items from My Packing List scope)
+async function handleDeleteItems(itemIds: string[]) {
+	const session = getSession();
+	if (!session || !packingListId.value || !itemIds?.length) return;
+
+	try {
+		const ops: Promise<any>[] = [];
+		for (const id of itemIds) {
+			const item = packingItems.value.find((i) => i.id === id);
+			const isSharedFlag = !!item?.isShared;
+			// Only pass isShared if true; omit for personal items
+			if (isSharedFlag) {
+				ops.push(PackingLists.deleteItem(packingListId.value, id, true));
+			} else {
+				ops.push(PackingLists.deleteItem(packingListId.value, id));
+			}
+		}
+		await Promise.allSettled(ops);
+		await loadPackingItems();
+	} catch (error: any) {
+		console.error("Failed to delete items:", error);
+		const errorMessage = error instanceof Error ? error.message : "Failed to delete items";
+		alert(errorMessage);
+		try { await loadPackingItems(); } catch {}
 	}
 }
 </script>

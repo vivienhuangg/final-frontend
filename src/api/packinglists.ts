@@ -63,7 +63,7 @@ export async function deleteItem(
 ): Promise<{ message: string }> {
   const session = getSession();
   const payload: any = { session, packinglist, item };
-  if (typeof isShared !== "undefined") payload.isShared = isShared;
+  if (isShared) payload.isShared = isShared;
   const { data } = await http.post("/packinglists/deleteItem", payload);
   if (
     data &&
