@@ -986,6 +986,8 @@ async function handleDeleteItems(itemIds: string[]) {
 	padding: 2rem;
 }
 
+
+
 .hero-info {
 	flex: 1;
 }
