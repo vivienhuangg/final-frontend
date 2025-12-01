@@ -4,7 +4,7 @@
       <!-- Simplified Header -->
       <div class="flex justify-between items-center mb-8">
         <div class="logo">
-          <h1 class="text-2xl font-bold text-[#1e3a5f]">TripSync</h1>
+          <img src="/tripsync-logo.png" alt="TripSync" class="brand-logo" />
         </div>
         <div class="actions-row">
           <button class="btn-secondary flex items-center gap-2" type="button" @click="goToInvitations">
@@ -530,6 +530,12 @@ async function handleDeleteTrip(tripId: string) {
 
 .mb-8 {
   margin-bottom: 2rem;
+}
+
+.brand-logo {
+  height: 128px;
+  width: auto;
+  display: block;
 }
 
 .text-2xl {

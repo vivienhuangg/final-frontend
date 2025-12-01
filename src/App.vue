@@ -1,10 +1,13 @@
 <template>
   <div class="app">
     <router-view />
+    <!-- Global Help Widget -->
+    <HelpWidget />
   </div>
 </template>
 
 <script setup lang="ts">
+import HelpWidget from './components/HelpWidget.vue';
 import { onMounted } from 'vue';
 import { useAuth } from './stores/useAuth';
 
