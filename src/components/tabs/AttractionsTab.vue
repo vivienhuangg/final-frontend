@@ -1432,8 +1432,15 @@ async function handleSaveEdit() {
       );
     }
 
-    // Note: Description is not stored in backend, so we skip it
-    // If you want to store description, you'd need to add a backend endpoint
+    // Update description if changed
+    const descriptionChanged = editForm.value.description !== (activity.description || '');
+    if (descriptionChanged) {
+      console.log('Updating description:', activity.description, '->', editForm.value.description);
+      await Activities.modifyDescription(
+        activity.id,
+        editForm.value.description || '',
+      );
+    }
 
     console.log('Edit saved successfully');
     showEditDialog.value = false;

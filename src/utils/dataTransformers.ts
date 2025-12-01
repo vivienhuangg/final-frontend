@@ -108,6 +108,7 @@ export function transformApiActivityToActivity(apiActivity: {
 	solo?: boolean;
 	proposal?: boolean;
 	createdBy?: string;
+	description?: string;
 }): ActivityWithDetails {
 	return {
 		id: apiActivity._id,
@@ -121,6 +122,7 @@ export function transformApiActivityToActivity(apiActivity: {
 		solo: apiActivity.solo ?? false,
 		proposal: apiActivity.proposal ?? true,
 		createdBy: apiActivity.createdBy,
+		description: apiActivity.description,
 	};
 }
 

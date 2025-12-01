@@ -17,6 +17,7 @@ export type ActivitySummary = {
   solo: boolean;
   proposal: boolean;
   createdBy: string;
+  description?: string;
 };
 
 export type ActivityDetail = ActivitySummary & { trip: string };
@@ -27,7 +28,7 @@ export async function createActivity(
   endDateTime: string,
   cost: number,
   trip: string,
-  options?: { solo?: boolean; proposal?: boolean }
+  options?: { solo?: boolean; proposal?: boolean; description?: string }
 ): Promise<{ activity: string }> {
   const session = getSession();
   const { data } = await http.post("/activities/create", {
@@ -40,6 +41,7 @@ export async function createActivity(
     // Ensure keys expected by backend 'when' clause are present
     solo: options?.solo ?? false,
     proposal: options?.proposal ?? true,
+    ...(options?.description && { description: options.description }),
   });
   if (
     data &&
@@ -204,6 +206,27 @@ export async function modifyCost(
     session,
     activity,
     newCost,
+  });
+  if (
+    data &&
+    typeof data === "object" &&
+    "error" in data &&
+    (data as any).error
+  )
+    throw new Error((data as any).error);
+  return data as { status: string };
+}
+
+// Modify description
+export async function modifyDescription(
+  activity: string,
+  description: string
+): Promise<{ status: string }> {
+  const session = getSession();
+  const { data } = await http.post("/activities/modifyDescription", {
+    session,
+    activity,
+    description,
   });
   if (
     data &&
