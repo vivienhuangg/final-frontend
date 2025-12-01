@@ -47,7 +47,7 @@ export const useAuthStore = defineStore("auth", {
           console.warn("Failed to fetch server user id after login:", e);
         }
 
-        const user: User = { id: serverUserId, username };
+        const user: User = { id: serverUserId || username, username };
         try {
           const name = await getUserName();
           user.firstName = name.firstName;

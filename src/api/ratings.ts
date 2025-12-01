@@ -8,18 +8,10 @@ function getSession(): string | null {
   }
 }
 
-export async function addRating(item: string, ratingNum: number): Promise<{ rating: string }> {
+export async function setRating(item: string, ratingNum: number): Promise<{ rating: string }> {
   if (typeof ratingNum !== 'number' || ratingNum < 1 || ratingNum > 10) throw new Error('ratingNum must be 1..10');
   const session = getSession();
-  const { data } = await http.post('/ratings/item/add', { session, item, ratingNum });
-  if (data && typeof data === 'object' && 'error' in data && (data as any).error) throw new Error((data as any).error);
-  return data as { rating: string };
-}
-
-export async function changeRating(rating: string, ratingNum: number): Promise<{ rating: string }> {
-  if (typeof ratingNum !== 'number' || ratingNum < 1 || ratingNum > 10) throw new Error('ratingNum must be 1..10');
-  const session = getSession();
-  const { data } = await http.post('/ratings/item/change', { session, rating, ratingNum });
+  const { data } = await http.post('/ratings/item/set', { session, item, ratingNum });
   if (data && typeof data === 'object' && 'error' in data && (data as any).error) throw new Error((data as any).error);
   return data as { rating: string };
 }
