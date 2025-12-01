@@ -32,11 +32,11 @@
                 class="member-avatar"
                 :style="{ backgroundColor: getAvatarColor(index) }"
               >
-                {{ traveler.name.charAt(0).toUpperCase() }}
+                {{ (traveler.username || traveler.id).charAt(0).toUpperCase() }}
               </div>
               <div class="member-info">
-                <p class="member-name">{{ traveler.name }}</p>
-		        <p class="member-username">{{ traveler.username || traveler.id }}</p>
+                <p class="member-name">{{ traveler.username || traveler.id }}</p>
+                <p class="member-username">{{ traveler.username || traveler.id }}</p>
               </div>
               <!-- traveler.role doesn't exist in Trip/Traveler types; derive ownership from trip.organizer -->
               <span v-if="traveler.id === trip.organizer" class="owner-badge">Owner</span>

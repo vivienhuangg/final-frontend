@@ -22,7 +22,7 @@
                 <div class="invitation-header">
                   <div>
                     <h3 class="trip-title">{{ inv.trip.title }}</h3>
-                    <p class="invitation-from">Organized by <span class="organizer-name">{{ inv.trip.organizerDisplayName || inv.trip.organizer }}</span></p>
+                    <p class="invitation-from">Organized by <span class="organizer-name">{{ organizerUsername(inv.trip) }}</span></p>
                     <p class="trip-card-dates mt-2">
                       <svg class="date-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -51,7 +51,7 @@
                 <div class="invitation-header">
                   <div>
                     <h3 class="trip-title">{{ inv.trip.title }}</h3>
-                    <p class="invitation-from">Organizer: <span class="organizer-name">{{ inv.trip.organizerDisplayName || inv.trip.organizer }}</span></p>
+                    <p class="invitation-from">Organizer: <span class="organizer-name">{{ organizerUsername(inv.trip) }}</span></p>
                     <p class="trip-card-dates mt-2">
                       <svg class="date-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -79,7 +79,7 @@
                 <div class="invitation-header">
                   <div>
                     <h3 class="trip-title">{{ inv.trip.title }}</h3>
-                    <p class="invitation-from">Organizer: <span class="organizer-name">{{ inv.trip.organizerDisplayName || inv.trip.organizer }}</span></p>
+                    <p class="invitation-from">Organizer: <span class="organizer-name">{{ organizerUsername(inv.trip) }}</span></p>
                     <p class="trip-card-dates mt-2">
                       <svg class="date-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -214,6 +214,12 @@ function formatDateRange(start: string, end: string) {
   }
   // Example: Nov 29, 2025 – Dec 05, 2025
   return `${startDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} – ${endDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`;
+}
+
+function organizerUsername(trip: { organizer: string; travelers?: any[] }): string {
+  const travelers = (trip as any).travelers || [];
+  const org = travelers.find((t: any) => t.id === trip.organizer);
+  return org?.username || trip.organizer;
 }
 
 async function acceptInvitation(invitationId: string) {

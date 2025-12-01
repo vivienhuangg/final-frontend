@@ -75,8 +75,7 @@
 			<!-- Tab Content -->
 			<div class="tab-content">
 				<OverviewTab v-if="activeTab === 'overview'" :trip="trip" @invite="handleInvite" />
-				<DiscoverTab v-if="activeTab === 'discover'" :destination="trip.destination" :trip-id="trip.id"
-					@add-activity="handleAddActivity" />
+				<!-- Discover tab removed per UI request -->
 				<AttractionsTab v-if="activeTab === 'attractions'" :activities="activities" :travelers="trip.travelers"
 					:trip-id="trip.id" :organizer-id="trip.organizer" @rate="handleRate"
 					@toggle-attendance="handleToggleAttendance" @add-activity="handleAddActivity"
@@ -140,10 +139,30 @@ watch(
 	() => props.trip.id,
 	() => {
 		if (props.trip.id) {
+			// Restore persisted active tab for this trip
+			try {
+				const key = `trip_active_tab_${props.trip.id}`;
+				const saved = localStorage.getItem(key);
+				if (saved && ["overview","discover","attractions","costs","packing"].includes(saved)) {
+					activeTab.value = saved;
+				}
+			} catch {}
 			loadTripData();
 		}
 	},
 	{ immediate: true },
+);
+
+// Persist active tab selection per trip
+watch(
+	() => activeTab.value,
+	(tab) => {
+		if (!props.trip?.id) return;
+		try {
+			const key = `trip_active_tab_${props.trip.id}`;
+			localStorage.setItem(key, tab);
+		} catch {}
+	},
 );
 
 async function loadTripData() {
@@ -293,7 +312,6 @@ async function loadPackingItems() {
 
 const tabs = [
 	{ id: "overview", label: "Overview" },
-	{ id: "discover", label: "Discover" },
 	{ id: "attractions", label: "Attractions" },
 	{ id: "costs", label: "Costs" },
 	{ id: "packing", label: "Packing" },
@@ -318,9 +336,13 @@ async function handleInvite(username: string) {
 		alert(`Invitation sent to ${username}`);
 	} catch (error: any) {
 		console.error("Failed to send invitation:", error);
-		const errorMessage =
-			error instanceof Error ? error.message : "Failed to send invitation";
-		alert(errorMessage);
+		// Show a clear, user-friendly message instead of a generic failure
+		const rawMsg = (error?.message || "").toString();
+		if (/already\s*invited/i.test(rawMsg)) {
+			alert("This user is already invited to the trip.");
+		} else {
+			alert("Username not found. Ask them to create an account, then try again.");
+		}
 	} finally {
 		loading.value = false;
 	}
@@ -474,7 +496,7 @@ async function handleToggleItem(itemId: string) {
 	}
 }
 
-async function handleAddItem(itemName: string, isShared: boolean) {
+async function handleAddItem(itemName: string, isShared: boolean, quantity: number = 1) {
 	const session = getSession();
 	if (!session || !props.trip.id) return;
 
@@ -486,7 +508,8 @@ async function handleAddItem(itemName: string, isShared: boolean) {
 		(item) => item.name.toLowerCase() === trimmedName.toLowerCase(),
 	);
 	if (existing) {
-		const newQty = (existing.quantity || 1) + 1;
+		const increment = Math.max(1, Number(quantity) || 1);
+		const newQty = (existing.quantity || 1) + increment;
 		existing.quantity = newQty;
 		// Persist to backend if possible
 		try {
@@ -533,6 +556,25 @@ async function handleAddItem(itemName: string, isShared: boolean) {
 		);
 
 		await loadPackingItems();
+
+		// If a quantity greater than 1 was specified, persist it
+		if (quantity && quantity > 1) {
+			const added = packingItems.value.find((i) => i.name.toLowerCase() === trimmedName.toLowerCase());
+			if (added) {
+				added.quantity = quantity;
+				try {
+					await PackingLists.updateQuantity(packingListId.value, added.id, quantity);
+				} catch {
+					const qKey = `packing_qty_${packingListId.value}`;
+					try {
+						const raw = localStorage.getItem(qKey);
+						const map = raw ? JSON.parse(raw) : {};
+						map[added.name.toLowerCase()] = quantity;
+						localStorage.setItem(qKey, JSON.stringify(map));
+					} catch {}
+				}
+			}
+		}
 	} catch (error: any) {
 		console.error("Failed to add packing item:", error);
 		const errorMessage =
@@ -544,17 +586,44 @@ async function handleAddItem(itemName: string, isShared: boolean) {
 }
 
 function handleQuantityChange(itemId: string, newQuantity: number) {
-	if (newQuantity < 1) return;
-
 	const item = packingItems.value.find((i) => i.id === itemId);
 	if (!item) return;
 
-	// Update local state
-	// Note: Backend API doesn't support quantity updates yet, so we only update local state
-	// When API support is added, we can call an update endpoint here
+	// If quantity goes to 0, delete the item
+	if (newQuantity <= 0) {
+		(async () => {
+			try {
+				if (packingListId.value) {
+					const isSharedFlag = !!item.isShared;
+					if (isSharedFlag) {
+						await PackingLists.deleteItem(packingListId.value, itemId, true);
+					} else {
+						await PackingLists.deleteItem(packingListId.value, itemId);
+					}
+				}
+			} catch {}
+			// Remove from local state
+			const idx = packingItems.value.findIndex((i) => i.id === itemId);
+			if (idx !== -1) packingItems.value.splice(idx, 1);
+
+			// Clean localStorage persisted quantity
+			if (packingListId.value) {
+				const qKey = `packing_qty_${packingListId.value}`;
+				try {
+					const raw = localStorage.getItem(qKey);
+					const map = raw ? JSON.parse(raw) : {};
+					delete map[item.name.toLowerCase()];
+					localStorage.setItem(qKey, JSON.stringify(map));
+				} catch {}
+			}
+		})();
+		return;
+	}
+
+	// Update local state for positive quantities
 	item.quantity = newQuantity;
 
-	// Try to persist to backend; fallback to localStorage
+	// Persist to backend; fallback to localStorage
 	(async () => {
 		try {
 			if (packingListId.value) {
@@ -562,7 +631,6 @@ function handleQuantityChange(itemId: string, newQuantity: number) {
 				return; // success
 			}
 		} catch {}
-		// Persist locally by packing list + item name
 		if (packingListId.value) {
 			const qKey = `packing_qty_${packingListId.value}`;
 			try {
@@ -984,7 +1052,8 @@ async function handleDeleteItems(itemIds: string[]) {
 
 .tabs-list {
 	display: grid;
-	grid-template-columns: repeat(5, 1fr);
+	/* Adjust columns to match visible tabs (Overview, Attractions, Costs, Packing) */
+	grid-template-columns: repeat(4, 1fr);
 	background: white;
 	box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 	border-radius: 1rem;

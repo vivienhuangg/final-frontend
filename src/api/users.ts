@@ -43,6 +43,18 @@ export async function getUserName(targetUser?: string): Promise<{ firstName: str
   return data as { firstName: string; lastName: string };
 }
 
+// Convenience: resolve first/last name by username (instead of user id)
+export async function getUserNameByUsername(username: string): Promise<{ firstName?: string; lastName?: string }> {
+  // Backend `getName` accepts `targetUser`; many implementations allow username or user id.
+  // We pass the username directly; caller should handle missing names.
+  try {
+    const resp = await getUserName(username);
+    return { firstName: resp.firstName, lastName: resp.lastName };
+  } catch {
+    return { firstName: undefined, lastName: undefined };
+  }
+}
+
 export async function getUsername(user: string): Promise<{ username: string }> {
   // Direct concept endpoint; no wrapping needed
   const { data } = await http.post('/UserAuthentication/getUsername', { user });

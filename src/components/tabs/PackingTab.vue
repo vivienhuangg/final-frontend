@@ -89,20 +89,6 @@
             <h2 class="card-title">My Packing List</h2>
             <div class="header-controls">
               <template v-if="!selectingForShare && !selectingForDelete">
-                <button
-                  class="btn-secondary"
-                  @click="startSelectingForShare"
-                  title="Select items to move to shared list"
-                >
-                  Move selected to shared
-                </button>
-                <button
-                  class="btn-secondary"
-                  @click="startSelectingForDelete"
-                  title="Select items to delete"
-                >
-                  Delete selected
-                </button>
               </template>
               <template v-else-if="selectingForShare">
                 <button
@@ -167,7 +153,7 @@
                         <input
                           type="checkbox"
                           :checked="item.finished"
-                          :disabled="selectingForShare || selectingForDelete"
+                          :disabled="selectingForShare"
                           @click="handleCheckboxClick"
                           @change="toggleItem(item.id)"
                           title="Mark as packed"
@@ -176,13 +162,29 @@
                       </label>
                       <div class="quantity-controls">
                         <button type="button" @click.stop="handleQuantityChange(item.id, (item.quantity || 1) - 1)"
-                          class="quantity-btn" :disabled="(item.quantity || 1) <= 1">
+                          class="quantity-btn">
                           -
                         </button>
                         <span class="quantity-value">{{ item.quantity || 1 }}</span>
                         <button type="button" @click.stop="handleQuantityChange(item.id, (item.quantity || 1) + 1)"
                           class="quantity-btn">
                           +
+                        </button>
+                        <button
+                          type="button"
+                          class="quantity-btn"
+                          title="Move to shared"
+                          @click.stop="emit('move-items-to-shared', [item.id])"
+                        >
+                          🤝
+                        </button>
+                        <button
+                          type="button"
+                          class="delete-btn"
+                          title="Remove item"
+                          @click.stop="emit('delete-items', [item.id])"
+                        >
+                          🗑️
                         </button>
                       </div>
                     </div>
@@ -205,18 +207,26 @@
                     @click="onRowClickAssignedShared(item.id)"
                   >
                     <label class="packing-item-label">
-                      <input type="checkbox" :checked="item.finished" :disabled="selectingForShare || selectingForDelete" @click="handleCheckboxClick" @change="toggleItem(item.id)" />
+                      <input type="checkbox" :checked="item.finished" :disabled="selectingForShare" @click="handleCheckboxClick" @change="toggleItem(item.id)" />
                       <span :class="{ checked: item.finished }">{{ item.name }}</span>
                     </label>
                     <div class="quantity-controls">
                       <button type="button" @click="handleQuantityChange(item.id, (item.quantity || 1) - 1)"
-                        class="quantity-btn" :disabled="(item.quantity || 1) <= 1">
+                        class="quantity-btn">
                         -
                       </button>
                       <span class="quantity-value">{{ item.quantity || 1 }}</span>
                       <button type="button" @click="handleQuantityChange(item.id, (item.quantity || 1) + 1)"
                         class="quantity-btn">
                         +
+                      </button>
+                      <button
+                        type="button"
+                        class="delete-btn"
+                        title="Remove item"
+                        @click.stop="emit('delete-items', [item.id])"
+                      >
+                        🗑️
                       </button>
                     </div>
                   </div>
@@ -247,13 +257,38 @@
                   <input type="checkbox" :checked="item.finished" @change="toggleItem(item.id)" />
                   <span :class="{ checked: item.finished }">{{ item.name }}</span>
                 </label>
+                <div class="quantity-controls">
+                  <button
+                    type="button"
+                    @click.stop="handleQuantityChange(item.id, (item.quantity || 1) - 1)"
+                    class="quantity-btn"
+                  >
+                    -
+                  </button>
+                  <span class="quantity-value">{{ item.quantity || 1 }}</span>
+                  <button
+                    type="button"
+                    @click.stop="handleQuantityChange(item.id, (item.quantity || 1) + 1)"
+                    class="quantity-btn"
+                  >
+                    +
+                  </button>
+                </div>
                 <div class="assigned-to">
-                  <select class="assign-select" :value="item.assignee" @change="onAssignChange(item.id, $event)">
+                  <select class="assign-select" :value="String(item.assignee || '')" @change="onAssignChange(item.id, $event)">
                     <option value="" disabled>Select assignee</option>
-                    <option v-for="traveler in travelers" :key="traveler.id" :value="traveler.id">
-                      {{ traveler.name }}
+                    <option v-for="traveler in travelers" :key="traveler.id" :value="String(traveler.id)">
+                      {{ traveler.username || traveler.id }}
                     </option>
                   </select>
+                  <button
+                    type="button"
+                    class="delete-btn"
+                    title="Remove shared item"
+                    @click.stop="emit('delete-items', [item.id])"
+                  >
+                    🗑️
+                  </button>
                 </div>
               </div>
             </div>
@@ -267,6 +302,7 @@
         <p class="manual-modal-text">Type the item you want to track in your personal packing list.</p>
         <form class="manual-modal-form" @submit.prevent="submitNewItem">
           <input v-model="newItemName" class="manual-modal-input" type="text" placeholder="e.g. Sunscreen" autofocus />
+          <input v-model.number="newItemQty" class="manual-modal-input" type="number" min="1" placeholder="Quantity (default 1)" />
           <label class="manual-modal-checkbox">
             <input type="checkbox" v-model="newItemShared" />
             <span>Add as shared item</span>
@@ -305,23 +341,26 @@ const props = withDefaults(defineProps<{
 
 const newItemName = ref("");
 const newItemShared = ref(false);
+const newItemQty = ref(1);
 const showManualModal = ref(false);
 
 function closeManualModal() {
   showManualModal.value = false;
   newItemName.value = "";
   newItemShared.value = false;
+  newItemQty.value = 1;
 }
 
 function submitNewItem() {
   const name = newItemName.value.trim();
   if (!name || props.generating || props.addingItem) return;
-  emit("add-item", name, newItemShared.value);
+  const qty = Math.max(1, Number(newItemQty.value) || 1);
+  emit("add-item", name, newItemShared.value, qty);
   console.log("Submitting new item:", name, "Shared:", newItemShared.value);
   closeManualModal();
 }
 const emit = defineEmits<{
-  (e: "add-item", itemName: string, isShared: boolean): void;
+  (e: "add-item", itemName: string, isShared: boolean, quantity: number): void;
   (e: "toggle-item", itemId: string, isShared: boolean): void;
   (e: "quantity-change", itemId: string, quantity: number, isShared: boolean): void;
   (e: "regenerate"): void;
@@ -364,24 +403,25 @@ const checkedCount = computed(() => {
 });
 
 const categories = computed(() => {
-  const cats = new Set(myPersonalItems.value.map((item) => item.category || "Uncategorized"));
+  const cats = new Set(myPersonalItems.value.map((item) => item.category || "Personal list"));
   return Array.from(cats).sort();
 });
 
 function getPersonalItemsByCategory(category: string) {
   return myPersonalItems.value.filter(
-    (item) => (item.category || "Uncategorized") === category,
+    (item) => (item.category || "Personal list") === category,
   );
 }
 
 function toggleItem(itemId: string) {
+  // Do not toggle completion while in selection modes
+  if (selectingForShare.value || selectingForDelete.value) return;
   const item = props.items.find((i) => i.id === itemId);
   const isSharedFlag = !!item?.isShared;
   emit("toggle-item", itemId, isSharedFlag);
 }
 
 function handleQuantityChange(itemId: string, quantity: number) {
-  if (quantity < 1) return;
   const item = props.items.find((i) => i.id === itemId);
   const isSharedFlag = !!item?.isShared;
   emit("quantity-change", itemId, quantity, isSharedFlag);
@@ -394,6 +434,12 @@ function onAssignChange(itemId: string, e: Event) {
   const travelerId = target.value || "";
   console.log("Assigning item", itemId, "to traveler", travelerId);
   emit("assign-item", itemId, travelerId);
+}
+
+// Helper: build a unique, user-friendly label for a traveler
+function getTravelerLabel(traveler: Traveler): string {
+  // Packing assignee dropdown: show username only
+  return traveler.username || traveler.id;
 }
 
 // Selection state for bulk move from personal to shared
@@ -822,6 +868,26 @@ watch(
   font-size: 0.875rem;
   font-weight: 500;
   color: #1e3a5f;
+}
+
+.delete-btn {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  color: #ef4444;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.delete-btn:hover {
+  background: rgba(239, 68, 68, 0.15);
 }
 
 .shared-items-list {

@@ -34,10 +34,10 @@
                 :class="{ positive: balance.balance > 0, negative: balance.balance < 0, zero: Math.abs(balance.balance) < 0.01 }"
               >
                 <div class="balance-avatar" :style="{ backgroundColor: getAvatarColor(index) }">
-                  {{ getTravelerName(balance.travelerId).charAt(0).toUpperCase() }}
+                  {{ getTravelerUsername(balance.travelerId).charAt(0).toUpperCase() }}
                 </div>
                 <div class="balance-info">
-                  <p class="balance-name">{{ getTravelerName(balance.travelerId) }}</p>
+                  <p class="balance-name">{{ getTravelerUsername(balance.travelerId) }}</p>
                 </div>
                 <div class="balance-amount-wrapper">
                   <span v-if="Math.abs(balance.balance) < 0.01" class="badge-settled">Settled</span>
@@ -80,7 +80,7 @@
                     <h3>{{ expense.title }}</h3>
                   </div>
                   <p class="expense-details">
-                    Paid by {{ getTravelerName(expense.paidBy) }} · Split {{ expense.splitBetween?.length || 1 }} ways
+                    Paid by {{ getTravelerUsername(expense.paidBy) }} · Split {{ expense.splitBetween?.length || 1 }} ways
                   </p>
                   <p class="expense-per-person">
                     {{ formatCurrency(getPerPersonAmount(expense)) }} per person
@@ -173,7 +173,7 @@
                   class="custom-split-item"
                 >
                   <label class="split-label">
-                    {{ getTravelerName(travelerId) }}
+                    {{ getTravelerUsername(travelerId) }}
                     <span v-if="newExpense.splitType === 'money'">($)</span>
                     <span v-else>(%)</span>
                   </label>
@@ -274,8 +274,9 @@ const memberBalances = computed<MemberBalance[]>(() => {
   }));
 });
 
-function getTravelerName(travelerId: string): string {
-  return props.travelers.find(t => t.id === travelerId)?.name || 'Unknown';
+function getTravelerUsername(travelerId: string): string {
+  const t = props.travelers.find(t => t.id === travelerId);
+  return t?.username || t?.id || 'Unknown';
 }
 
 function formatBalance(balance: number): string {

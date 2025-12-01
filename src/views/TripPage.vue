@@ -17,7 +17,7 @@ import { transformApiTripToTrip } from '../utils/dataTransformers';
 
 const route = useRoute();
 const router = useRouter();
-const { getSession } = useAuth();
+const { getSession, currentUser } = useAuth();
 const trip = ref<Trip | null>(null);
 
 async function loadTrip() {
@@ -40,14 +40,21 @@ async function loadTrip() {
     const travelerNames = new Map<string, { firstName?: string; lastName?: string; username: string }>();
     for (const userId of travelerIds) {
       try {
-        const [usernameResp, nameResp] = await Promise.all([
-          Users.getUsername(userId).catch(() => ({ username: userId })),
-          Users.getUserName(userId).catch(() => ({ firstName: undefined, lastName: undefined } as any)),
-        ]);
+        // Resolve username per userId
+        const usernameResp = await Users.getUsername(userId).catch(() => ({ username: userId }));
+        let uname = usernameResp.username || userId;
+        // Guard: if backend incorrectly returns the signed-in user's username for others, fallback to userId
+        const myUname = (currentUser.value?.username || '').toString();
+        const myId = (currentUser.value?.id || '').toString();
+        if (uname === myUname && String(userId) !== myId) {
+          uname = String(userId);
+        }
+        // Resolve first/last name by username to avoid backend misrouting by session
+        const nameByUsername = await Users.getUserNameByUsername(uname);
         travelerNames.set(userId, {
-          firstName: (nameResp as any).firstName,
-          lastName: (nameResp as any).lastName,
-          username: usernameResp.username || userId,
+          firstName: nameByUsername.firstName,
+          lastName: nameByUsername.lastName,
+          username: uname,
         });
       } catch {
         travelerNames.set(userId, { username: userId });
