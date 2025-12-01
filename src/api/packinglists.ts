@@ -193,3 +193,19 @@ export async function getItems(
     throw new Error((data as any).error);
   return { results: [] };
 }
+
+export async function updateQuantity(
+  packinglist: string,
+  item: string,
+  quantity: number,
+): Promise<{ message: string }> {
+  const { data } = await http.post("/PackingList/updateQuantity", {
+    packinglist,
+    item,
+    quantity,
+  });
+  if (data && typeof data === "object" && "error" in (data as any)) {
+    throw new Error((data as any).error);
+  }
+  return data as { message: string };
+}

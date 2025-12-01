@@ -262,12 +262,28 @@ async function loadPackingItems() {
 
 			// Deduplicate by name (keep the first occurrence)
 			const seenNames = new Set<string>();
-			packingItems.value = transformedItems.filter((item) => {
+			const deduped = transformedItems.filter((item) => {
 				if (seenNames.has(item.name.toLowerCase())) {
 					return false; // Duplicate, skip it
 				}
 				seenNames.add(item.name.toLowerCase());
 				return true;
+			});
+
+			// Apply client-persisted quantities from localStorage
+			const qKey = packingListId.value ? `packing_qty_${packingListId.value}` : null;
+			let qtyMap: Record<string, number> = {};
+			if (qKey) {
+				try {
+					const raw = localStorage.getItem(qKey);
+					if (raw) qtyMap = JSON.parse(raw);
+				} catch {}
+			}
+
+			packingItems.value = deduped.map((item) => {
+				const key = item.name.toLowerCase();
+				const persistedQty = qtyMap[key];
+				return { ...item, quantity: persistedQty ?? item.quantity ?? 1 };
 			});
 		}
 	} catch (error: any) {
@@ -465,11 +481,30 @@ async function handleAddItem(itemName: string, isShared: boolean) {
 	const trimmedName = itemName.trim();
 	if (!trimmedName) return;
 
-	const duplicate = packingItems.value.some(
+	// If item already exists, increment its quantity locally instead of erroring
+	const existing = packingItems.value.find(
 		(item) => item.name.toLowerCase() === trimmedName.toLowerCase(),
 	);
-	if (duplicate) {
-		alert("Item already exists in your packing list.");
+	if (existing) {
+		const newQty = (existing.quantity || 1) + 1;
+		existing.quantity = newQty;
+		// Persist to backend if possible
+		try {
+			if (packingListId.value) {
+				await PackingLists.updateQuantity(packingListId.value, existing.id, newQty);
+			}
+		} catch (e) {
+			// Fallback: persist locally
+			if (packingListId.value) {
+				const qKey = `packing_qty_${packingListId.value}`;
+				try {
+					const raw = localStorage.getItem(qKey);
+					const map = raw ? JSON.parse(raw) : {};
+					map[existing.name.toLowerCase()] = newQty;
+					localStorage.setItem(qKey, JSON.stringify(map));
+				} catch {}
+			}
+		}
 		return;
 	}
 
@@ -518,6 +553,26 @@ function handleQuantityChange(itemId: string, newQuantity: number) {
 	// Note: Backend API doesn't support quantity updates yet, so we only update local state
 	// When API support is added, we can call an update endpoint here
 	item.quantity = newQuantity;
+
+	// Try to persist to backend; fallback to localStorage
+	(async () => {
+		try {
+			if (packingListId.value) {
+				await PackingLists.updateQuantity(packingListId.value, itemId, newQuantity);
+				return; // success
+			}
+		} catch {}
+		// Persist locally by packing list + item name
+		if (packingListId.value) {
+			const qKey = `packing_qty_${packingListId.value}`;
+			try {
+				const raw = localStorage.getItem(qKey);
+				const map = raw ? JSON.parse(raw) : {};
+				map[item.name.toLowerCase()] = newQuantity;
+				localStorage.setItem(qKey, JSON.stringify(map));
+			} catch {}
+		}
+	})();
 }
 
 async function generatePackingList(regenerate: boolean = false) {
