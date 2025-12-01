@@ -477,6 +477,12 @@ async function handleToggleItem(itemId: string) {
 	const item = packingItems.value.find((i) => i.id === itemId);
 	if (!item) return;
 
+	// Enforce: only assignee can check off a shared item that has an assignee
+	if (item.isShared && item.assignee && String(item.assignee) !== String(currentUser.value?.id ?? '')) {
+		alert('Only the assignee can check off this shared item.');
+		return;
+	}
+
 	try {
 		await PackingLists.toggleCompletion(
 			packingListId.value,

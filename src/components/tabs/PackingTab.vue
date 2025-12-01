@@ -47,6 +47,12 @@
             <p class="card-description">Track your packing list</p>
           </div>
           <div class="header-controls">
+            <template v-if="assignedTotalCount > 0">
+              <div class="progress-pill">
+                <span class="progress-label">Progress</span>
+                <span class="progress-value">{{ checkedCount }}/{{ assignedTotalCount }}</span>
+              </div>
+            </template>
             <button class="btn-add-manual" @click="showManualModal = true" :disabled="generating">
               <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -55,11 +61,7 @@
             </button>
 
             <div class="ai-actions">
-              <template v-if="myPersonalItems.length > 0">
-                <div class="progress-pill">
-                  <span class="progress-label">Progress</span>
-                  <span class="progress-value">{{ checkedCount }}/{{ myPersonalItems.length }}</span>
-                </div>
+              <template v-if="assignedTotalCount > 0">
                 <button class="btn-regenerate" @click="$emit('regenerate')" :disabled="generating">
                   <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -254,7 +256,13 @@
             <div v-else class="shared-items-list">
               <div v-for="item in sharedItems" :key="item.id" class="shared-item">
                 <label class="shared-item-checkbox">
-                  <input type="checkbox" :checked="item.finished" @change="toggleItem(item.id)" />
+                  <input
+                    type="checkbox"
+                    :checked="item.finished"
+                    @change="toggleItem(item.id)"
+                    :disabled="Boolean(item.assignee) && String(item.assignee) !== currentUserId"
+                    title="Only the assignee can check off this item"
+                  />
                   <span :class="{ checked: item.finished }">{{ item.name }}</span>
                 </label>
                 <div class="quantity-controls">
@@ -399,7 +407,13 @@ const sharedItems = computed(() => {
 });
 
 const checkedCount = computed(() => {
-  return myPersonalItems.value.filter((item) => item.finished).length;
+  const personalChecked = myPersonalItems.value.filter((item) => item.finished).length;
+  const sharedChecked = myAssignedSharedItems.value.filter((item) => item.finished).length;
+  return personalChecked + sharedChecked;
+});
+
+const assignedTotalCount = computed(() => {
+  return myPersonalItems.value.length + myAssignedSharedItems.value.length;
 });
 
 const categories = computed(() => {
@@ -653,6 +667,27 @@ watch(
   font-size: 1.5rem;
   font-weight: 600;
   color: #7ba3d1;
+}
+
+/* Tidy header controls layout: progress + regenerate align neatly */
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.progress-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: 9999px;
+  background: rgba(123, 163, 209, 0.12);
+}
+.progress-pill .progress-label {
+  margin: 0;
+}
+.progress-pill .progress-value {
+  line-height: 1;
 }
 
 .btn-generate {
@@ -915,6 +950,10 @@ watch(
   width: 20px;
   height: 20px;
   cursor: pointer;
+}
+.shared-item-checkbox input[type="checkbox"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .shared-item-checkbox span {
