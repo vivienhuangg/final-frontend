@@ -74,8 +74,6 @@ const EXCLUDED_ROUTES = new Set<string>([
   "CostTracker/_listMoneyExpenses",
   "CostTracker/_existsAny", // Private helper method, not meant to be exposed
   // RatingSystem
-  "RatingSystem/addRating",
-  "RatingSystem/changeRating",
   "RatingSystem/removeRating",
   "RatingSystem/_getRating",
   "RatingSystem/_getRatingsByItem",

@@ -1132,14 +1132,19 @@ async function handleRatingChange(activityId: string, rating: number) {
 
   try {
     // Use setRating which creates or updates automatically
-    await Ratings.addRating(activityId, rating);
+    await Ratings.setRating(activityId, rating);
 
     // Refresh ratings to get updated average
     const response = await Ratings.getRatingsByItem(activityId);
     ratings.value[activityId] = response.results || [];
 
     // Update user rating from response to ensure it matches what we just saved
-    const userRating = response.results.find(r => r.rater === currentUserId.value);
+    // Use actualUserId instead of currentUserId for matching
+    const userId = actualUserId.value || currentUserId.value;
+    const userRating = response.results.find(r => {
+      const raterId = r.rater || (r as any).user;
+      return String(raterId) === String(userId);
+    });
     if (userRating && userRating.num !== undefined && userRating.num !== null) {
       // Update with the actual saved rating from backend
       userRatings.value[activityId] = userRating.num;
