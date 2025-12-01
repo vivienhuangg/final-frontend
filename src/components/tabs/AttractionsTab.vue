@@ -1336,6 +1336,8 @@ function handleDeleteProposal(activityId: string) {
           message = error.response.data.error;
         } else if (error?.response?.status === 500) {
           message = "A server error occurred while deleting this proposal. Please try again later.";
+        } else if (error?.response?.status === 504 || error?.code === 'ECONNABORTED' || error?.message?.includes('timeout')) {
+          message = "The request timed out. The proposal may have been deleted, or there may be a connection issue. Please refresh the page and try again.";
         } else if (error?.response?.status === 401 || error?.response?.status === 403) {
           message = "You don't have permission to delete this proposal.";
         } else if (error?.response?.status === 404) {
@@ -1526,7 +1528,9 @@ async function handleDeleteActivity(activityId: string) {
         if (error?.response?.data?.error) {
           message = error.response.data.error;
         } else if (error?.response?.status === 500) {
-          message = "There was a server error while deleting this event. Please try again later.";
+          message = "A server error occurred while deleting this event. Please try again later.";
+        } else if (error?.response?.status === 504 || error?.code === 'ECONNABORTED' || error?.message?.includes('timeout')) {
+          message = "The request timed out. The event may have been deleted, or there may be a connection issue. Please refresh the page and try again.";
         } else if (error?.response?.status === 401 || error?.response?.status === 403) {
           message = "You don't have permission to delete this event.";
         } else if (error?.response?.status === 404) {
