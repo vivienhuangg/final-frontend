@@ -49,6 +49,12 @@ npm run build
 npm run preview
 ```
 
+## Destination Autocomplete
+
+The Destination field provides typeahead suggestions powered by OpenStreetMap (Nominatim). You must pick a suggestion to validate the field before creating a trip.
+
+Note: Nominatim is a public service with rate limits. For heavy usage, consider a small proxy with caching and a proper `User-Agent`.
+
 ## Project Structure
 
 ```

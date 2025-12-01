@@ -115,7 +115,20 @@
           </div>
           <div class="form-group">
             <label for="destination">Destination</label>
-            <input id="destination" v-model="newTrip.destination" type="text" required placeholder="e.g., Miami, FL" />
+            <input
+              id="destination"
+              v-model="newTrip.destination"
+              type="text"
+              required
+              placeholder="Start typing a place… (powered by OpenStreetMap)"
+              @input="onDestinationInput"
+            />
+            <div v-if="destinationError" class="field-error">{{ destinationError }}</div>
+            <ul v-if="suggestionsOpen && placeSuggestions.length > 0" class="suggestions">
+              <li v-for="s in placeSuggestions" :key="s.place_id || s.osm_id" @click="chooseSuggestion(s)">
+                {{ s.display_name || s.formatted_address || s.name }}
+              </li>
+            </ul>
           </div>
           <div class="form-row">
             <div class="form-group">
@@ -173,6 +186,52 @@ const newTrip = ref({
   endDate: "",
 });
 
+// Autocomplete/validation state
+const destinationValid = ref(false);
+const destinationError = ref("");
+const placeSuggestions = ref<any[]>([]);
+const suggestionsOpen = ref(false);
+let suggestTimer: any = null;
+
+function onDestinationInput() {
+  // typing invalidates previous selection
+  destinationValid.value = false;
+  destinationError.value = "";
+  const q = newTrip.value.destination?.trim();
+  if (!q) {
+    placeSuggestions.value = [];
+    suggestionsOpen.value = false;
+    return;
+  }
+  if (suggestTimer) clearTimeout(suggestTimer);
+  suggestTimer = setTimeout(async () => {
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(q)}&addressdetails=0&limit=5`;
+      const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+      const data = await res.json();
+      placeSuggestions.value = data || [];
+      suggestionsOpen.value = placeSuggestions.value.length > 0;
+    } catch (e) {
+      placeSuggestions.value = [];
+      suggestionsOpen.value = false;
+    }
+  }, 250);
+}
+
+function chooseSuggestion(s: any) {
+  const label = s.display_name || s.formatted_address || s.name;
+  if (label) {
+    newTrip.value.destination = label;
+    destinationValid.value = true;
+    destinationError.value = "";
+  } else {
+    destinationValid.value = false;
+    destinationError.value = "Please select a valid place from suggestions.";
+  }
+  suggestionsOpen.value = false;
+  placeSuggestions.value = [];
+}
+
 function formatDate(dateStr: string): string {
   if (!dateStr) return "";
   const date = new Date(dateStr);
@@ -194,6 +253,8 @@ onMounted(async () => {
   console.log("Trips loaded:", trips.value);
   await loadInvitations();
 });
+
+/* Google Places support removed: we use OpenStreetMap Nominatim for suggestions. */
 
 async function loadTrips() {
   console.log("Loading trips...");
@@ -432,6 +493,11 @@ async function createTrip() {
   try {
     createLoading.value = true;
     createError.value = '';
+    if (!destinationValid.value) {
+      destinationError.value = "Please select a valid place from suggestions.";
+      createLoading.value = false;
+      return;
+    }
     console.log("creating trip with data:", newTrip.value);
 
     const response = await Trips.createTrip(
@@ -449,6 +515,10 @@ async function createTrip() {
 
     showNewTripDialog.value = false;
     newTrip.value = { title: "", destination: "", startDate: "", endDate: "" };
+    destinationValid.value = false;
+    destinationError.value = "";
+    placeSuggestions.value = [];
+    suggestionsOpen.value = false;
 
     // Navigate to the newly created trip
     router.push({ name: 'trip', params: { id: response.trip } });
@@ -1225,6 +1295,33 @@ async function handleDeleteTrip(tripId: string) {
 .btn-submit:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.field-error {
+  margin-top: -0.25rem;
+  color: #b91c1c;
+  font-size: 0.8rem;
+}
+
+.suggestions {
+  margin-top: 6px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #fff;
+  max-height: 180px;
+  overflow-y: auto;
+  box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+}
+
+.suggestions li {
+  padding: 8px 10px;
+  font-size: 0.85rem;
+  color: #1e293b;
+  cursor: pointer;
+}
+
+.suggestions li:hover {
+  background: #f1f5f9;
 }
 
 .trip-card.past-trip {
