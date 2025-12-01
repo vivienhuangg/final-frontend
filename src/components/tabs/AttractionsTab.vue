@@ -640,11 +640,11 @@ function getProposalConflicts(proposal: ActivityWithDetails): Array<{ activity: 
 
   allCommittedEvents.forEach(event => {
     if (event.id !== proposal.id && hasTimeConflict(proposal, event)) {
-      // Determine if it's a my-event or group-event
-      const isMyEvent = myEvents.value.some(me => me.id === event.id);
+      // Determine type based on activity properties: solo = My Event, group = Group Event
+      const conflictType = event.solo === true ? 'my-event' : 'group-event';
       conflicts.push({
         activity: event,
-        type: isMyEvent ? 'my-event' : 'group-event'
+        type: conflictType
       });
     }
   });
@@ -656,19 +656,17 @@ function getProposalConflicts(proposal: ActivityWithDetails): Array<{ activity: 
 function getCommittedEventConflicts(activity: ActivityWithDetails): Array<{ activity: ActivityWithDetails; type: 'my-event' | 'group-event' }> {
   const conflicts: Array<{ activity: ActivityWithDetails; type: 'my-event' | 'group-event' }> = [];
 
-  // Check against other My Events
-  myEvents.value.forEach(myEvent => {
-    if (myEvent.id !== activity.id && hasTimeConflict(activity, myEvent)) {
-      conflicts.push({ activity: myEvent, type: 'my-event' });
-    }
-  });
+  // Check against other committed events (both myEvents and groupEvents)
+  const allCommittedEvents = [
+    ...myEvents.value,
+    ...groupEvents.value.filter(ge => !myEvents.value.some(me => me.id === ge.id)), // Avoid duplicates
+  ];
 
-  // Check against Group Events (but not if it's already in myEvents to avoid duplicates)
-  groupEvents.value.forEach(groupEvent => {
-    if (groupEvent.id !== activity.id &&
-      !myEvents.value.some(me => me.id === groupEvent.id) &&
-      hasTimeConflict(activity, groupEvent)) {
-      conflicts.push({ activity: groupEvent, type: 'group-event' });
+  allCommittedEvents.forEach(event => {
+    if (event.id !== activity.id && hasTimeConflict(activity, event)) {
+      // Determine type based on activity properties: solo = My Event, group = Group Event
+      const conflictType = event.solo === true ? 'my-event' : 'group-event';
+      conflicts.push({ activity: event, type: conflictType });
     }
   });
 
@@ -1226,10 +1224,18 @@ async function handleToggleOptIn(activityId: string) {
     emit('refresh-activities');
   } catch (error: any) {
     console.error('Error toggling opt-in:', error);
-    const message =
-      error?.response?.data?.error ||
-      (error instanceof Error ? error.message : null) ||
-      "Couldn't update your attendance status. Please refresh and try again.";
+    let message = "There was an issue updating your attendance status. Please try again.";
+    
+    if (error?.response?.data?.error) {
+      message = error.response.data.error;
+    } else if (error?.response?.status === 500) {
+      message = "A server error occurred. Please try again later.";
+    } else if (error?.response?.status === 401 || error?.response?.status === 403) {
+      message = "You don't have permission to update attendance status.";
+    } else if (error instanceof Error && error.message) {
+      message = error.message;
+    }
+    
     alert(message);
   }
 }
@@ -1239,14 +1245,22 @@ async function handleToggleSolo(activityId: string, solo: boolean) {
   if (!session) return;
 
   try {
-    // Solo flag is only stored client-side in this frontend; backend API doesn't expose a modifySolo endpoint.
+    await Activities.modifySolo(activityId, solo);
     emit('refresh-activities');
   } catch (error: any) {
     console.error('Error toggling solo:', error);
-    const message =
-      error?.response?.data?.error ||
-      (error instanceof Error ? error.message : null) ||
-      "Couldn't update the solo visibility for this activity.";
+    let message = "There was an issue updating the solo visibility for this event. Please try again.";
+    
+    if (error?.response?.data?.error) {
+      message = error.response.data.error;
+    } else if (error?.response?.status === 500) {
+      message = "A server error occurred. Please try again later.";
+    } else if (error?.response?.status === 401 || error?.response?.status === 403) {
+      message = "You don't have permission to update this event.";
+    } else if (error instanceof Error && error.message) {
+      message = error.message;
+    }
+    
     alert(message);
   }
 }
@@ -1278,10 +1292,18 @@ async function handleToggleProposal(activityId: string, proposal: boolean) {
     emit('refresh-activities');
   } catch (error: any) {
     console.error('Error toggling proposal:', error);
-    const message =
-      error?.response?.data?.error ||
-      (error instanceof Error ? error.message : null) ||
-      "Couldn't update the proposal status. Please try again.";
+    let message = "There was an issue updating the proposal status. Please try again.";
+    
+    if (error?.response?.data?.error) {
+      message = error.response.data.error;
+    } else if (error?.response?.status === 500) {
+      message = "A server error occurred. Please try again later.";
+    } else if (error?.response?.status === 401 || error?.response?.status === 403) {
+      message = "You don't have permission to update this proposal status.";
+    } else if (error instanceof Error && error.message) {
+      message = error.message;
+    }
+    
     alert(message);
   }
 }
@@ -1306,10 +1328,22 @@ function handleDeleteProposal(activityId: string) {
         emit('refresh-activities');
       } catch (error: any) {
         console.error('Error deleting proposal:', error);
-        const message =
-          error?.response?.data?.error ||
-          (error instanceof Error ? error.message : null) ||
-          "Couldn't delete this proposal. Please refresh and try again.";
+        let message = "There was an issue deleting this proposal. Please try again.";
+        
+        if (error?.response?.data?.error) {
+          message = error.response.data.error;
+        } else if (error?.response?.status === 500) {
+          message = "A server error occurred while deleting this proposal. Please try again later.";
+        } else if (error?.response?.status === 504 || error?.code === 'ECONNABORTED' || error?.message?.includes('timeout')) {
+          message = "The request timed out. The proposal may have been deleted, or there may be a connection issue. Please refresh the page and try again.";
+        } else if (error?.response?.status === 401 || error?.response?.status === 403) {
+          message = "You don't have permission to delete this proposal.";
+        } else if (error?.response?.status === 404) {
+          message = "This proposal could not be found. It may have already been deleted.";
+        } else if (error instanceof Error && error.message) {
+          message = error.message;
+        }
+        
         alert(message);
       } finally {
         showConfirmDialog.value = false;
@@ -1407,10 +1441,19 @@ async function handleSaveEdit() {
     emit('refresh-activities');
   } catch (error: any) {
     console.error('Error saving activity edits:', error);
-    const backendMessage = error?.response?.data?.error;
-    const fallback =
-      error instanceof Error ? error.message : 'Unknown error';
-    alert(`Failed to save changes: ${backendMessage || fallback}`);
+    let message = "There was an issue saving your changes. Please try again.";
+    
+    if (error?.response?.data?.error) {
+      message = error.response.data.error;
+    } else if (error?.response?.status === 500) {
+      message = "A server error occurred while saving your changes. Please try again later.";
+    } else if (error?.response?.status === 401 || error?.response?.status === 403) {
+      message = "You don't have permission to edit this event.";
+    } else if (error instanceof Error && error.message) {
+      message = error.message;
+    }
+    
+    alert(message);
   } 
 }
 
@@ -1437,10 +1480,18 @@ function handleRevertToProposal(activityId: string) {
         emit('refresh-activities');
       } catch (error: any) {
         console.error('Error converting to proposal:', error);
-        const message =
-          error?.response?.data?.error ||
-          (error instanceof Error ? error.message : null) ||
-          "Couldn't convert this event back to a proposal.";
+        let message = "There was an issue converting this event to a proposal. Please try again.";
+        
+        if (error?.response?.data?.error) {
+          message = error.response.data.error;
+        } else if (error?.response?.status === 500) {
+          message = "A server error occurred. Please try again later.";
+        } else if (error?.response?.status === 401 || error?.response?.status === 403) {
+          message = "You don't have permission to convert this event to a proposal.";
+        } else if (error instanceof Error && error.message) {
+          message = error.message;
+        }
+        
         alert(message);
       } finally {
         showConfirmDialog.value = false;
@@ -1470,10 +1521,22 @@ async function handleDeleteActivity(activityId: string) {
         emit('refresh-activities');
       } catch (error: any) {
         console.error('Error deleting activity:', error);
-        const message =
-          error?.response?.data?.error ||
-          (error instanceof Error ? error.message : null) ||
-          "Couldn't delete this activity. You might not have permission.";
+        let message = "There was an issue deleting this event. Please try again.";
+        
+        if (error?.response?.data?.error) {
+          message = error.response.data.error;
+        } else if (error?.response?.status === 500) {
+          message = "A server error occurred while deleting this event. Please try again later.";
+        } else if (error?.response?.status === 504 || error?.code === 'ECONNABORTED' || error?.message?.includes('timeout')) {
+          message = "The request timed out. The event may have been deleted, or there may be a connection issue. Please refresh the page and try again.";
+        } else if (error?.response?.status === 401 || error?.response?.status === 403) {
+          message = "You don't have permission to delete this event.";
+        } else if (error?.response?.status === 404) {
+          message = "This event could not be found. It may have already been deleted.";
+        } else if (error instanceof Error && error.message) {
+          message = error.message;
+        }
+        
         alert(message);
       } finally {
         showConfirmDialog.value = false;
@@ -1571,10 +1634,18 @@ async function handleAddAttraction() {
     showAddDialog.value = false;
   } catch (error: any) {
     console.error('Error adding attraction:', error);
-    const message =
-      error?.response?.data?.error ||
-      (error instanceof Error ? error.message : null) ||
-      "Couldn't add this attraction. Please check the fields and try again.";
+    let message = "There was an issue adding this attraction. Please check the fields and try again.";
+    
+    if (error?.response?.data?.error) {
+      message = error.response.data.error;
+    } else if (error?.response?.status === 500) {
+      message = "A server error occurred. Please try again later.";
+    } else if (error?.response?.status === 401 || error?.response?.status === 403) {
+      message = "You don't have permission to add attractions.";
+    } else if (error instanceof Error && error.message) {
+      message = error.message;
+    }
+    
     alert(message);
   }
 }
