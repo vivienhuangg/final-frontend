@@ -81,6 +81,34 @@
 					@assign-item="handleAssignItem" @move-items-to-shared="handleMoveItemsToShared" @delete-items="handleDeleteItems"
 					@regenerate="handleRegeneratePackingList" @generate="handleGeneratePackingList" />
 			</div>
+
+			<!-- AI Suggestions Modal -->
+			<div v-if="showSuggestionsModal" class="dialog-overlay" @click="showSuggestionsModal = false">
+				<div class="dialog" @click.stop>
+					<div class="dialog-header">
+						<h2 class="dialog-title">AI Packing Suggestions</h2>
+						<p class="dialog-description">Pick the items you want to add to your packing list</p>
+					</div>
+					<div class="suggestions-list">
+						<div v-if="suggestions.length === 0" class="empty-state">No suggestions available.</div>
+						<div v-for="s in (showAllSuggestions ? suggestions : suggestions.slice(0, 20))" :key="s.id" class="suggestion-row">
+							<label class="suggestion-item">
+								<input type="checkbox" v-model="selectedSuggestionIds" :value="s.id" />
+								<span class="name">{{ s.name }}</span>
+								<span class="meta" v-if="s.quantity">x{{ s.quantity }}</span>
+								<span class="badge" v-if="s.isShared">Shared</span>
+							</label>
+						</div>
+						<button v-if="suggestions.length > 20" class="btn-secondary" @click="showAllSuggestions = !showAllSuggestions">
+							{{ showAllSuggestions ? 'Show less' : 'Show more' }}
+						</button>
+					</div>
+					<div class="dialog-actions">
+						<button class="btn-secondary" @click="showSuggestionsModal = false">Cancel</button>
+						<button class="btn-primary" :disabled="selectedSuggestionIds.length === 0" @click="confirmSelectedSuggestions">Add Selected</button>
+					</div>
+				</div>
+			</div>
 		</div>
 	</div>
 </template>
@@ -125,6 +153,18 @@ const generatingPackingList = ref(false);
 const generationStage = ref("");
 const generationProgress = ref(0);
 const addingPackingItem = ref(false);
+// AI suggestions selection modal state
+const showSuggestionsModal = ref(false);
+// Background suggestion readiness indicator (unused when generation is user-initiated only)
+const suggestionsReady = ref(false);
+type SuggestedItem = { id: string; name: string; quantity?: number; isShared?: boolean };
+const suggestions = ref<SuggestedItem[]>([]);
+const selectedSuggestionIds = ref<string[]>([]);
+const showAllSuggestions = ref(false);
+// Snapshot existing items to guard against backend side-effects
+const existingItemsSnapshot = ref<ChecklistItem[]>([]);
+// Defer heavy JSON parsing to confirmation to avoid timeouts
+const rawSuggestionsJson = ref<string | null>(null);
 
 // Load data when trip changes
 watch(
@@ -154,6 +194,7 @@ watch(
 			const key = `trip_active_tab_${props.trip.id}`;
 			localStorage.setItem(key, tab);
 		} catch {}
+		// Do not auto-generate suggestions on tab open; generation is user-triggered only
 	},
 );
 
@@ -647,7 +688,7 @@ function handleQuantityChange(itemId: string, newQuantity: number) {
 	})();
 }
 
-async function generatePackingList(regenerate: boolean = false) {
+async function generatePackingList(regenerate: boolean = false, openModal: boolean = true) {
 	const session = getSession();
 	if (!session || !props.trip.id) return;
 
@@ -656,8 +697,10 @@ async function generatePackingList(regenerate: boolean = false) {
 		generationProgress.value = 0;
 		generationStage.value = "Preparing...";
 
-		// Clear local state when regenerating or when starting fresh generation
-		packingItems.value = [];
+		// Keep existing items; suggestions will be collected separately
+
+		// Snapshot current items to restore if needed
+		existingItemsSnapshot.value = packingItems.value.map(i => ({ ...i }));
 
 		// Reload activities to ensure we have the latest data (only for regenerate)
 		if (regenerate) {
@@ -665,46 +708,23 @@ async function generatePackingList(regenerate: boolean = false) {
 			generationProgress.value = 10;
 			await loadActivities();
 
-			// Reset packing list ID when regenerating to force creation of new list
-			// (backend will delete old one and create new one)
-			packingListId.value = null;
+			// Do not reset packing list; keep existing items and add suggestions
 		}
 
-		// For regeneration, always create a new list (backend will delete old one)
-		// For first-time generation, create if doesn't exist, otherwise use existing
-		if (!packingListId.value || regenerate) {
+		// Ensure list exists; do not recreate on regenerate
+		if (!packingListId.value) {
 			try {
-				generationStage.value = regenerate ? "Regenerating packing list..." : "Creating packing list...";
-				generationProgress.value = regenerate ? 20 : 10;
+				generationStage.value = "Creating packing list...";
+				generationProgress.value = 10;
 				const createResponse = await PackingLists.createPackingList(props.trip.id);
 				packingListId.value = createResponse.packinglist;
 
-				// After creating/regenerating, clear local items to ensure fresh start
-				packingItems.value = [];
+				// Keep existing items separate from suggestions
 			} catch (e: any) {
 				console.error("Failed to get or create packing list:", e);
 				alert("Failed to get or create packing list. Please try again.");
 				return;
 			}
-		} else {
-			// If list exists and we're generating (not regenerating), clear existing items first
-			// to prevent duplicates. We'll delete all items from the existing list.
-			generationStage.value = "Clearing existing items...";
-			generationProgress.value = 15;
-
-			// Delete all existing items to prevent duplicates
-			const itemsToDelete = [...packingItems.value];
-			packingItems.value = []; // Clear local state immediately
-
-			// Delete all items in parallel for better performance
-			await Promise.allSettled(
-				itemsToDelete.map((item) =>
-					PackingLists.deleteItem(packingListId.value || "", item.id).catch((e) => {
-						console.warn("Failed to delete item:", e);
-						return null; // Continue even if some deletions fail
-					})
-				)
-			);
 		}
 
 		if (!packingListId.value) {
@@ -718,60 +738,34 @@ async function generatePackingList(regenerate: boolean = false) {
 		const startDate = new Date(props.trip.startDate);
 		const endDate = new Date(props.trip.endDate);
 		const nights = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-		const tripInfo = `Trip: ${props.trip.title || props.trip.destination} from ${formatDate(props.trip.startDate)} to ${formatDate(props.trip.endDate)} (${nights} ${nights === 1 ? 'night' : 'nights'}). Destination: ${props.trip.destination}.`;
+		// Prompt compression: minimal inputs to reduce generation time
+		const tripInfo = `Destination:${props.trip.destination}; Nights:${nights};`;
 		const activitiesInfo = activities.value.length > 0
-			? `Activities: ${activities.value.map(a => a.title).join(", ")}.`
-			: "";
-		const quantityHint = `Please suggest appropriate quantities for items based on the trip duration. For example, for a ${nights}-night trip, suggest ${nights} pairs of underwear, ${nights} pairs of socks, etc.`;
-		const additionalInput = `${tripInfo} ${activitiesInfo} ${quantityHint}`;
+			? `Activities:${activities.value.map(a => a.title).join("|")};`
+			: "Activities:;";
+		const quantityHint = `Rules: return explicit numeric quantities (no 'x1'); infer quantities from nights and activities; set shared=true for communal items; avoid duplicates.`;
+		const capHint = `Limit: max 20 suggestions.`;
+		const formatHint = `Output: ONLY JSON array of {name,quantity,shared}. If a carrier is needed, insert ONE item named __PACKING_SUGGESTIONS_JSON__ containing that JSON.`;
+		const exampleHint = `Example:[{"name":"Underwear","quantity":${nights},"shared":false},{"name":"First aid kit","quantity":1,"shared":true}]`;
+		const additionalInput = `${tripInfo} ${activitiesInfo} ${quantityHint} ${capHint} ${formatHint} ${exampleHint}`;
 
-		// Request suggestions from LLM
+		// New flow: fetch raw JSON suggestions from backend without creating items
 		generationStage.value = "Requesting AI suggestions...";
 		generationProgress.value = regenerate ? 40 : 30;
-		await PackingLists.requestSuggestions(packingListId.value, additionalInput);
+		const raw = await PackingLists.getRawSuggestions(packingListId.value, additionalInput);
+		const arr = Array.isArray(raw?.suggestions) ? raw.suggestions : [];
+		rawSuggestionsJson.value = JSON.stringify(arr);
+		const existingNames = new Set(packingItems.value.map(i => i.name.trim().toLowerCase()));
+		suggestions.value = arr
+			.filter(s => s?.name && !existingNames.has(s.name.trim().toLowerCase()))
+			.map(s => ({ id: `${Date.now()}_${Math.random().toString(36).slice(2,8)}`, name: s.name.trim() }));
 
-		// Poll for items with progress updates
-		generationStage.value = "Generating items...";
-		generationProgress.value = 50;
+		// Open modal only if requested by user action
+		suggestionsReady.value = true;
+		if (openModal) showSuggestionsModal.value = true;
 
-		const maxAttempts = 30;
-		const pollInterval = 1000;
-		let attempts = 0;
-
-		while (attempts < maxAttempts) {
-			await new Promise(resolve => setTimeout(resolve, pollInterval));
-			attempts++;
-
-			generationProgress.value = 50 + Math.min(40, (attempts / maxAttempts) * 40);
-
-			try {
-				const response = await PackingLists.getItems(packingListId.value);
-
-				if (response.results && response.results.length > 0) {
-					generationStage.value = "Finalizing...";
-					generationProgress.value = 95;
-
-					packingItems.value = response.results
-						.map((result) => {
-							if (!result.item) return null;
-							return transformApiPackingItemToChecklistItem(result.item);
-						})
-						.filter((item): item is ChecklistItem => item !== null);
-
-					generationProgress.value = 100;
-					generationStage.value = "Complete!";
-					await new Promise(resolve => setTimeout(resolve, 500));
-					break;
-				}
-			} catch (e) {
-				// Continue polling on error
-			}
-		}
-
-		if (attempts >= maxAttempts) {
-			generationStage.value = "Loading items...";
-			await loadPackingItems();
-		}
+		generationProgress.value = 100;
+		generationStage.value = "Complete!";
 	} catch (error: any) {
 		console.error(`Failed to ${regenerate ? 'regenerate' : 'generate'} packing list:`, error);
 		const errorMessage =
@@ -786,12 +780,90 @@ async function generatePackingList(regenerate: boolean = false) {
 	}
 }
 
+async function confirmSelectedSuggestions() {
+	if (!packingListId.value || selectedSuggestionIds.value.length === 0) {
+		showSuggestionsModal.value = false;
+		return;
+	}
+	const chosen = suggestions.value.filter(s => selectedSuggestionIds.value.includes(s.id));
+	try {
+		// Parse raw JSON once and map by normalized name
+		let detailsByName: Record<string, { quantity?: number; shared?: boolean }> = {};
+		if (rawSuggestionsJson.value) {
+			try {
+				const arr = JSON.parse(rawSuggestionsJson.value);
+				if (Array.isArray(arr)) {
+					for (const obj of arr) {
+						if (obj && typeof obj.name === 'string') {
+							const nameKey = obj.name.trim().toLowerCase();
+							detailsByName[nameKey] = {
+								quantity: Number.isFinite(obj.quantity) ? Number(obj.quantity) : undefined,
+								shared: typeof obj.shared === 'boolean' ? obj.shared : undefined,
+							};
+						}
+					}
+				}
+			} catch (e) {
+				console.warn('Failed to parse suggestion JSON on confirm:', e);
+			}
+		}
+
+		// Add each chosen item back to packing list with correct shared/quantity and assignee for personal items
+		for (const s of chosen) {
+			const key = s.name.trim().toLowerCase();
+			const det = detailsByName[key] || {};
+			const isShared = !!det.shared;
+			const assignee = isShared ? undefined : (currentUser.value?.id ?? '').toString();
+			await PackingLists.addItem(packingListId.value, s.name, assignee, isShared);
+			const qty = det.quantity && det.quantity > 1 ? det.quantity : undefined;
+			if (qty) {
+				await loadPackingItems();
+				const added = packingItems.value.find(i => i.name.toLowerCase() === s.name.toLowerCase());
+				if (added) {
+					try { await PackingLists.updateQuantity(packingListId.value, added.id, qty); } catch {}
+				}
+			}
+		}
+		await loadPackingItems();
+
+		// Restore any existing items that vanished due to backend side-effects
+		const currentNames = new Set(packingItems.value.map(i => i.name.trim().toLowerCase()));
+		const missing = existingItemsSnapshot.value.filter(i => !currentNames.has(i.name.trim().toLowerCase()));
+		if (missing.length > 0) {
+			for (const m of missing) {
+				const assignee = m.isShared ? undefined : (m.assignee ? String(m.assignee) : (currentUser.value?.id ?? '').toString());
+				await PackingLists.addItem(packingListId.value, m.name, assignee, !!m.isShared);
+				if (m.quantity && m.quantity > 1) {
+					await loadPackingItems();
+					const readded = packingItems.value.find(i => i.name.toLowerCase() === m.name.toLowerCase());
+					if (readded) {
+						try { await PackingLists.updateQuantity(packingListId.value, readded.id, m.quantity); } catch {}
+					}
+				}
+			}
+			await loadPackingItems();
+		}
+	} catch (e) {
+		console.error('Failed to add selected suggestions:', e);
+		alert('Failed to add some suggestions. Please try again.');
+	} finally {
+		showSuggestionsModal.value = false;
+		selectedSuggestionIds.value = [];
+		suggestions.value = [];
+		existingItemsSnapshot.value = [];
+		rawSuggestionsJson.value = null;
+	}
+}
+
 async function handleRegeneratePackingList() {
-	await generatePackingList(true);
+	suggestionsReady.value = false;
+	await generatePackingList(true, true);
 }
 
 async function handleGeneratePackingList() {
-	await generatePackingList(false);
+	// User-initiated generation only
+	suggestionsReady.value = false;
+	await generatePackingList(false, true);
 }
 
 async function handleDeleteActivity(activityId: string) {
@@ -1089,6 +1161,15 @@ async function handleDeleteItems(itemIds: string[]) {
 	box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
+.tab-badge {
+	margin-left: 0.5rem;
+	background: #e2f8f6;
+	color: #0d9488;
+	padding: 2px 8px;
+	border-radius: 9999px;
+	font-size: 0.75rem;
+}
+
 .tab-content {
 	margin-top: 1.5rem;
 }
@@ -1120,4 +1201,44 @@ async function handleDeleteItems(itemIds: string[]) {
 .opacity-80 {
 	opacity: 0.8;
 }
+
+/* Modal styles reused from Dashboard */
+.dialog-overlay {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: rgba(0, 0, 0, 0.5);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 1000;
+}
+
+.dialog {
+	background: white;
+	border-radius: 0.5rem;
+	padding: 1.5rem;
+	width: 90%;
+	max-width: 560px;
+	max-height: 90vh;
+	overflow-y: auto;
+	box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+.dialog-header { margin-bottom: 1rem; }
+.dialog-title { font-size: 1.25rem; font-weight: 600; color: #1e3a5f; }
+.dialog-description { color: #64748b; font-size: 0.9rem; }
+
+.suggestions-list { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem; }
+.suggestion-row { padding: 0.5rem; border: 1px solid #e2e8f0; border-radius: 8px; background: #faf8f6; }
+.suggestion-item { display: flex; align-items: center; gap: 0.5rem; }
+.suggestion-item .name { font-weight: 500; color: #1e293b; }
+.suggestion-item .meta { color: #475569; font-size: 0.85rem; }
+.suggestion-item .badge { margin-left: auto; background: #e2f8f6; color: #0d9488; padding: 2px 8px; border-radius: 9999px; font-size: 0.75rem; }
+
+.dialog-actions { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1rem; }
+.btn-primary { background: #42b983; color: white; border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; }
+.btn-secondary { background: #f0f0f0; color: #333; border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; }
 </style>

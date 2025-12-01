@@ -153,6 +153,25 @@ export async function requestSuggestions(
   return data as { requestId: string; message: string };
 }
 
+// New: Fetch raw JSON suggestions without creating items
+export async function getRawSuggestions(
+  packinglist: string,
+  additionalInput: string,
+): Promise<{ suggestions: Array<{ name: string; quantity?: number; shared?: boolean }> }> {
+  const session = getSession();
+  const payload: any = { session, packinglist, additionalInput };
+  const { data } = await http.post("/packinglists/suggestRaw", payload);
+  if (
+    data &&
+    typeof data === "object" &&
+    "error" in (data as any) &&
+    (data as any).error
+  )
+    throw new Error((data as any).error);
+  // Expect `{ suggestions: [...] }` directly
+  return data as { suggestions: Array<{ name: string; quantity?: number; shared?: boolean }> };
+}
+
 export async function addGeneratedItems(
   packinglist: string,
   itemNames: string[],
