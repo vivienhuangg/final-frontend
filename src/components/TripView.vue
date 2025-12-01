@@ -72,8 +72,8 @@
 				<OverviewTab v-if="activeTab === 'overview'" :trip="trip" @invite="handleInvite" />
 				<!-- Discover tab removed per UI request -->
 				<AttractionsTab v-if="activeTab === 'attractions'" :activities="activities" :travelers="trip.travelers"
-					:trip-id="trip.id" :organizer-id="trip.organizer" @rate="handleRate"
-					@toggle-attendance="handleToggleAttendance" @add-activity="handleAddActivity"
+					:trip-id="trip.id" :organizer-id="trip.organizer" :trip-start-date="trip.startDate" :trip-end-date="trip.endDate"
+					@rate="handleRate" @toggle-attendance="handleToggleAttendance" @add-activity="handleAddActivity"
 					@delete-activity="handleDeleteActivity" @refresh-activities="loadActivities" />
 				<CostsTab v-if="activeTab === 'costs'" :expenses="expenses" :travelers="trip.travelers"
 					@add-expense="handleAddExpense" @delete-expense="handleDeleteExpense" />

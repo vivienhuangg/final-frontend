@@ -9,7 +9,7 @@
             <h2 class="card-title">Attractions & Activities</h2>
             <p class="card-description">Submit ideas and vote on what to do</p>
           </div>
-          <button class="btn-add-attraction" @click="showAddDialog = true">
+          <button class="btn-add-attraction" @click="openAddDialog">
             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
             </svg>
@@ -427,7 +427,7 @@
           <h2 class="dialog-title">Add Attraction</h2>
           <p class="dialog-description">Suggest a place or activity for the group</p>
         </div>
-        <form @submit.prevent="handleAddAttraction" class="dialog-form">
+        <form ref="addFormRef" @submit.prevent="handleAddAttraction" class="dialog-form">
           <div class="form-group">
             <label for="name">Name</label>
             <input id="name" v-model="newAttraction.name" type="text" required placeholder="e.g., South Beach" />
@@ -442,20 +442,44 @@
             <input id="cost" v-model.number="newAttraction.estimatedCost" type="number" step="0.01"
               placeholder="0.00" />
           </div>
-          <div class="form-row">
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input type="checkbox" v-model="newAttraction.multiday" />
+              <span>Multiday event</span>
+            </label>
+          </div>
+          <div v-if="!newAttraction.multiday" class="form-row">
             <div class="form-group">
               <label for="date">Date</label>
-              <input id="date" v-model="newAttraction.date" type="date" />
+              <input id="date" v-model="newAttraction.date" type="date" 
+                :min="props.tripStartDate" 
+                :max="props.tripEndDate" />
+            </div>
+          </div>
+          <div v-else class="form-row">
+            <div class="form-group">
+              <label for="start-date">Start Date</label>
+              <input id="start-date" v-model="newAttraction.startDate" type="date" 
+                :min="props.tripStartDate" 
+                :max="props.tripEndDate" />
+            </div>
+            <div class="form-group">
+              <label for="end-date">End Date</label>
+              <input id="end-date" v-model="newAttraction.endDate" type="date" 
+                :min="newAttraction.startDate || props.tripStartDate" 
+                :max="props.tripEndDate" />
             </div>
           </div>
           <div class="form-row">
             <div class="form-group">
               <label for="time">Start Time</label>
-              <input id="time" v-model="newAttraction.time" type="time" />
+              <input id="time" v-model="newAttraction.time" type="time" 
+                @input="(e: Event) => { const input = e.target as HTMLInputElement; input.setCustomValidity(''); }" />
             </div>
             <div class="form-group">
               <label for="endTime">End Time</label>
-              <input id="endTime" v-model="newAttraction.endTime" type="time" />
+              <input id="endTime" v-model="newAttraction.endTime" type="time" 
+                @input="(e: Event) => { const input = e.target as HTMLInputElement; input.setCustomValidity(''); }" />
             </div>
           </div>
           <div class="form-group">
@@ -487,7 +511,7 @@
           <h2 class="dialog-title">Edit Activity</h2>
           <p class="dialog-description">Update activity details</p>
         </div>
-        <form @submit.prevent="handleSaveEdit" class="dialog-form">
+        <form ref="editFormRef" @submit.prevent="handleSaveEdit" class="dialog-form">
           <div class="form-group">
             <label for="edit-title">Title</label>
             <input id="edit-title" v-model="editForm.title" type="text" required placeholder="Activity title" />
@@ -500,11 +524,15 @@
           <div class="form-row">
             <div class="form-group">
               <label for="edit-start">Start Date & Time</label>
-              <input id="edit-start" v-model="editForm.start" type="datetime-local" required />
+              <input id="edit-start" v-model="editForm.start" type="datetime-local" required
+                :min="minDateTime" :max="maxDateTime" 
+                @input="(e: Event) => { const input = e.target as HTMLInputElement; input.setCustomValidity(''); }" />
             </div>
             <div class="form-group">
               <label for="edit-end">End Date & Time</label>
-              <input id="edit-end" v-model="editForm.end" type="datetime-local" required />
+              <input id="edit-end" v-model="editForm.end" type="datetime-local" required
+                :min="minDateTime" :max="maxDateTime" 
+                @input="(e: Event) => { const input = e.target as HTMLInputElement; input.setCustomValidity(''); }" />
             </div>
           </div>
           <div class="form-group">
@@ -541,7 +569,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { useAuth } from '../../stores/useAuth';
 import * as Activities from '../../api/activities';
 import * as Ratings from '../../api/ratings';
@@ -554,6 +582,8 @@ const props = defineProps<{
   travelers: Traveler[];
   tripId: string;
   organizerId?: string;
+  tripStartDate?: string;
+  tripEndDate?: string;
 }>();
 
 const emit = defineEmits<{
@@ -567,9 +597,22 @@ const emit = defineEmits<{
 const { currentUser, getSession } = useAuth();
 const currentUserId = computed(() => currentUser.value?.id || '');
 
+// Computed min/max datetime values for trip date range
+const minDateTime = computed(() => {
+  if (!props.tripStartDate) return undefined;
+  return `${props.tripStartDate}T00:00`;
+});
+
+const maxDateTime = computed(() => {
+  if (!props.tripEndDate) return undefined;
+  return `${props.tripEndDate}T23:59`;
+});
+
 // State
 const activeView = ref<'mine' | 'group' | 'proposals'>('proposals');
 const showAddDialog = ref(false);
+const addFormRef = ref<HTMLFormElement | null>(null);
+const editFormRef = ref<HTMLFormElement | null>(null);
 const userRatings = ref<Record<string, number>>({});
 const ratings = ref<Record<string, { rater?: string; num?: number; rating?: string; ratingNum?: number }[]>>({});
 const optedInAttractions = ref<Set<string>>(new Set());
@@ -1353,8 +1396,145 @@ function handleDeleteProposal(activityId: string) {
   };
 }
 
+// Validate if activity dates are within trip date range
+function isActivityDateWithinTrip(activityStart: string, activityEnd: string): { valid: boolean; error?: string } {
+  if (!props.tripStartDate || !props.tripEndDate) {
+    // If trip dates aren't provided, skip validation
+    return { valid: true };
+  }
+
+  const tripStart = new Date(props.tripStartDate + 'T00:00:00');
+  const tripEnd = new Date(props.tripEndDate + 'T23:59:59');
+  const activityStartDate = new Date(activityStart);
+  const activityEndDate = new Date(activityEnd);
+
+  // Check if activity start is before trip start
+  if (activityStartDate < tripStart) {
+    return {
+      valid: false,
+      error: `Activity start date cannot be before the trip start date (${props.tripStartDate}).`,
+    };
+  }
+
+  // Check if activity end is after trip end
+  if (activityEndDate > tripEnd) {
+    return {
+      valid: false,
+      error: `Activity end date cannot be after the trip end date (${props.tripEndDate}).`,
+    };
+  }
+
+  return { valid: true };
+}
+
+// Parse and make error messages user-friendly
+function parseUserFriendlyError(error: any): string {
+  if (!error) {
+    return "An unexpected error occurred. Please try again.";
+  }
+
+  // If it's already a user-friendly string, return it
+  if (typeof error === 'string') {
+    // Check for common backend error patterns and make them friendly
+    const errorLower = error.toLowerCase();
+    
+    // Date/time validation errors
+    if (errorLower.includes('startdatetime') && errorLower.includes('enddatetime') && (errorLower.includes('before') || errorLower.includes('after'))) {
+      return "End time cannot be before start time. Please adjust the times.";
+    }
+    if (errorLower.includes('startdatetime must be before enddatetime')) {
+      return "End time cannot be before start time. Please adjust the times.";
+    }
+    if ((errorLower.includes('start') || errorLower.includes('startdatetime')) && (errorLower.includes('end') || errorLower.includes('enddatetime')) && (errorLower.includes('before') || errorLower.includes('after'))) {
+      return "End time cannot be before start time. Please adjust the times.";
+    }
+    
+    // Date range errors
+    if (errorLower.includes('before the trip start date')) {
+      return error; // Already user-friendly
+    }
+    if (errorLower.includes('after the trip end date')) {
+      return error; // Already user-friendly
+    }
+    if (errorLower.includes('within the trip date range')) {
+      return error; // Already user-friendly
+    }
+    
+    // Not found errors
+    if (errorLower.includes('not found')) {
+      return error.replace(/Activity with ID [^\s]+ not found\./, "This activity could not be found. It may have already been deleted.");
+    }
+    
+    // Permission errors
+    if (errorLower.includes('permission') || errorLower.includes('authorized') || errorLower.includes('unauthorized')) {
+      return "You don't have permission to perform this action.";
+    }
+    
+    // Timeout errors
+    if (errorLower.includes('timeout') || errorLower.includes('timed out')) {
+      return "The request took too long. Please check your connection and try again.";
+    }
+    
+    return error;
+  }
+
+  // Handle error objects
+  if (typeof error === 'object') {
+    // Check for response.data.error (API error)
+    if (error?.response?.data?.error) {
+      return parseUserFriendlyError(error.response.data.error);
+    }
+    
+    // Check for error.message
+    if (error?.message) {
+      return parseUserFriendlyError(error.message);
+    }
+    
+    // Check for error.error
+    if (error?.error) {
+      return parseUserFriendlyError(error.error);
+    }
+    
+    // HTTP status code errors
+    if (error?.response?.status === 500) {
+      return "A server error occurred. Please try again later.";
+    }
+    if (error?.response?.status === 401 || error?.response?.status === 403) {
+      return "You don't have permission to perform this action.";
+    }
+    if (error?.response?.status === 404) {
+      return "The requested item could not be found. It may have already been deleted.";
+    }
+    if (error?.response?.status === 504 || error?.code === 'ECONNABORTED') {
+      return "The request timed out. Please check your connection and try again.";
+    }
+  }
+
+  return "An unexpected error occurred. Please try again.";
+}
+
+function openAddDialog() {
+  showAddDialog.value = true;
+  // Clear any previous validation messages
+  nextTick(() => {
+    if (addFormRef.value) {
+      addFormRef.value.querySelectorAll('input').forEach((input: HTMLInputElement) => {
+        input.setCustomValidity('');
+      });
+    }
+  });
+}
+
 function openEditDialog(activity: ActivityWithDetails) {
   editingActivity.value = activity;
+  // Clear any previous validation messages
+  nextTick(() => {
+    if (editFormRef.value) {
+      editFormRef.value.querySelectorAll('input').forEach((input: HTMLInputElement) => {
+        input.setCustomValidity('');
+      });
+    }
+  });
 
   // Helper function to convert ISO string to local datetime format
   const toLocalDatetimeString = (isoString: string): string => {
@@ -1379,6 +1559,13 @@ function openEditDialog(activity: ActivityWithDetails) {
 }
 
 async function handleSaveEdit() {
+  // Clear any previous validation messages
+  if (editFormRef.value) {
+    editFormRef.value.querySelectorAll('input').forEach((input: HTMLInputElement) => {
+      input.setCustomValidity('');
+    });
+  }
+
   const session = getSession();
   if (!session || !editingActivity.value) {
     console.warn('Cannot save edit: no session or activity');
@@ -1408,6 +1595,29 @@ async function handleSaveEdit() {
 
     const newStart = toISOString(editForm.value.start);
     const newEnd = toISOString(editForm.value.end);
+
+    // Validate end time is not before start time
+    if (newStart && newEnd && new Date(newEnd) < new Date(newStart)) {
+      const endInput = editFormRef.value?.querySelector('#edit-end') as HTMLInputElement;
+      if (endInput) {
+        endInput.setCustomValidity('End time cannot be before start time. Please adjust the times.');
+        endInput.reportValidity();
+      }
+      return;
+    }
+
+    // Always validate dates are within trip range, regardless of whether they changed
+    if (newStart && newEnd) {
+      const validation = isActivityDateWithinTrip(newStart, newEnd);
+      if (!validation.valid) {
+        const startInput = editFormRef.value?.querySelector('#edit-start') as HTMLInputElement;
+        if (startInput) {
+          startInput.setCustomValidity(validation.error || 'Activity dates must be within the trip date range.');
+          startInput.reportValidity();
+        }
+        return;
+      }
+    }
 
     // Compare dates (normalize to ISO strings for comparison)
     const currentStart = activity.start ? new Date(activity.start).toISOString() : null;
@@ -1446,22 +1656,37 @@ async function handleSaveEdit() {
     showEditDialog.value = false;
     editingActivity.value = null;
     emit('refresh-activities');
+    // Clear validation messages on success
+    if (editFormRef.value) {
+      editFormRef.value.querySelectorAll('input').forEach((input: HTMLInputElement) => {
+        input.setCustomValidity('');
+      });
+    }
   } catch (error: any) {
     console.error('Error saving activity edits:', error);
-    let message = "There was an issue saving your changes. Please try again.";
+    const errorMessage = parseUserFriendlyError(error);
+    const errorString = typeof error === 'string' ? error : error?.response?.data?.error || error?.message || '';
+    const errorLower = errorString.toLowerCase();
     
-    if (error?.response?.data?.error) {
-      message = error.response.data.error;
-    } else if (error?.response?.status === 500) {
-      message = "A server error occurred while saving your changes. Please try again later.";
-    } else if (error?.response?.status === 401 || error?.response?.status === 403) {
-      message = "You don't have permission to edit this event.";
-    } else if (error instanceof Error && error.message) {
-      message = error.message;
+    // Determine which field to show the error on based on error content
+    let targetInput: HTMLInputElement | null = null;
+    
+    if (errorLower.includes('start') && errorLower.includes('end') && (errorLower.includes('time') || errorLower.includes('date'))) {
+      // Time/date validation errors - show on end datetime field
+      targetInput = editFormRef.value?.querySelector('#edit-end') as HTMLInputElement;
+    } else if (errorLower.includes('date') && errorLower.includes('range')) {
+      // Date range errors - show on start datetime field
+      targetInput = editFormRef.value?.querySelector('#edit-start') as HTMLInputElement;
+    } else {
+      // Fallback to title field
+      targetInput = editFormRef.value?.querySelector('#edit-title') as HTMLInputElement;
     }
     
-    alert(message);
-  } 
+    if (targetInput) {
+      targetInput.setCustomValidity(errorMessage);
+      targetInput.reportValidity();
+    }
+  }
 }
 
 function handleRevertToProposal(activityId: string) {
@@ -1572,6 +1797,12 @@ function handleSoloChange() {
 }
 
 async function handleAddAttraction() {
+  // Clear any previous validation messages
+  if (addFormRef.value) {
+    addFormRef.value.querySelectorAll('input').forEach((input: HTMLInputElement) => {
+      input.setCustomValidity('');
+    });
+  }
 
   const session = getSession();
   if (!session) return;
@@ -1580,7 +1811,47 @@ async function handleAddAttraction() {
     let startDateTime = '';
     let endDateTime = '';
 
-    if (newAttraction.value.date) {
+    if (newAttraction.value.multiday) {
+      // Handle multiday events
+      const startDate = newAttraction.value.startDate || newAttraction.value.date;
+      const endDate = newAttraction.value.endDate || newAttraction.value.startDate || newAttraction.value.date;
+
+      if (!startDate) {
+        const startDateInput = addFormRef.value?.querySelector('#start-date') as HTMLInputElement;
+        if (startDateInput) {
+          startDateInput.setCustomValidity('Please select a start date for the multiday event.');
+          startDateInput.reportValidity();
+        }
+        return;
+      }
+
+      if (startDate) {
+        startDateTime = newAttraction.value.time 
+          ? `${startDate}T${newAttraction.value.time}:00`
+          : `${startDate}T00:00:00`;
+      }
+
+      if (endDate) {
+        endDateTime = newAttraction.value.endTime
+          ? `${endDate}T${newAttraction.value.endTime}:00`
+          : `${endDate}T23:59:59`;
+      } else {
+        endDateTime = newAttraction.value.endTime
+          ? `${startDate}T${newAttraction.value.endTime}:00`
+          : `${startDate}T23:59:59`;
+      }
+      
+      // Validate end date is not before start date
+      if (endDate && startDate && new Date(endDate) < new Date(startDate)) {
+        const endDateInput = addFormRef.value?.querySelector('#end-date') as HTMLInputElement;
+        if (endDateInput) {
+          endDateInput.setCustomValidity('End date cannot be before start date.');
+          endDateInput.reportValidity();
+        }
+        return;
+      }
+    } else if (newAttraction.value.date) {
+      // Handle single-day events
       if (newAttraction.value.time) {
         startDateTime = `${newAttraction.value.date}T${newAttraction.value.time}:00`;
       } else {
@@ -1602,6 +1873,27 @@ async function handleAddAttraction() {
       const end = new Date(now);
       end.setHours(end.getHours() + 2);
       endDateTime = end.toISOString();
+    }
+
+    // Validate end time is not before start time
+    if (new Date(endDateTime) < new Date(startDateTime)) {
+      const endTimeInput = addFormRef.value?.querySelector('#endTime') as HTMLInputElement;
+      if (endTimeInput) {
+        endTimeInput.setCustomValidity('End time cannot be before start time. Please adjust the times.');
+        endTimeInput.reportValidity();
+      }
+      return;
+    }
+
+    // Validate activity dates are within trip dates
+    const validation = isActivityDateWithinTrip(startDateTime, endDateTime);
+    if (!validation.valid) {
+      const dateInput = addFormRef.value?.querySelector(newAttraction.value.multiday ? '#start-date' : '#date') as HTMLInputElement;
+      if (dateInput) {
+        dateInput.setCustomValidity(validation.error || 'Activity dates must be within the trip date range.');
+        dateInput.reportValidity();
+      }
+      return;
     }
 
     const activity: ActivityWithDetails = {
@@ -1632,28 +1924,46 @@ async function handleAddAttraction() {
       estimatedCost: 0,
       estimatedDuration: '',
       date: '',
+      startDate: '',
+      endDate: '',
       time: '',
       endTime: '',
+      multiday: false,
       solo: false,
       proposal: true,
     };
 
     showAddDialog.value = false;
+    // Clear validation messages on success
+    if (addFormRef.value) {
+      addFormRef.value.querySelectorAll('input').forEach((input: HTMLInputElement) => {
+        input.setCustomValidity('');
+      });
+    }
   } catch (error: any) {
     console.error('Error adding attraction:', error);
-    let message = "There was an issue adding this attraction. Please check the fields and try again.";
+    const errorMessage = parseUserFriendlyError(error);
+    const errorString = typeof error === 'string' ? error : error?.response?.data?.error || error?.message || '';
+    const errorLower = errorString.toLowerCase();
     
-    if (error?.response?.data?.error) {
-      message = error.response.data.error;
-    } else if (error?.response?.status === 500) {
-      message = "A server error occurred. Please try again later.";
-    } else if (error?.response?.status === 401 || error?.response?.status === 403) {
-      message = "You don't have permission to add attractions.";
-    } else if (error instanceof Error && error.message) {
-      message = error.message;
+    // Determine which field to show the error on based on error content
+    let targetInput: HTMLInputElement | null = null;
+    
+    if (errorLower.includes('start') && errorLower.includes('end') && (errorLower.includes('time') || errorLower.includes('date'))) {
+      // Time/date validation errors - show on end time field
+      targetInput = addFormRef.value?.querySelector('#endTime') as HTMLInputElement;
+    } else if (errorLower.includes('date') && errorLower.includes('range')) {
+      // Date range errors - show on date field
+      targetInput = addFormRef.value?.querySelector(newAttraction.value.multiday ? '#start-date' : '#date') as HTMLInputElement;
+    } else {
+      // Fallback to name field
+      targetInput = addFormRef.value?.querySelector('#name') as HTMLInputElement;
     }
     
-    alert(message);
+    if (targetInput) {
+      targetInput.setCustomValidity(errorMessage);
+      targetInput.reportValidity();
+    }
   }
 }
 
@@ -1663,8 +1973,11 @@ const newAttraction = ref({
   estimatedCost: 0,
   estimatedDuration: '',
   date: '',
+  startDate: '',
+  endDate: '',
   time: '',
   endTime: '',
+  multiday: false,
   solo: false,
   proposal: true,
 });
