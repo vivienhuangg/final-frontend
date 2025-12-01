@@ -39,7 +39,7 @@ export const useAuthStore = defineStore("auth", {
         } catch {}
 
         // attempt to get canonical user id from server session
-        let serverUserId: string | undefined;
+        let serverUserId: string = "";
         try {
           const resp = await userApi.getUserFromSession();
           serverUserId = resp?.user;

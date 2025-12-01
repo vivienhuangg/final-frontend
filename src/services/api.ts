@@ -617,22 +617,6 @@ export const costTrackerApi = {
 
 // Rating API
 export const ratingApi = {
-	// Add rating
-	async addRating(data: {
-		item: string;
-		ratingNum: number;
-	}): Promise<{ rating: string }> {
-		return apiRequest<{ rating: string }>("/ratings/item/add", data);
-	},
-
-	// Change rating
-	async changeRating(data: {
-		rating: string;
-		ratingNum: number;
-	}): Promise<{ rating: string }> {
-		return apiRequest<{ rating: string }>("/ratings/item/change", data);
-	},
-
 	// Set rating (creates if doesn't exist, updates if it does)
 	async setRating(data: {
 		item: string;

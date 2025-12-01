@@ -87,6 +87,58 @@
         <div class="card">
           <div class="card-header">
             <h2 class="card-title">My Packing List</h2>
+            <div class="header-controls">
+              <template v-if="!selectingForShare && !selectingForDelete">
+                <button
+                  class="btn-secondary"
+                  @click="startSelectingForShare"
+                  title="Select items to move to shared list"
+                >
+                  Move selected to shared
+                </button>
+                <button
+                  class="btn-secondary"
+                  @click="startSelectingForDelete"
+                  title="Select items to delete"
+                >
+                  Delete selected
+                </button>
+              </template>
+              <template v-else-if="selectingForShare">
+                <button
+                  class="btn-primary"
+                  @click="confirmMoveSelectedToShared"
+                  :disabled="selectedCount === 0"
+                  title="Confirm moving selected items to shared list"
+                >
+                  Confirm move<span v-if="selectedCount"> ({{ selectedCount }})</span>
+                </button>
+                <button
+                  class="btn-secondary"
+                  @click="cancelSelectingForShare"
+                  title="Cancel selection"
+                >
+                  Cancel
+                </button>
+              </template>
+              <template v-else>
+                <button
+                  class="btn-primary"
+                  @click="confirmDeleteSelected"
+                  :disabled="selectedDeleteCount === 0"
+                  title="Confirm deleting selected items"
+                >
+                  Confirm delete<span v-if="selectedDeleteCount"> ({{ selectedDeleteCount }})</span>
+                </button>
+                <button
+                  class="btn-secondary"
+                  @click="cancelSelectingForDelete"
+                  title="Cancel selection"
+                >
+                  Cancel
+                </button>
+              </template>
+            </div>
           </div>
           <div class="card-content">
             <div v-if="myPersonalItems.length === 0 && myAssignedSharedItems.length === 0" class="empty-state">
@@ -100,18 +152,35 @@
                 <template v-if="getPersonalItemsByCategory(category || '').length > 0">
                   <h3 class="category-title">{{ category || 'Uncategorized' }}</h3>
                   <div class="items-list">
-                    <div v-for="item in getPersonalItemsByCategory(category || '')" :key="item.id" class="packing-item">
+                    <div
+                      v-for="item in getPersonalItemsByCategory(category || '')"
+                      :key="item.id"
+                      class="packing-item"
+                      :class="{
+                        selecting: selectingForShare || selectingForDelete,
+                        'selected-for-share': selectingForShare && isSelected(item.id),
+                        'selected-for-delete': selectingForDelete && isDeleteSelected(item.id)
+                      }"
+                      @click="onRowClickPersonal(item.id)"
+                    >
                       <label class="packing-item-label">
-                        <input type="checkbox" :checked="item.finished" @change="toggleItem(item.id)" />
+                        <input
+                          type="checkbox"
+                          :checked="item.finished"
+                          :disabled="selectingForShare || selectingForDelete"
+                          @click="handleCheckboxClick"
+                          @change="toggleItem(item.id)"
+                          title="Mark as packed"
+                        />
                         <span :class="{ checked: item.finished }">{{ item.name }}</span>
                       </label>
                       <div class="quantity-controls">
-                        <button type="button" @click="handleQuantityChange(item.id, (item.quantity || 1) - 1)"
+                        <button type="button" @click.stop="handleQuantityChange(item.id, (item.quantity || 1) - 1)"
                           class="quantity-btn" :disabled="(item.quantity || 1) <= 1">
                           -
                         </button>
                         <span class="quantity-value">{{ item.quantity || 1 }}</span>
-                        <button type="button" @click="handleQuantityChange(item.id, (item.quantity || 1) + 1)"
+                        <button type="button" @click.stop="handleQuantityChange(item.id, (item.quantity || 1) + 1)"
                           class="quantity-btn">
                           +
                         </button>
@@ -125,9 +194,18 @@
               <div v-if="myAssignedSharedItems.length > 0" class="category-section">
                 <h3 class="category-title">Assigned Shared Items</h3>
                 <div class="items-list">
-                  <div v-for="item in myAssignedSharedItems" :key="item.id" class="packing-item">
+                  <div
+                    v-for="item in myAssignedSharedItems"
+                    :key="item.id"
+                    class="packing-item"
+                    :class="{
+                      selecting: selectingForDelete,
+                      'selected-for-delete': selectingForDelete && isDeleteSelected(item.id)
+                    }"
+                    @click="onRowClickAssignedShared(item.id)"
+                  >
                     <label class="packing-item-label">
-                      <input type="checkbox" :checked="item.finished" @change="toggleItem(item.id)" />
+                      <input type="checkbox" :checked="item.finished" :disabled="selectingForShare || selectingForDelete" @click="handleCheckboxClick" @change="toggleItem(item.id)" />
                       <span :class="{ checked: item.finished }">{{ item.name }}</span>
                     </label>
                     <div class="quantity-controls">
@@ -207,7 +285,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { useAuth } from "../../stores/useAuth";
 import type { ChecklistItem, Traveler } from "../../types/trip";
 
@@ -249,6 +327,8 @@ const emit = defineEmits<{
   (e: "regenerate"): void;
   (e: "generate"): void;
   (e: "assign-item", itemId: string, travelerId: string): void;
+  (e: "move-items-to-shared", itemIds: string[]): void;
+  (e: "delete-items", itemIds: string[]): void;
 }>();
 
 const { currentUser } = useAuth();
@@ -315,6 +395,141 @@ function onAssignChange(itemId: string, e: Event) {
   console.log("Assigning item", itemId, "to traveler", travelerId);
   emit("assign-item", itemId, travelerId);
 }
+
+// Selection state for bulk move from personal to shared
+const selectedPersonal = ref<Set<string>>(new Set());
+const selectingForShare = ref(false);
+
+const selectedCount = computed(() => selectedPersonal.value.size);
+
+function isSelected(itemId: string): boolean {
+  return selectedPersonal.value.has(itemId);
+}
+
+function toggleSelect(itemId: string, checked: boolean) {
+  const set = new Set(selectedPersonal.value);
+  if (checked) set.add(itemId);
+  else set.delete(itemId);
+  selectedPersonal.value = set;
+}
+
+function moveSelectedToShared() {
+  if (selectedPersonal.value.size === 0) return;
+  const ids = Array.from(selectedPersonal.value);
+  emit("move-items-to-shared", ids);
+  selectedPersonal.value = new Set();
+}
+
+function startSelectingForShare() {
+  // turn off delete mode and clear its selections
+  selectingForDelete.value = false;
+  selectedForDelete.value = new Set();
+  // reset share selection and enable share mode
+  selectedPersonal.value = new Set();
+  selectingForShare.value = true;
+}
+
+function cancelSelectingForShare() {
+  selectingForShare.value = false;
+  selectedPersonal.value = new Set();
+}
+
+function confirmMoveSelectedToShared() {
+  if (selectedPersonal.value.size === 0) return;
+  const ids = Array.from(selectedPersonal.value);
+  emit("move-items-to-shared", ids);
+  selectedPersonal.value = new Set();
+  selectingForShare.value = false;
+}
+
+// Delete selection state (can include personal and assigned-shared items from My Packing List)
+const selectedForDelete = ref<Set<string>>(new Set());
+const selectingForDelete = ref(false);
+const selectedDeleteCount = computed(() => selectedForDelete.value.size);
+
+function isDeleteSelected(itemId: string): boolean {
+  return selectedForDelete.value.has(itemId);
+}
+
+function toggleDeleteSelect(itemId: string, checked: boolean) {
+  const set = new Set(selectedForDelete.value);
+  if (checked) set.add(itemId);
+  else set.delete(itemId);
+  selectedForDelete.value = set;
+}
+
+function startSelectingForDelete() {
+  // ensure share selection mode is off
+  selectingForShare.value = false;
+  selectedPersonal.value = new Set();
+  selectingForDelete.value = true;
+}
+
+function cancelSelectingForDelete() {
+  selectingForDelete.value = false;
+  selectedForDelete.value = new Set();
+}
+
+function confirmDeleteSelected() {
+  if (selectedForDelete.value.size === 0) return;
+  const ids = Array.from(selectedForDelete.value);
+  emit("delete-items", ids);
+  selectedForDelete.value = new Set();
+  selectingForDelete.value = false;
+}
+
+function onRowClickPersonal(itemId: string) {
+  if (selectingForShare.value) {
+    toggleSelect(itemId, !isSelected(itemId));
+    return;
+  }
+  if (selectingForDelete.value) {
+    toggleDeleteSelect(itemId, !isDeleteSelected(itemId));
+  }
+}
+
+function onRowClickAssignedShared(itemId: string) {
+  if (selectingForDelete.value) {
+    toggleDeleteSelect(itemId, !isDeleteSelected(itemId));
+  }
+}
+
+function handleCheckboxClick(event: Event) {
+  if (selectingForShare.value || selectingForDelete.value) {
+    // In selection mode, don't stop propagation so row click can handle selection
+  } else {
+    event.stopPropagation();
+  }
+}
+
+// Keep selection consistent when personal items change
+watch(
+  () => myPersonalItems.value.map((i) => i.id),
+  (ids) => {
+    const keep = new Set(ids);
+    const next = new Set<string>();
+    selectedPersonal.value.forEach((id) => {
+      if (keep.has(id)) next.add(id);
+    });
+    selectedPersonal.value = next;
+  }
+);
+
+// Prune delete selection if items disappear from My Packing List scope
+watch(
+  () => [
+    ...myPersonalItems.value.map((i) => i.id),
+    ...myAssignedSharedItems.value.map((i) => i.id),
+  ],
+  (ids) => {
+    const keep = new Set(ids);
+    const next = new Set<string>();
+    selectedForDelete.value.forEach((id) => {
+      if (keep.has(id)) next.add(id);
+    });
+    selectedForDelete.value = next;
+  }
+);
 </script>
 
 <style scoped>
@@ -523,6 +738,20 @@ function onAssignChange(itemId: string, e: Event) {
   background: #f0f0f0;
 }
 
+.packing-item.selecting {
+  cursor: pointer;
+}
+
+.packing-item.selected-for-share {
+  background: #eaf0f7;
+  box-shadow: inset 0 0 0 2px #1e3a5f20;
+}
+
+.packing-item.selected-for-delete {
+  background: #fbeaea;
+  box-shadow: inset 0 0 0 2px #ef444440;
+}
+
 .packing-item-label {
   display: flex;
   align-items: center;
@@ -535,6 +764,11 @@ function onAssignChange(itemId: string, e: Event) {
   width: 20px;
   height: 20px;
   cursor: pointer;
+}
+
+.packing-item input[type="checkbox"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .packing-item span {
