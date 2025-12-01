@@ -291,10 +291,16 @@ async function loadPackingItems() {
 				} catch {}
 			}
 
+			// Sanitize assignees: if an item is assigned to a user who is no longer in the trip,
+			// treat it as unassigned so the UI shows an empty selection.
+			const validTravelerIds = new Set<string>(props.trip.travelers.map(t => t.id));
 			packingItems.value = deduped.map((item) => {
 				const key = item.name.toLowerCase();
 				const persistedQty = qtyMap[key];
-				return { ...item, quantity: persistedQty ?? item.quantity ?? 1 };
+				const assignee = item.assignee && validTravelerIds.has(String(item.assignee))
+					? item.assignee
+					: undefined;
+				return { ...item, quantity: persistedQty ?? item.quantity ?? 1, assignee };
 			});
 		}
 	} catch (error: any) {

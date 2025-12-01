@@ -468,21 +468,54 @@ async function handleLogout() {
 
 async function handleDeleteTrip(tripId: string) {
   const session = getSession();
-  if (!session) return;
+  if (!session || !currentUser.value) return;
 
-  const confirmed = window.confirm('Delete this trip? This action cannot be undone.');
+  const trip = trips.value.find(t => t.id === tripId);
+  const amOrganizer = trip ? trip.organizer === currentUser.value.id : false;
+
+  const confirmed = window.confirm(
+    amOrganizer
+      ? 'You are the organizer. Leaving will delete this trip for everyone. Continue?'
+      : 'Leave this trip? You will be removed, but it will remain for other members.'
+  );
   if (!confirmed) return;
 
   try {
     loading.value = true;
-    await Trips.deleteTrip(tripId);
-    // Remove from local state optimistically
-    trips.value = trips.value.filter(t => t.id !== tripId);
-    // Optionally reload to ensure consistency
-    await loadTrips();
+    if (amOrganizer) {
+      // Organizer leaving: delete the trip for everyone
+      await Trips.deleteTrip(tripId);
+      // Remove from local state
+      trips.value = trips.value.filter(t => t.id !== tripId);
+      await loadTrips();
+    } else {
+      // Non-organizer leaving: only remove current user from the trip
+      await Trips.deleteTraveller(tripId, currentUser.value.id);
+      // Also remove any invitation records tied to this trip for the current user
+      try {
+        const invs = await Invitations.getTripInvitations(tripId);
+        for (const inv of invs.results) {
+          if (inv.invitee === currentUser.value.id) {
+            // We need the invitation id; if API returns only summary, skip deleting
+            // Prefer using getMyInvitations to map invitations to ids
+            const myInvs = await Invitations.getMyInvitations();
+            const match = myInvs.results.find((i: any) => i.event === tripId && i.invitation);
+            if (match?.invitation) {
+              await Invitations.deleteInvitation(match.invitation).catch(() => {});
+            }
+          }
+        }
+      } catch (_) {
+        // Ignore invitation cleanup errors
+      }
+      // Optimistically remove trip from local list (since user left)
+      trips.value = trips.value.filter(t => t.id !== tripId);
+      // Reload to ensure consistency
+      await loadTrips();
+    }
   } catch (error: any) {
-    console.error('Failed to delete trip:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Failed to delete trip';
+    console.error('Failed to update trip membership:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to update trip membership';
     alert(errorMessage);
   } finally {
     loading.value = false;
