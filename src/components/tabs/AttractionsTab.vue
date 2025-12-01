@@ -640,11 +640,11 @@ function getProposalConflicts(proposal: ActivityWithDetails): Array<{ activity: 
 
   allCommittedEvents.forEach(event => {
     if (event.id !== proposal.id && hasTimeConflict(proposal, event)) {
-      // Determine if it's a my-event or group-event
-      const isMyEvent = myEvents.value.some(me => me.id === event.id);
+      // Determine type based on activity properties: solo = My Event, group = Group Event
+      const conflictType = event.solo === true ? 'my-event' : 'group-event';
       conflicts.push({
         activity: event,
-        type: isMyEvent ? 'my-event' : 'group-event'
+        type: conflictType
       });
     }
   });
@@ -656,19 +656,17 @@ function getProposalConflicts(proposal: ActivityWithDetails): Array<{ activity: 
 function getCommittedEventConflicts(activity: ActivityWithDetails): Array<{ activity: ActivityWithDetails; type: 'my-event' | 'group-event' }> {
   const conflicts: Array<{ activity: ActivityWithDetails; type: 'my-event' | 'group-event' }> = [];
 
-  // Check against other My Events
-  myEvents.value.forEach(myEvent => {
-    if (myEvent.id !== activity.id && hasTimeConflict(activity, myEvent)) {
-      conflicts.push({ activity: myEvent, type: 'my-event' });
-    }
-  });
+  // Check against other committed events (both myEvents and groupEvents)
+  const allCommittedEvents = [
+    ...myEvents.value,
+    ...groupEvents.value.filter(ge => !myEvents.value.some(me => me.id === ge.id)), // Avoid duplicates
+  ];
 
-  // Check against Group Events (but not if it's already in myEvents to avoid duplicates)
-  groupEvents.value.forEach(groupEvent => {
-    if (groupEvent.id !== activity.id &&
-      !myEvents.value.some(me => me.id === groupEvent.id) &&
-      hasTimeConflict(activity, groupEvent)) {
-      conflicts.push({ activity: groupEvent, type: 'group-event' });
+  allCommittedEvents.forEach(event => {
+    if (event.id !== activity.id && hasTimeConflict(activity, event)) {
+      // Determine type based on activity properties: solo = My Event, group = Group Event
+      const conflictType = event.solo === true ? 'my-event' : 'group-event';
+      conflicts.push({ activity: event, type: conflictType });
     }
   });
 
