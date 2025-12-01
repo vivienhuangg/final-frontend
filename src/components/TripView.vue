@@ -87,8 +87,8 @@
 					:generating="generatingPackingList" :generation-stage="generationStage"
 					:generation-progress="generationProgress" :adding-item="addingPackingItem" @add-item="handleAddItem"
 					@toggle-item="handleToggleItem" @quantity-change="handleQuantityChange"
-					@assign-item="handleAssignItem" @regenerate="handleRegeneratePackingList"
-					@generate="handleGeneratePackingList" />
+					@assign-item="handleAssignItem" @move-items-to-shared="handleMoveItemsToShared" @delete-items="handleDeleteItems"
+					@regenerate="handleRegeneratePackingList" @generate="handleGeneratePackingList" />
 			</div>
 		</div>
 	</div>
@@ -262,12 +262,28 @@ async function loadPackingItems() {
 
 			// Deduplicate by name (keep the first occurrence)
 			const seenNames = new Set<string>();
-			packingItems.value = transformedItems.filter((item) => {
+			const deduped = transformedItems.filter((item) => {
 				if (seenNames.has(item.name.toLowerCase())) {
 					return false; // Duplicate, skip it
 				}
 				seenNames.add(item.name.toLowerCase());
 				return true;
+			});
+
+			// Apply client-persisted quantities from localStorage
+			const qKey = packingListId.value ? `packing_qty_${packingListId.value}` : null;
+			let qtyMap: Record<string, number> = {};
+			if (qKey) {
+				try {
+					const raw = localStorage.getItem(qKey);
+					if (raw) qtyMap = JSON.parse(raw);
+				} catch {}
+			}
+
+			packingItems.value = deduped.map((item) => {
+				const key = item.name.toLowerCase();
+				const persistedQty = qtyMap[key];
+				return { ...item, quantity: persistedQty ?? item.quantity ?? 1 };
 			});
 		}
 	} catch (error: any) {
@@ -465,11 +481,30 @@ async function handleAddItem(itemName: string, isShared: boolean) {
 	const trimmedName = itemName.trim();
 	if (!trimmedName) return;
 
-	const duplicate = packingItems.value.some(
+	// If item already exists, increment its quantity locally instead of erroring
+	const existing = packingItems.value.find(
 		(item) => item.name.toLowerCase() === trimmedName.toLowerCase(),
 	);
-	if (duplicate) {
-		alert("Item already exists in your packing list.");
+	if (existing) {
+		const newQty = (existing.quantity || 1) + 1;
+		existing.quantity = newQty;
+		// Persist to backend if possible
+		try {
+			if (packingListId.value) {
+				await PackingLists.updateQuantity(packingListId.value, existing.id, newQty);
+			}
+		} catch (e) {
+			// Fallback: persist locally
+			if (packingListId.value) {
+				const qKey = `packing_qty_${packingListId.value}`;
+				try {
+					const raw = localStorage.getItem(qKey);
+					const map = raw ? JSON.parse(raw) : {};
+					map[existing.name.toLowerCase()] = newQty;
+					localStorage.setItem(qKey, JSON.stringify(map));
+				} catch {}
+			}
+		}
 		return;
 	}
 
@@ -518,6 +553,26 @@ function handleQuantityChange(itemId: string, newQuantity: number) {
 	// Note: Backend API doesn't support quantity updates yet, so we only update local state
 	// When API support is added, we can call an update endpoint here
 	item.quantity = newQuantity;
+
+	// Try to persist to backend; fallback to localStorage
+	(async () => {
+		try {
+			if (packingListId.value) {
+				await PackingLists.updateQuantity(packingListId.value, itemId, newQuantity);
+				return; // success
+			}
+		} catch {}
+		// Persist locally by packing list + item name
+		if (packingListId.value) {
+			const qKey = `packing_qty_${packingListId.value}`;
+			try {
+				const raw = localStorage.getItem(qKey);
+				const map = raw ? JSON.parse(raw) : {};
+				map[item.name.toLowerCase()] = newQuantity;
+				localStorage.setItem(qKey, JSON.stringify(map));
+			} catch {}
+		}
+	})();
 }
 
 async function generatePackingList(regenerate: boolean = false) {
@@ -716,6 +771,67 @@ async function handleAssignItem(itemId: string, travelerId: string | undefined) 
 		} catch (_) {
 			// ignore
 		}
+	}
+}
+
+// Move selected personal items to the shared list by re-creating them as shared
+// and deleting the originals. Then reload the list.
+async function handleMoveItemsToShared(itemIds: string[]) {
+	const session = getSession();
+	if (!session || !packingListId.value || !itemIds?.length) return;
+
+	try {
+		// Prepare operations: add shared then delete original
+		const ops: Promise<any>[] = [];
+		for (const id of itemIds) {
+			const item = packingItems.value.find((i) => i.id === id);
+			if (!item) continue;
+			if (item.isShared) continue; // already shared, skip
+
+			// Add new shared item with same name
+			ops.push(PackingLists.addItem(packingListId.value, item.name, undefined, true));
+			// Delete original personal item (omit isShared for personal)
+			ops.push(PackingLists.deleteItem(packingListId.value, id));
+		}
+
+		if (ops.length === 0) return;
+		await Promise.allSettled(ops);
+
+		// Reload to reflect changes
+		await loadPackingItems();
+	} catch (error: any) {
+		console.error("Failed to move items to shared:", error);
+		const errorMessage = error instanceof Error ? error.message : "Failed to move items to shared";
+		alert(errorMessage);
+		// Best effort reload
+		try { await loadPackingItems(); } catch {}
+	}
+}
+
+// Delete selected items (supports personal and assigned-shared items from My Packing List scope)
+async function handleDeleteItems(itemIds: string[]) {
+	const session = getSession();
+	if (!session || !packingListId.value || !itemIds?.length) return;
+
+	try {
+		const ops: Promise<any>[] = [];
+		for (const id of itemIds) {
+			const item = packingItems.value.find((i) => i.id === id);
+			const isSharedFlag = !!item?.isShared;
+			// Only pass isShared if true; omit for personal items
+			if (isSharedFlag) {
+				ops.push(PackingLists.deleteItem(packingListId.value, id, true));
+			} else {
+				ops.push(PackingLists.deleteItem(packingListId.value, id));
+			}
+		}
+		await Promise.allSettled(ops);
+		await loadPackingItems();
+	} catch (error: any) {
+		console.error("Failed to delete items:", error);
+		const errorMessage = error instanceof Error ? error.message : "Failed to delete items";
+		alert(errorMessage);
+		try { await loadPackingItems(); } catch {}
 	}
 }
 </script>

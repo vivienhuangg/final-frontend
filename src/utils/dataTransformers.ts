@@ -26,8 +26,6 @@ export function transformApiTripToTrip(
 		{ firstName?: string; lastName?: string; username: string }
 	>,
 ): Trip {
-	console.log("Transforming API trip:", apiTrip);
-
 	// Build travelers array
 	const travelers: Traveler[] = apiTrip.travellers.map((userId) => {
 		const nameInfo = travelerNames?.get(userId);
@@ -46,8 +44,6 @@ export function transformApiTripToTrip(
 			username: nameInfo?.username || userId,
 		};
 	});
-
-	console.log("Transformed travelers:", travelers);
 
 	return {
 		id: apiTrip._id,

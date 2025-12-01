@@ -63,7 +63,7 @@ export async function deleteItem(
 ): Promise<{ message: string }> {
   const session = getSession();
   const payload: any = { session, packinglist, item };
-  if (typeof isShared !== "undefined") payload.isShared = isShared;
+  if (isShared) payload.isShared = isShared;
   const { data } = await http.post("/packinglists/deleteItem", payload);
   if (
     data &&
@@ -192,4 +192,20 @@ export async function getItems(
   )
     throw new Error((data as any).error);
   return { results: [] };
+}
+
+export async function updateQuantity(
+  packinglist: string,
+  item: string,
+  quantity: number,
+): Promise<{ message: string }> {
+  const { data } = await http.post("/PackingList/updateQuantity", {
+    packinglist,
+    item,
+    quantity,
+  });
+  if (data && typeof data === "object" && "error" in (data as any)) {
+    throw new Error((data as any).error);
+  }
+  return data as { message: string };
 }
