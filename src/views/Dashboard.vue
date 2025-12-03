@@ -283,7 +283,6 @@ async function loadTrips() {
     >();
     for (const userId of travelerIds) {
       try {
-        console.log("Fetching name for userId:", userId);
         const [usernameResponse, nameResponse] = await Promise.all([
           Users.getUsername(userId).catch(() => ({ username: userId })),
           Users.getUserName(userId).catch(() => ({ firstName: undefined, lastName: undefined } as any)),

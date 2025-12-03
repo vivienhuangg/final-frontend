@@ -32,10 +32,10 @@
                 class="member-avatar"
                 :style="{ backgroundColor: getAvatarColor(index) }"
               >
-                {{ (traveler.username || traveler.id).charAt(0).toUpperCase() }}
+                {{ getTravelerInitial(traveler) }}
               </div>
               <div class="member-info">
-                <p class="member-name">{{ traveler.username || traveler.id }}</p>
+                <p class="member-name">{{ getTravelerDisplayName(traveler) }}</p>
                 <p class="member-username">{{ traveler.username || traveler.id }}</p>
               </div>
               <!-- traveler.role doesn't exist in Trip/Traveler types; derive ownership from trip.organizer -->
@@ -75,7 +75,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import type { Trip } from '../../types/trip';
+import type { Trip, Traveler } from '../../types/trip';
 
 const props = defineProps<{
   trip: Trip;
@@ -101,6 +101,27 @@ function sendInvite() {
 function getAvatarColor(index: number): string {
   const colors = ['#14b8a6', '#ff7b6b', '#7ba3d1', '#f4c542', '#8ba888'];
   return colors[index % colors.length];
+}
+
+function getTravelerDisplayName(traveler: Traveler): string {
+  // Prefer first and last name if available
+  if (traveler.firstName && traveler.lastName) {
+    return `${traveler.firstName} ${traveler.lastName}`;
+  }
+  
+  // Fallback to username or id
+  return traveler.username || traveler.id || 'Unknown';
+}
+
+function getTravelerInitial(traveler: Traveler): string {
+  // Prefer first letter of first name if available
+  if (traveler.firstName) {
+    return traveler.firstName.charAt(0).toUpperCase();
+  }
+  
+  // Fallback to first letter of display name
+  const displayName = getTravelerDisplayName(traveler);
+  return displayName.charAt(0).toUpperCase();
 }
 </script>
 

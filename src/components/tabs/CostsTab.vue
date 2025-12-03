@@ -34,10 +34,10 @@
                 :class="{ positive: balance.balance > 0, negative: balance.balance < 0, zero: Math.abs(balance.balance) < 0.01 }"
               >
                 <div class="balance-avatar" :style="{ backgroundColor: getAvatarColor(index) }">
-                  {{ getTravelerUsername(balance.travelerId).charAt(0).toUpperCase() }}
+                  {{ getTravelerInitial(balance.travelerId) }}
                 </div>
                 <div class="balance-info">
-                  <p class="balance-name">{{ getTravelerUsername(balance.travelerId) }}</p>
+                  <p class="balance-name">{{ getTravelerDisplayName(balance.travelerId) }}</p>
                 </div>
                 <div class="balance-amount-wrapper">
                   <span v-if="Math.abs(balance.balance) < 0.01" class="badge-settled">Settled</span>
@@ -80,7 +80,7 @@
                     <h3>{{ expense.title }}</h3>
                   </div>
                   <p class="expense-details">
-                    Paid by {{ getTravelerUsername(expense.paidBy) }} · Split {{ expense.splitBetween?.length || 1 }} ways
+                    Paid by {{ getTravelerDisplayName(expense.paidBy) }} · Split {{ expense.splitBetween?.length || 1 }} ways
                   </p>
                   <p class="expense-per-person">
                     {{ formatCurrency(getPerPersonAmount(expense)) }} per person
@@ -173,7 +173,7 @@
                   class="custom-split-item"
                 >
                   <label class="split-label">
-                    {{ getTravelerUsername(travelerId) }}
+                    {{ getTravelerDisplayName(travelerId) }}
                     <span v-if="newExpense.splitType === 'money'">($)</span>
                     <span v-else>(%)</span>
                   </label>
@@ -274,9 +274,36 @@ const memberBalances = computed<MemberBalance[]>(() => {
   }));
 });
 
-function getTravelerUsername(travelerId: string): string {
+function getTravelerDisplayName(travelerId: string): string {
   const t = props.travelers.find(t => t.id === travelerId);
-  return t?.username || t?.id || 'Unknown';
+  if (!t) return 'Unknown';
+  
+  // Prefer first and last name if available
+  if (t.firstName && t.lastName) {
+    return `${t.firstName} ${t.lastName}`;
+  }
+  
+  // Fallback to username or id
+  return t.username || t.id || 'Unknown';
+}
+
+function getTravelerUsername(travelerId: string): string {
+  // Keep for backward compatibility, but use display name
+  return getTravelerDisplayName(travelerId);
+}
+
+function getTravelerInitial(travelerId: string): string {
+  const t = props.travelers.find(t => t.id === travelerId);
+  if (!t) return '?';
+  
+  // Prefer first letter of first name if available
+  if (t.firstName) {
+    return t.firstName.charAt(0).toUpperCase();
+  }
+  
+  // Fallback to first letter of display name
+  const displayName = getTravelerDisplayName(travelerId);
+  return displayName.charAt(0).toUpperCase();
 }
 
 function formatBalance(balance: number): string {

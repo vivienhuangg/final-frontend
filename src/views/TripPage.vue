@@ -40,28 +40,19 @@ async function loadTrip() {
     const travelerNames = new Map<string, { firstName?: string; lastName?: string; username: string }>();
     for (const userId of travelerIds) {
       try {
-        // Resolve username per userId
-        const usernameResp = await Users.getUsername(userId).catch(() => ({ username: userId }));
-        let uname = usernameResp.username || userId;
-        // Guard: if backend incorrectly returns the signed-in user's username for others, fallback to userId
-        const myUname = (currentUser.value?.username || '').toString();
-        const myId = (currentUser.value?.id || '').toString();
-        if (uname === myUname && String(userId) !== myId) {
-          uname = String(userId);
-        }
-        // Resolve first/last name by username to avoid backend misrouting by session
-        const nameByUsername = await Users.getUserNameByUsername(uname);
+        const [usernameResponse, nameResponse] = await Promise.all([
+          Users.getUsername(userId).catch(() => ({ username: userId })),
+          Users.getUserName(userId).catch(() => ({ firstName: undefined, lastName: undefined } as any)),
+        ]);
         travelerNames.set(userId, {
-          firstName: nameByUsername.firstName,
-          lastName: nameByUsername.lastName,
-          username: uname,
+          firstName: (nameResponse as any).firstName,
+          lastName: (nameResponse as any).lastName,
+          username: usernameResponse.username || userId,
         });
-      } catch {
+      } catch (e) {
         travelerNames.set(userId, { username: userId });
       }
     }
-    console.log('Trip travellers from API:', response.trip.travellers);
-    console.log('Traveler names map:', Array.from(travelerNames.entries()));
     trip.value = transformApiTripToTrip(response.trip, undefined, travelerNames);
   } catch (e) {
     console.error('Failed to load trip', e);
