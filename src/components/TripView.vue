@@ -117,8 +117,8 @@
 import { ref, watch } from "vue";
 import * as Activities from "../api/activities";
 import * as CostTracker from "../api/costtracker";
-import * as PackingLists from "../api/packinglists";
 import * as Invitations from "../api/invitations";
+import * as PackingLists from "../api/packinglists";
 import { useAuth } from "../stores/useAuth";
 import type {
 	ActivityWithDetails,
@@ -157,7 +157,12 @@ const addingPackingItem = ref(false);
 const showSuggestionsModal = ref(false);
 // Background suggestion readiness indicator (unused when generation is user-initiated only)
 const suggestionsReady = ref(false);
-type SuggestedItem = { id: string; name: string; quantity?: number; isShared?: boolean };
+type SuggestedItem = {
+	id: string;
+	name: string;
+	quantity?: number;
+	isShared?: boolean;
+};
 const suggestions = ref<SuggestedItem[]>([]);
 const selectedSuggestionIds = ref<string[]>([]);
 const showAllSuggestions = ref(false);
@@ -175,7 +180,12 @@ watch(
 			try {
 				const key = `trip_active_tab_${props.trip.id}`;
 				const saved = localStorage.getItem(key);
-				if (saved && ["overview","discover","attractions","costs","packing"].includes(saved)) {
+				if (
+					saved &&
+					["overview", "discover", "attractions", "costs", "packing"].includes(
+						saved,
+					)
+				) {
 					activeTab.value = saved;
 				}
 			} catch {}
@@ -233,9 +243,14 @@ async function loadExpenses() {
 		const allExpenses: Expense[] = [];
 
 		// Process percentage expenses
-		for (const { expense: expenseId, totalCost, title } of percentageExpenses.listedExpenses) {
+		for (const {
+			expense: expenseId,
+			totalCost,
+			title,
+		} of percentageExpenses.listedExpenses) {
 			try {
-				const details = await CostTracker.getPercentageExpenseDetails(expenseId);
+				const details =
+					await CostTracker.getPercentageExpenseDetails(expenseId);
 				allExpenses.push({
 					id: expenseId,
 					title: title || details.title || `Expense ${expenseId}`,
@@ -254,7 +269,11 @@ async function loadExpenses() {
 		}
 
 		// Process money expenses
-		for (const { expense: expenseId, totalCost, title } of moneyExpenses.listedExpenses) {
+		for (const {
+			expense: expenseId,
+			totalCost,
+			title,
+		} of moneyExpenses.listedExpenses) {
 			try {
 				const details = await CostTracker.getMoneyExpenseDetails(expenseId);
 				allExpenses.push({
@@ -289,7 +308,9 @@ async function loadPackingItems() {
 		// The API will return existing list if it exists, or create a new one
 		if (!packingListId.value) {
 			try {
-				const createResponse = await PackingLists.createPackingList(props.trip.id);
+				const createResponse = await PackingLists.createPackingList(
+					props.trip.id,
+				);
 				packingListId.value = createResponse.packinglist;
 			} catch (e: any) {
 				console.error("Failed to get or create packing list:", e);
@@ -323,7 +344,9 @@ async function loadPackingItems() {
 			});
 
 			// Apply client-persisted quantities from localStorage
-			const qKey = packingListId.value ? `packing_qty_${packingListId.value}` : null;
+			const qKey = packingListId.value
+				? `packing_qty_${packingListId.value}`
+				: null;
 			let qtyMap: Record<string, number> = {};
 			if (qKey) {
 				try {
@@ -334,14 +357,21 @@ async function loadPackingItems() {
 
 			// Sanitize assignees: if an item is assigned to a user who is no longer in the trip,
 			// treat it as unassigned so the UI shows an empty selection.
-			const validTravelerIds = new Set<string>(props.trip.travelers.map(t => t.id));
+			const validTravelerIds = new Set<string>(
+				props.trip.travelers.map((t) => t.id),
+			);
 			packingItems.value = deduped.map((item) => {
 				const key = item.name.toLowerCase();
 				const persistedQty = qtyMap[key];
-				const assignee = item.assignee && validTravelerIds.has(String(item.assignee))
-					? item.assignee
-					: undefined;
-				return { ...item, quantity: persistedQty ?? item.quantity ?? 1, assignee };
+				const assignee =
+					item.assignee && validTravelerIds.has(String(item.assignee))
+						? item.assignee
+						: undefined;
+				return {
+					...item,
+					quantity: persistedQty ?? item.quantity ?? 1,
+					assignee,
+				};
 			});
 		}
 	} catch (error: any) {
@@ -382,7 +412,9 @@ async function handleInvite(username: string) {
 		if (/already\s*invited/i.test(rawMsg)) {
 			alert("This user is already invited to the trip.");
 		} else {
-			alert("Username not found. Ask them to create an account, then try again.");
+			alert(
+				"Username not found. Ask them to create an account, then try again.",
+			);
 		}
 	} finally {
 		loading.value = false;
@@ -401,7 +433,12 @@ async function handleAddActivity(activity: ActivityWithDetails) {
 			activity.end,
 			activity.cost,
 			props.trip.id,
-			{ solo: activity.solo, proposal: activity.proposal, description: activity.description, location: activity.location }
+			{
+				solo: activity.solo,
+				proposal: activity.proposal,
+				description: activity.description,
+				location: activity.location,
+			},
 		);
 
 		// Reload activities
@@ -521,8 +558,12 @@ async function handleToggleItem(itemId: string) {
 	if (!item) return;
 
 	// Enforce: only assignee can check off a shared item that has an assignee
-	if (item.isShared && item.assignee && String(item.assignee) !== String(currentUser.value?.id ?? '')) {
-		alert('Only the assignee can check off this shared item.');
+	if (
+		item.isShared &&
+		item.assignee &&
+		String(item.assignee) !== String(currentUser.value?.id ?? "")
+	) {
+		alert("Only the assignee can check off this shared item.");
 		return;
 	}
 
@@ -543,7 +584,11 @@ async function handleToggleItem(itemId: string) {
 	}
 }
 
-async function handleAddItem(itemName: string, isShared: boolean, quantity: number = 1) {
+async function handleAddItem(
+	itemName: string,
+	isShared: boolean,
+	quantity: number = 1,
+) {
 	const session = getSession();
 	if (!session || !props.trip.id) return;
 
@@ -561,7 +606,11 @@ async function handleAddItem(itemName: string, isShared: boolean, quantity: numb
 		// Persist to backend if possible
 		try {
 			if (packingListId.value) {
-				await PackingLists.updateQuantity(packingListId.value, existing.id, newQty);
+				await PackingLists.updateQuantity(
+					packingListId.value,
+					existing.id,
+					newQty,
+				);
 			}
 		} catch (e) {
 			// Fallback: persist locally
@@ -582,7 +631,9 @@ async function handleAddItem(itemName: string, isShared: boolean, quantity: numb
 		addingPackingItem.value = true;
 
 		if (!packingListId.value) {
-			const createResponse = await PackingLists.createPackingList(props.trip.id);
+			const createResponse = await PackingLists.createPackingList(
+				props.trip.id,
+			);
 			packingListId.value = createResponse.packinglist;
 		}
 
@@ -599,18 +650,24 @@ async function handleAddItem(itemName: string, isShared: boolean, quantity: numb
 			packingListId.value,
 			trimmedName,
 			assignee,
-			isShared
+			isShared,
 		);
 
 		await loadPackingItems();
 
 		// If a quantity greater than 1 was specified, persist it
 		if (quantity && quantity > 1) {
-			const added = packingItems.value.find((i) => i.name.toLowerCase() === trimmedName.toLowerCase());
+			const added = packingItems.value.find(
+				(i) => i.name.toLowerCase() === trimmedName.toLowerCase(),
+			);
 			if (added) {
 				added.quantity = quantity;
 				try {
-					await PackingLists.updateQuantity(packingListId.value, added.id, quantity);
+					await PackingLists.updateQuantity(
+						packingListId.value,
+						added.id,
+						quantity,
+					);
 				} catch {
 					const qKey = `packing_qty_${packingListId.value}`;
 					try {
@@ -674,7 +731,11 @@ function handleQuantityChange(itemId: string, newQuantity: number) {
 	(async () => {
 		try {
 			if (packingListId.value) {
-				await PackingLists.updateQuantity(packingListId.value, itemId, newQuantity);
+				await PackingLists.updateQuantity(
+					packingListId.value,
+					itemId,
+					newQuantity,
+				);
 				return; // success
 			}
 		} catch {}
@@ -690,7 +751,10 @@ function handleQuantityChange(itemId: string, newQuantity: number) {
 	})();
 }
 
-async function generatePackingList(regenerate: boolean = false, openModal: boolean = true) {
+async function generatePackingList(
+	regenerate: boolean = false,
+	openModal: boolean = true,
+) {
 	const session = getSession();
 	if (!session || !props.trip.id) return;
 
@@ -702,7 +766,7 @@ async function generatePackingList(regenerate: boolean = false, openModal: boole
 		// Keep existing items; suggestions will be collected separately
 
 		// Snapshot current items to restore if needed
-		existingItemsSnapshot.value = packingItems.value.map(i => ({ ...i }));
+		existingItemsSnapshot.value = packingItems.value.map((i) => ({ ...i }));
 
 		// Reload activities to ensure we have the latest data (only for regenerate)
 		if (regenerate) {
@@ -718,7 +782,9 @@ async function generatePackingList(regenerate: boolean = false, openModal: boole
 			try {
 				generationStage.value = "Creating packing list...";
 				generationProgress.value = 10;
-				const createResponse = await PackingLists.createPackingList(props.trip.id);
+				const createResponse = await PackingLists.createPackingList(
+					props.trip.id,
+				);
 				packingListId.value = createResponse.packinglist;
 
 				// Keep existing items separate from suggestions
@@ -739,12 +805,15 @@ async function generatePackingList(regenerate: boolean = false, openModal: boole
 		generationProgress.value = regenerate ? 30 : 20;
 		const startDate = new Date(props.trip.startDate);
 		const endDate = new Date(props.trip.endDate);
-		const nights = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+		const nights = Math.ceil(
+			(endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
+		);
 		// Prompt compression: minimal inputs to reduce generation time
 		const tripInfo = `Nights:${nights};`;
-		const activitiesInfo = activities.value.length > 0
-			? `Activities:${activities.value.map(a => a.title).join("|")};`
-			: "Activities:;";
+		const activitiesInfo =
+			activities.value.length > 0
+				? `Activities:${activities.value.map((a) => a.title).join("|")};`
+				: "Activities:;";
 		const quantityHint = `Rules: return explicit numeric quantities (no 'x1'); infer quantities from nights and activities; set shared=true for communal items; avoid duplicates.`;
 		const capHint = `Limit: max 20 suggestions.`;
 		const formatHint = `Output: ONLY JSON array of {name,quantity,shared}. If a carrier is needed, insert ONE item named __PACKING_SUGGESTIONS_JSON__ containing that JSON.`;
@@ -754,13 +823,21 @@ async function generatePackingList(regenerate: boolean = false, openModal: boole
 		// New flow: fetch raw JSON suggestions from backend without creating items
 		generationStage.value = "Requesting AI suggestions...";
 		generationProgress.value = regenerate ? 40 : 30;
-		const raw = await PackingLists.getRawSuggestions(packingListId.value, additionalInput);
+		const raw = await PackingLists.getRawSuggestions(
+			packingListId.value,
+			additionalInput,
+		);
 		const arr = Array.isArray(raw?.suggestions) ? raw.suggestions : [];
 		rawSuggestionsJson.value = JSON.stringify(arr);
-		const existingNames = new Set(packingItems.value.map(i => i.name.trim().toLowerCase()));
+		const existingNames = new Set(
+			packingItems.value.map((i) => i.name.trim().toLowerCase()),
+		);
 		suggestions.value = arr
-			.filter(s => s?.name && !existingNames.has(s.name.trim().toLowerCase()))
-			.map(s => ({ id: `${Date.now()}_${Math.random().toString(36).slice(2,8)}`, name: s.name.trim() }));
+			.filter((s) => s?.name && !existingNames.has(s.name.trim().toLowerCase()))
+			.map((s) => ({
+				id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+				name: s.name.trim(),
+			}));
 
 		// Open modal only if requested by user action
 		suggestionsReady.value = true;
@@ -769,13 +846,18 @@ async function generatePackingList(regenerate: boolean = false, openModal: boole
 		generationProgress.value = 100;
 		generationStage.value = "Complete!";
 	} catch (error: any) {
-		console.error(`Failed to ${regenerate ? 'regenerate' : 'generate'} packing list:`, error);
+		console.error(
+			`Failed to ${regenerate ? "regenerate" : "generate"} packing list:`,
+			error,
+		);
 		const errorMessage =
-			error instanceof Error ? error.message : `Failed to ${regenerate ? 'regenerate' : 'generate'} packing list`;
+			error instanceof Error
+				? error.message
+				: `Failed to ${regenerate ? "regenerate" : "generate"} packing list`;
 		alert(errorMessage);
 		generationStage.value = "Error occurred";
 	} finally {
-		await new Promise(resolve => setTimeout(resolve, 1000));
+		await new Promise((resolve) => setTimeout(resolve, 1000));
 		generatingPackingList.value = false;
 		generationProgress.value = 0;
 		generationStage.value = "";
@@ -787,26 +869,34 @@ async function confirmSelectedSuggestions() {
 		showSuggestionsModal.value = false;
 		return;
 	}
-	const chosen = suggestions.value.filter(s => selectedSuggestionIds.value.includes(s.id));
+	const chosen = suggestions.value.filter((s) =>
+		selectedSuggestionIds.value.includes(s.id),
+	);
 	try {
 		// Parse raw JSON once and map by normalized name
-		let detailsByName: Record<string, { quantity?: number; shared?: boolean }> = {};
+		const detailsByName: Record<
+			string,
+			{ quantity?: number; shared?: boolean }
+		> = {};
 		if (rawSuggestionsJson.value) {
 			try {
 				const arr = JSON.parse(rawSuggestionsJson.value);
 				if (Array.isArray(arr)) {
 					for (const obj of arr) {
-						if (obj && typeof obj.name === 'string') {
+						if (obj && typeof obj.name === "string") {
 							const nameKey = obj.name.trim().toLowerCase();
 							detailsByName[nameKey] = {
-								quantity: Number.isFinite(obj.quantity) ? Number(obj.quantity) : undefined,
-								shared: typeof obj.shared === 'boolean' ? obj.shared : undefined,
+								quantity: Number.isFinite(obj.quantity)
+									? Number(obj.quantity)
+									: undefined,
+								shared:
+									typeof obj.shared === "boolean" ? obj.shared : undefined,
 							};
 						}
 					}
 				}
 			} catch (e) {
-				console.warn('Failed to parse suggestion JSON on confirm:', e);
+				console.warn("Failed to parse suggestion JSON on confirm:", e);
 			}
 		}
 
@@ -815,39 +905,75 @@ async function confirmSelectedSuggestions() {
 			const key = s.name.trim().toLowerCase();
 			const det = detailsByName[key] || {};
 			const isShared = !!det.shared;
-			const assignee = isShared ? undefined : (currentUser.value?.id ?? '').toString();
-			await PackingLists.addItem(packingListId.value, s.name, assignee, isShared);
+			const assignee = isShared
+				? undefined
+				: (currentUser.value?.id ?? "").toString();
+			await PackingLists.addItem(
+				packingListId.value,
+				s.name,
+				assignee,
+				isShared,
+			);
 			const qty = det.quantity && det.quantity > 1 ? det.quantity : undefined;
 			if (qty) {
 				await loadPackingItems();
-				const added = packingItems.value.find(i => i.name.toLowerCase() === s.name.toLowerCase());
+				const added = packingItems.value.find(
+					(i) => i.name.toLowerCase() === s.name.toLowerCase(),
+				);
 				if (added) {
-					try { await PackingLists.updateQuantity(packingListId.value, added.id, qty); } catch {}
+					try {
+						await PackingLists.updateQuantity(
+							packingListId.value,
+							added.id,
+							qty,
+						);
+					} catch {}
 				}
 			}
 		}
 		await loadPackingItems();
 
 		// Restore any existing items that vanished due to backend side-effects
-		const currentNames = new Set(packingItems.value.map(i => i.name.trim().toLowerCase()));
-		const missing = existingItemsSnapshot.value.filter(i => !currentNames.has(i.name.trim().toLowerCase()));
+		const currentNames = new Set(
+			packingItems.value.map((i) => i.name.trim().toLowerCase()),
+		);
+		const missing = existingItemsSnapshot.value.filter(
+			(i) => !currentNames.has(i.name.trim().toLowerCase()),
+		);
 		if (missing.length > 0) {
 			for (const m of missing) {
-				const assignee = m.isShared ? undefined : (m.assignee ? String(m.assignee) : (currentUser.value?.id ?? '').toString());
-				await PackingLists.addItem(packingListId.value, m.name, assignee, !!m.isShared);
+				const assignee = m.isShared
+					? undefined
+					: m.assignee
+						? String(m.assignee)
+						: (currentUser.value?.id ?? "").toString();
+				await PackingLists.addItem(
+					packingListId.value,
+					m.name,
+					assignee,
+					!!m.isShared,
+				);
 				if (m.quantity && m.quantity > 1) {
 					await loadPackingItems();
-					const readded = packingItems.value.find(i => i.name.toLowerCase() === m.name.toLowerCase());
+					const readded = packingItems.value.find(
+						(i) => i.name.toLowerCase() === m.name.toLowerCase(),
+					);
 					if (readded) {
-						try { await PackingLists.updateQuantity(packingListId.value, readded.id, m.quantity); } catch {}
+						try {
+							await PackingLists.updateQuantity(
+								packingListId.value,
+								readded.id,
+								m.quantity,
+							);
+						} catch {}
 					}
 				}
 			}
 			await loadPackingItems();
 		}
 	} catch (e) {
-		console.error('Failed to add selected suggestions:', e);
-		alert('Failed to add some suggestions. Please try again.');
+		console.error("Failed to add selected suggestions:", e);
+		alert("Failed to add some suggestions. Please try again.");
 	} finally {
 		showSuggestionsModal.value = false;
 		selectedSuggestionIds.value = [];
@@ -891,7 +1017,10 @@ async function handleDeleteActivity(activityId: string) {
 	}
 }
 
-async function handleAssignItem(itemId: string, travelerId: string | undefined) {
+async function handleAssignItem(
+	itemId: string,
+	travelerId: string | undefined,
+) {
 	const session = getSession();
 	if (!session || !packingListId.value) return;
 
@@ -905,11 +1034,18 @@ async function handleAssignItem(itemId: string, travelerId: string | undefined) 
 		// Persist the assignee change via the packing lists API.
 		// Use the centralized `PackingLists` import directly.
 		const isSharedFlag = !!item.isShared;
-		const assigneeParam = travelerId && travelerId.length > 0 ? travelerId : null;
-		await PackingLists.assignItem(packingListId.value, itemId, assigneeParam, isSharedFlag);
+		const assigneeParam =
+			travelerId && travelerId.length > 0 ? travelerId : null;
+		await PackingLists.assignItem(
+			packingListId.value,
+			itemId,
+			assigneeParam,
+			isSharedFlag,
+		);
 	} catch (error: any) {
 		console.error("Failed to assign item:", error);
-		const errorMessage = error instanceof Error ? error.message : "Failed to assign item";
+		const errorMessage =
+			error instanceof Error ? error.message : "Failed to assign item";
 		alert(errorMessage);
 		// Reload to discard optimistic local change if persistence failed
 		try {
@@ -935,7 +1071,9 @@ async function handleMoveItemsToShared(itemIds: string[]) {
 			if (item.isShared) continue; // already shared, skip
 
 			// Add new shared item with same name
-			ops.push(PackingLists.addItem(packingListId.value, item.name, undefined, true));
+			ops.push(
+				PackingLists.addItem(packingListId.value, item.name, undefined, true),
+			);
 			// Delete original personal item (omit isShared for personal)
 			ops.push(PackingLists.deleteItem(packingListId.value, id));
 		}
@@ -947,10 +1085,13 @@ async function handleMoveItemsToShared(itemIds: string[]) {
 		await loadPackingItems();
 	} catch (error: any) {
 		console.error("Failed to move items to shared:", error);
-		const errorMessage = error instanceof Error ? error.message : "Failed to move items to shared";
+		const errorMessage =
+			error instanceof Error ? error.message : "Failed to move items to shared";
 		alert(errorMessage);
 		// Best effort reload
-		try { await loadPackingItems(); } catch {}
+		try {
+			await loadPackingItems();
+		} catch {}
 	}
 }
 
@@ -975,9 +1116,12 @@ async function handleDeleteItems(itemIds: string[]) {
 		await loadPackingItems();
 	} catch (error: any) {
 		console.error("Failed to delete items:", error);
-		const errorMessage = error instanceof Error ? error.message : "Failed to delete items";
+		const errorMessage =
+			error instanceof Error ? error.message : "Failed to delete items";
 		alert(errorMessage);
-		try { await loadPackingItems(); } catch {}
+		try {
+			await loadPackingItems();
+		} catch {}
 	}
 }
 </script>
@@ -1085,12 +1229,6 @@ async function handleDeleteItems(itemIds: string[]) {
 }
 
 /* Removed hero-destination - trips no longer have destinations */
-	color: rgba(255, 255, 255, 0.95);
-	font-size: 1.125rem;
-	font-weight: 500;
-	margin-top: -0.25rem;
-	margin-bottom: 0.75rem;
-}
 
 .hero-meta {
 	display: flex;
