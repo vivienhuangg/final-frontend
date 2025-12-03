@@ -14,6 +14,7 @@ export type ActivitySummary = {
   start: string;
   end: string;
   cost: number;
+  location?: string;
   solo: boolean;
   proposal: boolean;
   createdBy: string;
@@ -28,7 +29,7 @@ export async function createActivity(
   endDateTime: string,
   cost: number,
   trip: string,
-  options?: { solo?: boolean; proposal?: boolean; description?: string }
+  options?: { solo?: boolean; proposal?: boolean; description?: string; location?: string }
 ): Promise<{ activity: string }> {
   const session = getSession();
   const { data } = await http.post("/activities/create", {
@@ -42,6 +43,7 @@ export async function createActivity(
     solo: options?.solo ?? false,
     proposal: options?.proposal ?? true,
     ...(options?.description && { description: options.description }),
+    ...(options?.location && { location: options.location }),
   });
   if (
     data &&
@@ -227,6 +229,27 @@ export async function modifyDescription(
     session,
     activity,
     description,
+  });
+  if (
+    data &&
+    typeof data === "object" &&
+    "error" in data &&
+    (data as any).error
+  )
+    throw new Error((data as any).error);
+  return data as { status: string };
+}
+
+// Modify location
+export async function modifyLocation(
+  activity: string,
+  location: string
+): Promise<{ status: string }> {
+  const session = getSession();
+  const { data } = await http.post("/activities/modifyLocation", {
+    session,
+    activity,
+    location,
   });
   if (
     data &&

@@ -69,15 +69,6 @@
           </div>
           <div class="trip-card-content-inner">
             <h3 class="trip-card-title">{{ trip.title }}</h3>
-            <div class="trip-card-destination" v-if="trip.destination && trip.destination !== trip.title">
-              <svg class="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              {{ trip.destination }}
-            </div>
             <div class="trip-card-dates">
               <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -112,23 +103,6 @@
             <label for="tripName">Trip Name</label>
             <input id="tripName" v-model="newTrip.title" type="text" required
               placeholder="e.g., Spring Break in Miami" />
-          </div>
-          <div class="form-group">
-            <label for="destination">Destination</label>
-            <input
-              id="destination"
-              v-model="newTrip.destination"
-              type="text"
-              required
-              placeholder="Start typing a place… (powered by OpenStreetMap)"
-              @input="onDestinationInput"
-            />
-            <div v-if="destinationError" class="field-error">{{ destinationError }}</div>
-            <ul v-if="suggestionsOpen && placeSuggestions.length > 0" class="suggestions">
-              <li v-for="s in placeSuggestions" :key="s.place_id || s.osm_id" @click="chooseSuggestion(s)">
-                {{ s.display_name || s.formatted_address || s.name }}
-              </li>
-            </ul>
           </div>
           <div class="form-row">
             <div class="form-group">
@@ -181,56 +155,9 @@ const createLoading = ref(false);
 const createError = ref('');
 const newTrip = ref({
   title: "",
-  destination: "",
   startDate: "",
   endDate: "",
 });
-
-// Autocomplete/validation state
-const destinationValid = ref(false);
-const destinationError = ref("");
-const placeSuggestions = ref<any[]>([]);
-const suggestionsOpen = ref(false);
-let suggestTimer: any = null;
-
-function onDestinationInput() {
-  // typing invalidates previous selection
-  destinationValid.value = false;
-  destinationError.value = "";
-  const q = newTrip.value.destination?.trim();
-  if (!q) {
-    placeSuggestions.value = [];
-    suggestionsOpen.value = false;
-    return;
-  }
-  if (suggestTimer) clearTimeout(suggestTimer);
-  suggestTimer = setTimeout(async () => {
-    try {
-      const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(q)}&addressdetails=0&limit=5`;
-      const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
-      const data = await res.json();
-      placeSuggestions.value = data || [];
-      suggestionsOpen.value = placeSuggestions.value.length > 0;
-    } catch (e) {
-      placeSuggestions.value = [];
-      suggestionsOpen.value = false;
-    }
-  }, 250);
-}
-
-function chooseSuggestion(s: any) {
-  const label = s.display_name || s.formatted_address || s.name;
-  if (label) {
-    newTrip.value.destination = label;
-    destinationValid.value = true;
-    destinationError.value = "";
-  } else {
-    destinationValid.value = false;
-    destinationError.value = "Please select a valid place from suggestions.";
-  }
-  suggestionsOpen.value = false;
-  placeSuggestions.value = [];
-}
 
 function formatDate(dateStr: string): string {
   if (!dateStr) return "";
@@ -492,18 +419,12 @@ async function createTrip() {
   try {
     createLoading.value = true;
     createError.value = '';
-    if (!destinationValid.value) {
-      destinationError.value = "Please select a valid place from suggestions.";
-      createLoading.value = false;
-      return;
-    }
     console.log("creating trip with data:", newTrip.value);
 
     const response = await Trips.createTrip(
       newTrip.value.title,
       newTrip.value.startDate,
       newTrip.value.endDate,
-      newTrip.value.destination,
     );
 
 
@@ -513,11 +434,7 @@ async function createTrip() {
     await loadTrips();
 
     showNewTripDialog.value = false;
-    newTrip.value = { title: "", destination: "", startDate: "", endDate: "" };
-    destinationValid.value = false;
-    destinationError.value = "";
-    placeSuggestions.value = [];
-    suggestionsOpen.value = false;
+    newTrip.value = { title: "", startDate: "", endDate: "" };
 
     // Navigate to the newly created trip
     router.push({ name: 'trip', params: { id: response.trip } });
@@ -776,15 +693,6 @@ async function handleDeleteTrip(tripId: string) {
   margin-bottom: 0.5rem;
 }
 
-.trip-card-destination {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  color: #64748b;
-  font-size: 0.875rem;
-  margin-bottom: 0.5rem;
-  margin-top: 0.5rem;
-}
 
 .text-teal-600 {
   color: #0d9488;
@@ -985,11 +893,6 @@ async function handleDeleteTrip(tripId: string) {
   font-weight: 500;
 }
 
-.trip-destination {
-  color: #666;
-  font-size: 0.9rem;
-  margin-bottom: 0.5rem;
-}
 
 .trip-dates {
   color: #888;

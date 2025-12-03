@@ -11,7 +11,7 @@
 
 			<!-- Hero Header with Destination Photo -->
 			<div class="hero-header">
-				<img v-if="trip.headerImage" :src="trip.headerImage" :alt="trip.destination" class="hero-image" />
+				<img v-if="trip.headerImage" :src="trip.headerImage" :alt="trip.title" class="hero-image" />
 				<div v-else class="hero-image-placeholder"></div>
 				<div class="hero-overlay"></div>
 				<div class="hero-content">
@@ -26,9 +26,6 @@
 							</svg>
 						</div>
 						<h1 class="hero-title">{{ trip.title }}</h1>
-						<p v-if="trip.destination && trip.destination !== trip.title" class="hero-destination">
-							{{ trip.destination }}
-						</p>
 						<div class="hero-meta">
 							<div class="hero-meta-item">
 								<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -404,7 +401,7 @@ async function handleAddActivity(activity: ActivityWithDetails) {
 			activity.end,
 			activity.cost,
 			props.trip.id,
-			{ solo: activity.solo, proposal: activity.proposal, description: activity.description }
+			{ solo: activity.solo, proposal: activity.proposal, description: activity.description, location: activity.location }
 		);
 
 		// Reload activities
@@ -744,7 +741,7 @@ async function generatePackingList(regenerate: boolean = false, openModal: boole
 		const endDate = new Date(props.trip.endDate);
 		const nights = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
 		// Prompt compression: minimal inputs to reduce generation time
-		const tripInfo = `Destination:${props.trip.destination}; Nights:${nights};`;
+		const tripInfo = `Nights:${nights};`;
 		const activitiesInfo = activities.value.length > 0
 			? `Activities:${activities.value.map(a => a.title).join("|")};`
 			: "Activities:;";
@@ -1087,7 +1084,7 @@ async function handleDeleteItems(itemIds: string[]) {
 	margin-bottom: 0.75rem;
 }
 
-.hero-destination {
+/* Removed hero-destination - trips no longer have destinations */
 	color: rgba(255, 255, 255, 0.95);
 	font-size: 1.125rem;
 	font-weight: 500;

@@ -438,6 +438,11 @@
               rows="3"></textarea>
           </div>
           <div class="form-group">
+            <label for="location">Location</label>
+            <input id="location" v-model="newAttraction.location" type="text" 
+              placeholder="e.g., Miami Beach, FL or specific address" />
+          </div>
+          <div class="form-group">
             <label for="cost">Estimated Cost per Person ($)</label>
             <input id="cost" v-model.number="newAttraction.estimatedCost" type="number" step="0.01"
               placeholder="0.00" />
@@ -520,6 +525,11 @@
             <label for="edit-description">Description</label>
             <textarea id="edit-description" v-model="editForm.description" placeholder="Activity description"
               rows="3"></textarea>
+          </div>
+          <div class="form-group">
+            <label for="edit-location">Location</label>
+            <input id="edit-location" v-model="editForm.location" type="text" 
+              placeholder="e.g., Miami Beach, FL or specific address" />
           </div>
           <div class="form-row">
             <div class="form-group">
@@ -1210,15 +1220,54 @@ async function handleRatingChange(activityId: string, rating: number) {
 
 async function handleToggleOptIn(activityId: string) {
   const session = getSession();
-  if (!session) return;
+  if (!session || !currentUserId.value) return;
 
-  const invitation = activityInvitations.value[activityId];
-  console.log('Toggling opt-in for activity:', activityId, 'Current invitation:', invitation);
-  // TODO: Getting error AttractionsTab.vue:1173 No invitation found for activity: 019ad29f-cb19-71e5-9240-aee8149f14bf
-
-  if (!invitation) {
-    console.error('No invitation found for activity:', activityId);
+  // Find the activity to check if it's a proposal (proposals don't need invitations)
+  const activity = props.activities.find(a => a.id === activityId);
+  if (activity?.proposal) {
+    console.log('Cannot opt in to proposal activity:', activityId);
+    alert('You can only opt in to committed activities, not proposals.');
     return;
+  }
+
+  let invitation = activityInvitations.value[activityId];
+  console.log('Toggling opt-in for activity:', activityId, 'Current invitation:', invitation);
+
+  // If no invitation exists, create one first (for committed activities)
+  if (!invitation) {
+    console.log('No invitation found, creating one for activity:', activityId);
+    try {
+      const createResult = await Invitations.createInvitation(currentUserId.value, activityId);
+      invitation = {
+        invitation: createResult.invitation,
+        accepted: "Maybe", // New invitations default to "Maybe"
+      };
+      activityInvitations.value[activityId] = invitation;
+      
+      // Also add to allActivityInvitations
+      if (!allActivityInvitations.value[activityId]) {
+        allActivityInvitations.value[activityId] = [];
+      }
+      allActivityInvitations.value[activityId].push({
+        invitee: currentUserId.value,
+        accepted: "Maybe",
+      });
+    } catch (error: any) {
+      console.error('Error creating invitation:', error);
+      const errorMsg = error?.response?.data?.error || error?.message || 'Failed to create invitation';
+      if (errorMsg.includes('already exists')) {
+        // Invitation already exists, reload to get it
+        await loadInvitations();
+        invitation = activityInvitations.value[activityId];
+        if (!invitation) {
+          alert('Could not find or create invitation. Please try again.');
+          return;
+        }
+      } else {
+        alert(`Failed to create invitation: ${errorMsg}`);
+        return;
+      }
+    }
   }
 
   try {
@@ -1551,6 +1600,7 @@ function openEditDialog(activity: ActivityWithDetails) {
   editForm.value = {
     title: activity.title || '',
     description: activity.description || '',
+    location: activity.location || '',
     start: activity.start ? toLocalDatetimeString(activity.start) : '',
     end: activity.end ? toLocalDatetimeString(activity.end) : '',
     cost: activity.cost || 0,
@@ -1649,6 +1699,16 @@ async function handleSaveEdit() {
       await Activities.modifyDescription(
         activity.id,
         editForm.value.description || '',
+      );
+    }
+
+    // Update location if changed
+    const locationChanged = editForm.value.location !== (activity.location || '');
+    if (locationChanged) {
+      console.log('Updating location:', activity.location, '->', editForm.value.location);
+      await Activities.modifyLocation(
+        activity.id,
+        editForm.value.location || '',
       );
     }
 
@@ -1904,7 +1964,7 @@ async function handleAddAttraction() {
       start: startDateTime,
       end: endDateTime,
       cost: newAttraction.value.estimatedCost || 0,
-      location: '',
+      location: newAttraction.value.location || '',
       duration: newAttraction.value.estimatedDuration,
       pricePerPerson: newAttraction.value.estimatedCost,
       source: 'manual',
@@ -1970,6 +2030,7 @@ async function handleAddAttraction() {
 const newAttraction = ref({
   name: '',
   description: '',
+  location: '',
   estimatedCost: 0,
   estimatedDuration: '',
   date: '',
@@ -2877,3 +2938,4 @@ input:checked+.slider:before {
   fill: #eab308;
 }
 </style>
+

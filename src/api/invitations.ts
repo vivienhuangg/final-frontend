@@ -49,3 +49,10 @@ export async function getTripInvitations(trip: string): Promise<{ results: Array
   if (data && typeof data === 'object' && 'error' in data && (data as any).error) throw new Error((data as any).error);
   return data as { results: Array<{ invitation: string; invitee: string; accepted: 'Yes' | 'No' | 'Maybe' }> };
 }
+
+export async function createInvitation(invitee: string, event: string): Promise<{ invitation: string }> {
+  const session = getSession();
+  const { data } = await http.post('/Invitation/createInvitation', { session, invitee, event });
+  if (data && typeof data === 'object' && 'error' in data && (data as any).error) throw new Error((data as any).error);
+  return data as { invitation: string };
+}

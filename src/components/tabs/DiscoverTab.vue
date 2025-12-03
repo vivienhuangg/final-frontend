@@ -9,7 +9,7 @@
       <h2 class="placeholder-title">Discover Tab</h2>
       <p class="placeholder-message">This feature will not be implemented for the alpha checkpoint.</p>
       <p class="placeholder-description">
-        This tab would typically show personalized recommendations for activities, restaurants, and attractions based on your destination and travel preferences.
+        This tab would typically show personalized recommendations for activities, restaurants, and attractions based on your travel preferences.
       </p>
     </div>
   </div>
@@ -17,7 +17,6 @@
 
 <script setup lang="ts">
 defineProps<{
-  destination: string;
   tripId: string;
 }>();
 </script>

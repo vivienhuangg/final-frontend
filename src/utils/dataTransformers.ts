@@ -17,8 +17,6 @@ export function transformApiTripToTrip(
 		endDate: string;
 		organizer: string;
 		travellers: string[];
-		destination?: string; // Q*: is there a diff btw destination and location?
-		location?: string;
 	},
 	organizerName?: string,
 	travelerNames?: Map<
@@ -48,8 +46,6 @@ export function transformApiTripToTrip(
 	return {
 		id: apiTrip._id,
 		title: apiTrip.title,
-		// Prefer explicit destination/location fields; fallback to title only if absent
-		destination: apiTrip.destination || apiTrip.location || apiTrip.title,
 		startDate: apiTrip.startDate,
 		endDate: apiTrip.endDate,
 		organizer: apiTrip.organizer,
@@ -105,6 +101,7 @@ export function transformApiActivityToActivity(apiActivity: {
 	start: string;
 	end: string;
 	cost: number;
+	location?: string;
 	solo?: boolean;
 	proposal?: boolean;
 	createdBy?: string;
@@ -117,6 +114,7 @@ export function transformApiActivityToActivity(apiActivity: {
 		start: apiActivity.start,
 		end: apiActivity.end,
 		cost: apiActivity.cost,
+		location: apiActivity.location,
 		source: "manual",
 		attendees: [],
 		solo: apiActivity.solo ?? false,
