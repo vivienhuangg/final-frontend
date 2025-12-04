@@ -776,6 +776,7 @@ async function handleAddItem(
 			trimmedName,
 			assignee,
 			isShared,
+			quantity,
 		);
 
 		await loadPackingItems();

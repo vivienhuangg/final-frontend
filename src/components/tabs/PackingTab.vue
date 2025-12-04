@@ -324,10 +324,10 @@
             <span>Add as shared item</span>
           </label>
           <div class="manual-modal-actions">
-            <button type="button" class="btn-secondary" @click="closeManualModal">Cancel</button>
-            <button type="submit" class="btn-primary" :disabled="props.addingItem || !newItemName.trim()">
-              <span v-if="props.addingItem" class="modal-spinner"></span>
-              <span>{{ props.addingItem ? "Adding..." : "Add item" }}</span>
+            <button type="button" class="btn-secondary" @click="closeManualModal" :disabled="isSubmitting || props.addingItem">Cancel</button>
+            <button type="submit" class="btn-primary" :disabled="isSubmitting || props.addingItem || !newItemName.trim()">
+              <span v-if="isSubmitting || props.addingItem" class="modal-spinner"></span>
+              <span>{{ (isSubmitting || props.addingItem) ? "Adding..." : "Add item" }}</span>
             </button>
           </div>
         </form>
@@ -359,22 +359,33 @@ const newItemName = ref("");
 const newItemShared = ref(false);
 const newItemQty = ref(1);
 const showManualModal = ref(false);
+const isSubmitting = ref(false);
 
 function closeManualModal() {
   showManualModal.value = false;
   newItemName.value = "";
   newItemShared.value = false;
   newItemQty.value = 1;
+  isSubmitting.value = false;
 }
 
 function submitNewItem() {
   const name = newItemName.value.trim();
-  if (!name || props.generating || props.addingItem) return;
+  if (!name || props.generating || props.addingItem || isSubmitting.value) return;
   const qty = Math.max(1, Number(newItemQty.value) || 1);
+  isSubmitting.value = true;
   emit("add-item", name, newItemShared.value, qty);
   console.log("Submitting new item:", name, "Shared:", newItemShared.value);
-  closeManualModal();
 }
+
+// Watch for when addingItem becomes false to close the modal
+watch(() => props.addingItem, (newVal, oldVal) => {
+  // If it was true and now false, the operation completed
+  if (oldVal === true && newVal === false && isSubmitting.value) {
+    isSubmitting.value = false;
+    closeManualModal();
+  }
+});
 const emit = defineEmits<{
   (e: "add-item", itemName: string, isShared: boolean, quantity: number): void;
   (e: "toggle-item", itemId: string, isShared: boolean): void;
