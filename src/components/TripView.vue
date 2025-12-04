@@ -68,18 +68,41 @@
 			<div class="tab-content">
 				<OverviewTab v-if="activeTab === 'overview'" :trip="trip" @invite="handleInvite" />
 				<!-- Discover tab removed per UI request -->
-				<AttractionsTab v-if="activeTab === 'attractions'" :activities="activities" :travelers="trip.travelers"
-					:trip-id="trip.id" :organizer-id="trip.organizer" :trip-start-date="trip.startDate" :trip-end-date="trip.endDate"
-					@rate="handleRate" @toggle-attendance="handleToggleAttendance" @add-activity="handleAddActivity"
-					@delete-activity="handleDeleteActivity" @refresh-activities="loadActivities" />
-				<CostsTab v-if="activeTab === 'costs'" :expenses="expenses" :travelers="trip.travelers"
-					@add-expense="handleAddExpense" @delete-expense="handleDeleteExpense" />
-				<PackingTab v-if="activeTab === 'packing'" :items="packingItems" :travelers="trip.travelers"
-					:generating="generatingPackingList" :generation-stage="generationStage"
-					:generation-progress="generationProgress" :adding-item="addingPackingItem" @add-item="handleAddItem"
-					@toggle-item="handleToggleItem" @quantity-change="handleQuantityChange"
-					@assign-item="handleAssignItem" @move-items-to-shared="handleMoveItemsToShared" @delete-items="handleDeleteItems"
-					@regenerate="handleRegeneratePackingList" @generate="handleGeneratePackingList" />
+				<AttractionsTab 
+					v-if="activeTab === 'attractions'"
+					:activities="activities" 
+					:travelers="trip.travelers"
+					:trip-id="trip.id" 
+					:organizer-id="trip.organizer" 
+					:trip-start-date="trip.startDate" 
+					:trip-end-date="trip.endDate"
+					@rate="handleRate" 
+					@toggle-attendance="handleToggleAttendance" 
+					@add-activity="handleAddActivity"
+					@delete-activity="handleDeleteActivity" 
+					@refresh-activities="loadActivities" />
+				<CostsTab 
+					v-if="activeTab === 'costs'"
+					:expenses="expenses" 
+					:travelers="trip.travelers"
+					@add-expense="handleAddExpense" 
+					@delete-expense="handleDeleteExpense" />
+				<PackingTab 
+					v-if="activeTab === 'packing'"
+					:items="packingItems" 
+					:travelers="trip.travelers"
+					:generating="generatingPackingList" 
+					:generation-stage="generationStage"
+					:generation-progress="generationProgress" 
+					:adding-item="addingPackingItem" 
+					@add-item="handleAddItem"
+					@toggle-item="handleToggleItem" 
+					@quantity-change="handleQuantityChange"
+					@assign-item="handleAssignItem" 
+					@move-items-to-shared="handleMoveItemsToShared" 
+					@delete-items="handleDeleteItems"
+					@regenerate="handleRegeneratePackingList" 
+					@generate="handleGeneratePackingList" />
 			</div>
 
 			<!-- AI Suggestions Modal -->
@@ -257,22 +280,26 @@ watch(
 	{ immediate: true },
 );
 
-// Load data only for the specified tab
+// Load data only for the specified tab - only when tab becomes active
 async function loadTabData(tab: string) {
+	// Don't load if already loaded
 	if (loadedTabs.value.has(tab)) {
 		return; // Already loaded
 	}
 	
 	switch (tab) {
 		case "attractions":
+			// Only load activities when attractions tab is actually opened
 			await loadActivities();
 			loadedTabs.value.add("attractions");
 			break;
 		case "costs":
+			// Only load expenses when costs tab is actually opened
 			await loadExpenses();
 			loadedTabs.value.add("costs");
 			break;
 		case "packing":
+			// Only load packing items when packing tab is actually opened
 			await loadPackingItems();
 			loadedTabs.value.add("packing");
 			break;
@@ -990,18 +1017,21 @@ async function confirmSelectedSuggestions() {
 		for (const s of chosen) {
 			const key = s.name.trim().toLowerCase();
 			const det = detailsByName[key] || {};
-			const isShared = !!det.shared;
+			const isShared = det.shared !== undefined ? !!det.shared : (s.isShared || false);
 			const assignee = isShared
 				? undefined
 				: (currentUser.value?.id ?? "").toString();
-			const qty = det.quantity && det.quantity > 0 ? det.quantity : undefined;
+			// Use quantity from suggestion object first, fallback to detailsByName
+			const qty = (s.quantity && s.quantity > 0) 
+				? s.quantity 
+				: (det.quantity && det.quantity > 0 ? det.quantity : undefined);
 			await PackingLists.addItem(
 				packingListId.value,
 				s.name,
 				assignee,
 				isShared,
-							qty,
-						);
+				qty,
+			);
 		}
 		await loadPackingItems();
 
