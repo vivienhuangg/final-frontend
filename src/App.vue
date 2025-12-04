@@ -3,15 +3,18 @@
     <router-view />
     <!-- Global Help Widget -->
     <HelpWidget />
+    <!-- Global Notification Button -->
+    <NotificationButton v-if="isAuthenticated" />
   </div>
 </template>
 
 <script setup lang="ts">
 import HelpWidget from './components/HelpWidget.vue';
-import { onMounted } from 'vue';
+import NotificationButton from './components/NotificationButton.vue';
+import { onMounted, computed } from 'vue';
 import { useAuth } from './stores/useAuth';
 
-const { initializeAuth } = useAuth();
+const { initializeAuth, isAuthenticated } = useAuth();
 
 onMounted(() => {
   initializeAuth();

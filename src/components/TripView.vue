@@ -58,7 +58,7 @@
 			<div class="tabs-container">
 				<div class="tabs-list">
 					<button v-for="tab in tabs" :key="tab.id" :class="['tab-trigger', { active: activeTab === tab.id }]"
-						@click="activeTab = tab.id">
+						@click="handleTabClick(tab.id)">
 						{{ tab.label }}
 					</button>
 				</div>
@@ -115,6 +115,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import * as Activities from "../api/activities";
 import * as CostTracker from "../api/costtracker";
 import * as Invitations from "../api/invitations";
@@ -142,6 +143,8 @@ const props = defineProps<{
 
 const emit = defineEmits<(e: "back") => void>();
 
+const route = useRoute();
+const router = useRouter();
 const { currentUser, getSession } = useAuth();
 const activeTab = ref("overview");
 const activities = ref<ActivityWithDetails[]>([]);
@@ -171,29 +174,78 @@ const existingItemsSnapshot = ref<ChecklistItem[]>([]);
 // Defer heavy JSON parsing to confirmation to avoid timeouts
 const rawSuggestionsJson = ref<string | null>(null);
 
+// Helper function to set active tab from query or localStorage
+function setActiveTabFromRoute() {
+	if (!props.trip.id) return;
+	
+	// Check route query parameter first (for navigation from notifications)
+	const queryTab = route.query.tab as string | undefined;
+	if (queryTab && ["overview", "discover", "attractions", "costs", "packing"].includes(queryTab)) {
+		console.log('[TripView] Setting active tab from query parameter:', queryTab);
+		activeTab.value = queryTab;
+		return;
+	}
+	
+	// Fall back to localStorage
+	try {
+		const key = `trip_active_tab_${props.trip.id}`;
+		const saved = localStorage.getItem(key);
+		if (
+			saved &&
+			["overview", "discover", "attractions", "costs", "packing"].includes(saved)
+		) {
+			console.log('[TripView] Setting active tab from localStorage:', saved);
+			activeTab.value = saved;
+		}
+	} catch {}
+}
+
 // Load data when trip changes
 watch(
 	() => props.trip.id,
 	() => {
 		if (props.trip.id) {
-			// Restore persisted active tab for this trip
-			try {
-				const key = `trip_active_tab_${props.trip.id}`;
-				const saved = localStorage.getItem(key);
-				if (
-					saved &&
-					["overview", "discover", "attractions", "costs", "packing"].includes(
-						saved,
-					)
-				) {
-					activeTab.value = saved;
-				}
-			} catch {}
+			setActiveTabFromRoute();
 			loadTripData();
 		}
 	},
 	{ immediate: true },
 );
+
+// Watch for route query changes (including when navigating from other pages)
+watch(
+	() => route.query.tab,
+	(tab) => {
+		console.log('[TripView] Route query tab changed:', tab);
+		if (tab && typeof tab === "string" && ["overview", "discover", "attractions", "costs", "packing"].includes(tab)) {
+			activeTab.value = tab;
+		}
+	},
+	{ immediate: true },
+);
+
+// Also watch the full route to catch navigation changes
+watch(
+	() => route.fullPath,
+	() => {
+		console.log('[TripView] Route changed, checking tab:', route.query.tab);
+		setActiveTabFromRoute();
+	},
+);
+
+// Handle tab click - update both state and URL
+function handleTabClick(tabId: string) {
+	console.log('[TripView] Tab clicked:', tabId);
+	activeTab.value = tabId;
+	// Update URL query parameter
+	if (props.trip?.id) {
+		router.push({
+			name: 'trip',
+			params: { id: props.trip.id },
+			query: { tab: tabId },
+		});
+	}
+}
 
 // Persist active tab selection per trip
 watch(

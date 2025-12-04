@@ -78,6 +78,15 @@ const EXCLUDED_ROUTES = new Set<string>([
   "RatingSystem/_getRating",
   "RatingSystem/_getRatingsByItem",
   "RatingSystem/_getRatingsByUser",
+  // Notification
+  "Notification/createNotification",
+  "Notification/markAsRead",
+  "Notification/markAllAsRead",
+  "Notification/deleteNotification",
+  "Notification/_getNotification",
+  "Notification/_getNotificationsByUser",
+  "Notification/_getUnreadCount",
+  "Notification/_getNotificationsByTrip",
 ]);
 
 // Resolve API base URL.
