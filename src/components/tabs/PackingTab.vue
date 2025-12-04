@@ -259,32 +259,44 @@
             </div>
             <div v-else class="shared-items-list">
               <div v-for="item in sharedItems" :key="item.id" class="shared-item">
-                <label class="shared-item-checkbox">
-                  <input
-                    type="checkbox"
-                    :checked="item.finished"
-                    @change="toggleItem(item.id)"
-                    :disabled="Boolean(item.assignee) && String(item.assignee) !== currentUserId"
-                    title="Only the assignee can check off this item"
-                  />
-                  <span :class="{ checked: item.finished }">{{ item.name }}</span>
-                </label>
-                <div class="quantity-controls">
-                  <button
-                    type="button"
-                    @click.stop="handleQuantityChange(item.id, (item.quantity || 1) - 1)"
-                    class="quantity-btn"
-                  >
-                    -
-                  </button>
-                  <span class="quantity-value">{{ item.quantity || 1 }}</span>
-                  <button
-                    type="button"
-                    @click.stop="handleQuantityChange(item.id, (item.quantity || 1) + 1)"
-                    class="quantity-btn"
-                  >
-                    +
-                  </button>
+                <div class="shared-item-top">
+                  <label class="shared-item-checkbox">
+                    <input
+                      type="checkbox"
+                      :checked="item.finished"
+                      @change="toggleItem(item.id)"
+                      :disabled="Boolean(item.assignee) && String(item.assignee) !== currentUserId"
+                      title="Only the assignee can check off this item"
+                    />
+                    <span :class="{ checked: item.finished }">{{ item.name }}</span>
+                  </label>
+                  <div class="quantity-controls">
+                    <button
+                      type="button"
+                      @click.stop="handleQuantityChange(item.id, (item.quantity || 1) - 1)"
+                      class="quantity-btn"
+                    >
+                      -
+                    </button>
+                    <span class="quantity-value">{{ item.quantity || 1 }}</span>
+                    <button
+                      type="button"
+                      @click.stop="handleQuantityChange(item.id, (item.quantity || 1) + 1)"
+                      class="quantity-btn"
+                    >
+                      +
+                    </button>
+                    <button
+                      type="button"
+                      class="delete-btn"
+                      title="Remove shared item"
+                      @click.stop="emit('delete-items', [item.id])"
+                    >
+                      <svg class="delete-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
                 <div class="assigned-to">
                   <select class="assign-select" :value="String(item.assignee || '')" @change="onAssignChange(item.id, $event)">
@@ -293,16 +305,6 @@
                       {{ traveler.username || traveler.id }}
                     </option>
                   </select>
-                  <button
-                    type="button"
-                    class="delete-btn"
-                    title="Remove shared item"
-                    @click.stop="emit('delete-items', [item.id])"
-                  >
-                    <svg class="delete-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
                 </div>
               </div>
             </div>
@@ -958,12 +960,20 @@ watch(
   border-left: 4px solid #42b983;
 }
 
+.shared-item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
 .shared-item-checkbox {
   display: flex;
   align-items: center;
   gap: 0.75rem;
   cursor: pointer;
-  margin-bottom: 0.5rem;
+  flex: 1;
 }
 
 .shared-item-checkbox input[type="checkbox"] {

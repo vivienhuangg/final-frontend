@@ -137,7 +137,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from "vue";
+import { onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import * as Activities from "../api/activities";
 import * as CostTracker from "../api/costtracker";
@@ -173,7 +173,12 @@ const { currentUser, getSession } = useAuth();
 // Initialize activeTab from URL query parameter or default to "overview"
 const getInitialTab = (tripId?: string): string => {
 	const tabFromUrl = route.query.tab as string;
-	if (tabFromUrl && ["overview", "discover", "attractions", "costs", "packing"].includes(tabFromUrl)) {
+	if (
+		tabFromUrl &&
+		["overview", "discover", "attractions", "costs", "packing"].includes(
+			tabFromUrl,
+		)
+	) {
 		return tabFromUrl;
 	}
 	// Fallback to localStorage for backward compatibility
@@ -181,7 +186,12 @@ const getInitialTab = (tripId?: string): string => {
 		try {
 			const key = `trip_active_tab_${tripId}`;
 			const saved = localStorage.getItem(key);
-			if (saved && ["overview", "discover", "attractions", "costs", "packing"].includes(saved)) {
+			if (
+				saved &&
+				["overview", "discover", "attractions", "costs", "packing"].includes(
+					saved,
+				)
+			) {
 				return saved;
 			}
 		} catch {}
@@ -225,18 +235,18 @@ watch(
 	() => activeTab.value,
 	(tab) => {
 		if (!props.trip?.id) return;
-		
+
 		// Update URL query parameter
 		router.replace({
 			query: { ...route.query, tab },
 		});
-		
+
 		// Persist to localStorage for backward compatibility
 		try {
 			const key = `trip_active_tab_${props.trip.id}`;
 			localStorage.setItem(key, tab);
 		} catch {}
-		
+
 		// Load data for the active tab if not already loaded
 		loadTabData(tab);
 	},
@@ -247,7 +257,11 @@ watch(
 	() => route.query.tab,
 	(tabFromUrl) => {
 		if (tabFromUrl && typeof tabFromUrl === "string") {
-			if (["overview", "discover", "attractions", "costs", "packing"].includes(tabFromUrl)) {
+			if (
+				["overview", "discover", "attractions", "costs", "packing"].includes(
+					tabFromUrl,
+				)
+			) {
 				if (activeTab.value !== tabFromUrl) {
 					activeTab.value = tabFromUrl;
 				}
@@ -265,14 +279,14 @@ watch(
 			const initialTab = getInitialTab(props.trip.id);
 			activeTab.value = initialTab;
 			loadedTabs.value.clear();
-			
+
 			// Update URL if it doesn't match
 			if (route.query.tab !== initialTab) {
 				router.replace({
 					query: { ...route.query, tab: initialTab },
 				});
 			}
-			
+
 			// Load data for the initial tab
 			loadTabData(initialTab);
 		}
@@ -286,7 +300,7 @@ async function loadTabData(tab: string) {
 	if (loadedTabs.value.has(tab)) {
 		return; // Already loaded
 	}
-	
+
 	switch (tab) {
 		case "attractions":
 			// Only load activities when attractions tab is actually opened
@@ -948,7 +962,10 @@ async function generatePackingList(
 			.map((s) => ({
 				id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
 				name: s.name.trim(),
-				quantity: Number.isFinite(s.quantity) && s.quantity! > 0 ? s.quantity : undefined,
+				quantity:
+					Number.isFinite(s.quantity) && s.quantity! > 0
+						? s.quantity
+						: undefined,
 				isShared: typeof s.shared === "boolean" ? s.shared : false,
 			}));
 
@@ -1017,14 +1034,18 @@ async function confirmSelectedSuggestions() {
 		for (const s of chosen) {
 			const key = s.name.trim().toLowerCase();
 			const det = detailsByName[key] || {};
-			const isShared = det.shared !== undefined ? !!det.shared : (s.isShared || false);
+			const isShared =
+				det.shared !== undefined ? !!det.shared : s.isShared || false;
 			const assignee = isShared
 				? undefined
 				: (currentUser.value?.id ?? "").toString();
 			// Use quantity from suggestion object first, fallback to detailsByName
-			const qty = (s.quantity && s.quantity > 0) 
-				? s.quantity 
-				: (det.quantity && det.quantity > 0 ? det.quantity : undefined);
+			const qty =
+				s.quantity && s.quantity > 0
+					? s.quantity
+					: det.quantity && det.quantity > 0
+						? det.quantity
+						: undefined;
 			await PackingLists.addItem(
 				packingListId.value,
 				s.name,
@@ -1172,9 +1193,19 @@ async function handleMoveItemsToShared(itemIds: string[]) {
 			if (!item) continue;
 			if (item.isShared) continue; // already shared, skip
 
-			// Add new shared item with same name
+			// Preserve quantity when moving to shared
+			const quantity =
+				item.quantity && item.quantity > 0 ? item.quantity : undefined;
+
+			// Add new shared item with same name and quantity
 			ops.push(
-				PackingLists.addItem(packingListId.value, item.name, undefined, true),
+				PackingLists.addItem(
+					packingListId.value,
+					item.name,
+					undefined,
+					true,
+					quantity,
+				),
 			);
 			// Delete original personal item (omit isShared for personal)
 			ops.push(PackingLists.deleteItem(packingListId.value, id));
