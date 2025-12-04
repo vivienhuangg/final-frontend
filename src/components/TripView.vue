@@ -58,7 +58,7 @@
 			<div class="tabs-container">
 				<div class="tabs-list">
 					<button v-for="tab in tabs" :key="tab.id" :class="['tab-trigger', { active: activeTab === tab.id }]"
-						@click="activeTab = tab.id">
+						@click="handleTabClick(tab.id)">
 						{{ tab.label }}
 					</button>
 				</div>
@@ -114,7 +114,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { ref, watch, onMounted } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import * as Activities from "../api/activities";
 import * as CostTracker from "../api/costtracker";
 import * as Invitations from "../api/invitations";
@@ -142,7 +143,29 @@ const props = defineProps<{
 
 const emit = defineEmits<(e: "back") => void>();
 
+const route = useRoute();
+const router = useRouter();
 const { currentUser, getSession } = useAuth();
+
+// Initialize activeTab from URL query parameter or default to "overview"
+const getInitialTab = (tripId?: string): string => {
+	const tabFromUrl = route.query.tab as string;
+	if (tabFromUrl && ["overview", "discover", "attractions", "costs", "packing"].includes(tabFromUrl)) {
+		return tabFromUrl;
+	}
+	// Fallback to localStorage for backward compatibility
+	if (tripId) {
+		try {
+			const key = `trip_active_tab_${tripId}`;
+			const saved = localStorage.getItem(key);
+			if (saved && ["overview", "discover", "attractions", "costs", "packing"].includes(saved)) {
+				return saved;
+			}
+		} catch {}
+	}
+	return "overview";
+};
+
 const activeTab = ref("overview");
 const activities = ref<ActivityWithDetails[]>([]);
 const expenses = ref<Expense[]>([]);
@@ -171,45 +194,100 @@ const existingItemsSnapshot = ref<ChecklistItem[]>([]);
 // Defer heavy JSON parsing to confirmation to avoid timeouts
 const rawSuggestionsJson = ref<string | null>(null);
 
-// Load data when trip changes
+// Track which tabs have been loaded to avoid reloading unnecessarily
+const loadedTabs = ref<Set<string>>(new Set());
+
+// Update URL when tab changes
+watch(
+	() => activeTab.value,
+	(tab) => {
+		if (!props.trip?.id) return;
+		
+		// Update URL query parameter
+		router.replace({
+			query: { ...route.query, tab },
+		});
+		
+		// Persist to localStorage for backward compatibility
+		try {
+			const key = `trip_active_tab_${props.trip.id}`;
+			localStorage.setItem(key, tab);
+		} catch {}
+		
+		// Load data for the active tab if not already loaded
+		loadTabData(tab);
+	},
+);
+
+// Watch for URL changes (e.g., browser back/forward)
+watch(
+	() => route.query.tab,
+	(tabFromUrl) => {
+		if (tabFromUrl && typeof tabFromUrl === "string") {
+			if (["overview", "discover", "attractions", "costs", "packing"].includes(tabFromUrl)) {
+				if (activeTab.value !== tabFromUrl) {
+					activeTab.value = tabFromUrl;
+				}
+			}
+		}
+	},
+);
+
+// Load data when trip changes - only load overview tab initially
 watch(
 	() => props.trip.id,
 	() => {
 		if (props.trip.id) {
-			// Restore persisted active tab for this trip
-			try {
-				const key = `trip_active_tab_${props.trip.id}`;
-				const saved = localStorage.getItem(key);
-				if (
-					saved &&
-					["overview", "discover", "attractions", "costs", "packing"].includes(
-						saved,
-					)
-				) {
-					activeTab.value = saved;
-				}
-			} catch {}
-			loadTripData();
+			// Initialize tab from URL or localStorage
+			const initialTab = getInitialTab(props.trip.id);
+			activeTab.value = initialTab;
+			loadedTabs.value.clear();
+			
+			// Update URL if it doesn't match
+			if (route.query.tab !== initialTab) {
+				router.replace({
+					query: { ...route.query, tab: initialTab },
+				});
+			}
+			
+			// Load data for the initial tab
+			loadTabData(initialTab);
 		}
 	},
 	{ immediate: true },
 );
 
-// Persist active tab selection per trip
-watch(
-	() => activeTab.value,
-	(tab) => {
-		if (!props.trip?.id) return;
-		try {
-			const key = `trip_active_tab_${props.trip.id}`;
-			localStorage.setItem(key, tab);
-		} catch {}
-		// Do not auto-generate suggestions on tab open; generation is user-triggered only
-	},
-);
+// Load data only for the specified tab
+async function loadTabData(tab: string) {
+	if (loadedTabs.value.has(tab)) {
+		return; // Already loaded
+	}
+	
+	switch (tab) {
+		case "attractions":
+			await loadActivities();
+			loadedTabs.value.add("attractions");
+			break;
+		case "costs":
+			await loadExpenses();
+			loadedTabs.value.add("costs");
+			break;
+		case "packing":
+			await loadPackingItems();
+			loadedTabs.value.add("packing");
+			break;
+		case "overview":
+		case "discover":
+			// Overview and discover tabs don't need specific data loading
+			loadedTabs.value.add(tab);
+			break;
+	}
+}
 
+// Legacy function - kept for backward compatibility but now delegates to loadTabData
 async function loadTripData() {
-	await Promise.all([loadActivities(), loadExpenses(), loadPackingItems()]);
+	// Load data for the currently active tab
+	await loadTabData(activeTab.value);
 }
 
 async function loadActivities() {
@@ -393,6 +471,12 @@ function formatDate(dateString: string): string {
 		day: "numeric",
 		year: "numeric",
 	});
+}
+
+function handleTabClick(tabId: string) {
+	if (activeTab.value !== tabId) {
+		activeTab.value = tabId;
+	}
 }
 
 // (Debug destination helpers removed)
@@ -837,6 +921,8 @@ async function generatePackingList(
 			.map((s) => ({
 				id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
 				name: s.name.trim(),
+				quantity: Number.isFinite(s.quantity) && s.quantity! > 0 ? s.quantity : undefined,
+				isShared: typeof s.shared === "boolean" ? s.shared : false,
 			}));
 
 		// Open modal only if requested by user action
@@ -908,28 +994,14 @@ async function confirmSelectedSuggestions() {
 			const assignee = isShared
 				? undefined
 				: (currentUser.value?.id ?? "").toString();
+			const qty = det.quantity && det.quantity > 0 ? det.quantity : undefined;
 			await PackingLists.addItem(
 				packingListId.value,
 				s.name,
 				assignee,
 				isShared,
-			);
-			const qty = det.quantity && det.quantity > 1 ? det.quantity : undefined;
-			if (qty) {
-				await loadPackingItems();
-				const added = packingItems.value.find(
-					(i) => i.name.toLowerCase() === s.name.toLowerCase(),
-				);
-				if (added) {
-					try {
-						await PackingLists.updateQuantity(
-							packingListId.value,
-							added.id,
 							qty,
 						);
-					} catch {}
-				}
-			}
 		}
 		await loadPackingItems();
 

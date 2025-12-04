@@ -40,11 +40,15 @@ export async function addItem(
   name: string,
   assignee?: string,
   isShared?: boolean,
+  quantity?: number,
 ): Promise<{ message: string }> {
   const session = getSession();
   const payload: any = { session, packinglist, name };
   payload.assignee = assignee ? assignee : null;
   if (typeof isShared !== "undefined") payload.isShared = isShared;
+  if (typeof quantity !== "undefined" && quantity !== null && quantity > 0) {
+    payload.quantity = quantity;
+  }
   const { data } = await http.post("/packinglists/addItem", payload);
   if (
     data &&
