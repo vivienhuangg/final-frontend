@@ -642,6 +642,7 @@ const editingActivity = ref<ActivityWithDetails | null>(null);
 const editForm = ref({
   title: '',
   description: '',
+  location: '',
   start: '',
   end: '',
   cost: 0,
@@ -1981,6 +1982,7 @@ async function handleAddAttraction() {
     newAttraction.value = {
       name: '',
       description: '',
+      location: '',
       estimatedCost: 0,
       estimatedDuration: '',
       date: '',
