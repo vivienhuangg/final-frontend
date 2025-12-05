@@ -222,7 +222,9 @@ export async function updateQuantity(
   item: string,
   quantity: number,
 ): Promise<{ message: string }> {
-  const { data } = await http.post("/PackingList/updateQuantity", {
+  const session = getSession();
+  const { data } = await http.post("/packinglists/updateQuantity", {
+    session,
     packinglist,
     item,
     quantity,

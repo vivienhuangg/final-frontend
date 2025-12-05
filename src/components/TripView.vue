@@ -465,6 +465,8 @@ async function loadPackingItems() {
 			});
 
 			// Apply client-persisted quantities from localStorage
+			// Note: We're not using localStorage for quantities anymore since they're stored in backend
+			// This code is kept for backward compatibility but shouldn't override backend quantities
 			const qKey = packingListId.value
 				? `packing_qty_${packingListId.value}`
 				: null;
@@ -482,15 +484,17 @@ async function loadPackingItems() {
 				props.trip.travelers.map((t) => t.id),
 			);
 			packingItems.value = deduped.map((item) => {
-				const key = item.name.toLowerCase();
-				const persistedQty = qtyMap[key];
+				// Use item ID as the unique key (e.g., "sock_019aef98-859b-7e8c-bd3c-0b73bd01381f")
+				const uniqueKey = item.id;
+				const persistedQty = qtyMap[uniqueKey];
 				const assignee =
 					item.assignee && validTravelerIds.has(String(item.assignee))
 						? item.assignee
 						: undefined;
+				// Use backend quantity first, then fall back to persisted quantity, then default to 1
 				return {
 					...item,
-					quantity: persistedQty ?? item.quantity ?? 1,
+					quantity: item.quantity ?? persistedQty ?? 1,
 					assignee,
 				};
 			});
@@ -722,35 +726,22 @@ async function handleAddItem(
 	const trimmedName = itemName.trim();
 	if (!trimmedName) return;
 
-	// If item already exists, increment its quantity locally instead of erroring
-	const existing = packingItems.value.find(
-		(item) => item.name.toLowerCase() === trimmedName.toLowerCase(),
-	);
-	if (existing) {
-		const increment = Math.max(1, Number(quantity) || 1);
-		const newQty = (existing.quantity || 1) + increment;
-		existing.quantity = newQty;
-		// Persist to backend if possible
-		try {
-			if (packingListId.value) {
-				await PackingLists.updateQuantity(
-					packingListId.value,
-					existing.id,
-					newQty,
-				);
-			}
-		} catch (e) {
-			// Fallback: persist locally
-			if (packingListId.value) {
-				const qKey = `packing_qty_${packingListId.value}`;
-				try {
-					const raw = localStorage.getItem(qKey);
-					const map = raw ? JSON.parse(raw) : {};
-					map[existing.name.toLowerCase()] = newQty;
-					localStorage.setItem(qKey, JSON.stringify(map));
-				} catch {}
-			}
+	// Check for duplicates in the intended list (personal or shared) before calling backend
+	// This provides immediate feedback, but backend will also validate
+	const currentUserId = (currentUser.value?.id ?? "").toString();
+	const existingInIntendedList = packingItems.value.find((item) => {
+		const nameMatches = item.name.toLowerCase().trim() === trimmedName.toLowerCase();
+		if (isShared) {
+			// Check for duplicates in shared list
+			return nameMatches && item.isShared;
+		} else {
+			// Check for duplicates in personal list for current user
+			return nameMatches && !item.isShared && String(item.assignee) === currentUserId;
 		}
+	});
+
+	if (existingInIntendedList) {
+		alert(`Item "${trimmedName}" already exists in the packing list.`);
 		return;
 	}
 
@@ -782,35 +773,11 @@ async function handleAddItem(
 		);
 
 		await loadPackingItems();
-
-		// If a quantity greater than 1 was specified, persist it
-		if (quantity && quantity > 1) {
-			const added = packingItems.value.find(
-				(i) => i.name.toLowerCase() === trimmedName.toLowerCase(),
-			);
-			if (added) {
-				added.quantity = quantity;
-				try {
-					await PackingLists.updateQuantity(
-						packingListId.value,
-						added.id,
-						quantity,
-					);
-				} catch {
-					const qKey = `packing_qty_${packingListId.value}`;
-					try {
-						const raw = localStorage.getItem(qKey);
-						const map = raw ? JSON.parse(raw) : {};
-						map[added.name.toLowerCase()] = quantity;
-						localStorage.setItem(qKey, JSON.stringify(map));
-					} catch {}
-				}
-			}
-		}
 	} catch (error: any) {
 		console.error("Failed to add packing item:", error);
 		const errorMessage =
 			error instanceof Error ? error.message : "Failed to add packing item";
+		// Show alert with the error message (which will include duplicate detection message from backend)
 		alert(errorMessage);
 	} finally {
 		addingPackingItem.value = false;
@@ -844,7 +811,8 @@ function handleQuantityChange(itemId: string, newQuantity: number) {
 				try {
 					const raw = localStorage.getItem(qKey);
 					const map = raw ? JSON.parse(raw) : {};
-					delete map[item.name.toLowerCase()];
+					// Use item ID as the unique key
+					delete map[item.id];
 					localStorage.setItem(qKey, JSON.stringify(map));
 				} catch {}
 			}
@@ -872,7 +840,8 @@ function handleQuantityChange(itemId: string, newQuantity: number) {
 			try {
 				const raw = localStorage.getItem(qKey);
 				const map = raw ? JSON.parse(raw) : {};
-				map[item.name.toLowerCase()] = newQuantity;
+				// Use item ID as the unique key
+				map[item.id] = newQuantity;
 				localStorage.setItem(qKey, JSON.stringify(map));
 			} catch {}
 		}
@@ -1183,14 +1152,16 @@ async function handleAssignItem(
 }
 
 // Move selected personal items to the shared list by re-creating them as shared
-// and deleting the originals. Then reload the list.
+// and deleting the originals. If the same item exists in shared list, combine them.
 async function handleMoveItemsToShared(itemIds: string[]) {
 	const session = getSession();
 	if (!session || !packingListId.value || !itemIds?.length) return;
 
 	try {
-		// Prepare operations: add shared then delete original
-		const ops: Promise<any>[] = [];
+		// Get fresh list of items once at the start
+		await loadPackingItems();
+
+		// Process items sequentially to avoid overwhelming the backend
 		for (const id of itemIds) {
 			const item = packingItems.value.find((i) => i.id === id);
 			if (!item) continue;
@@ -1198,28 +1169,86 @@ async function handleMoveItemsToShared(itemIds: string[]) {
 
 			// Preserve quantity when moving to shared
 			const quantity =
-				item.quantity && item.quantity > 0 ? item.quantity : undefined;
+				item.quantity && item.quantity > 0 ? item.quantity : 1;
 
-			// Add new shared item with same name and quantity
-			ops.push(
-				PackingLists.addItem(
-					packingListId.value,
-					item.name,
-					undefined,
-					true,
-					quantity,
-				),
+			// Check if the same item (case-insensitive) exists in shared list
+			const existingSharedItem = packingItems.value.find(
+				(i) =>
+					i.isShared &&
+					i.name.toLowerCase().trim() === item.name.toLowerCase().trim()
 			);
-			// Delete original personal item (omit isShared for personal)
-			ops.push(PackingLists.deleteItem(packingListId.value, id));
+
+			if (existingSharedItem) {
+				// Combine: update the shared item's quantity and delete the personal item
+				const newQuantity = (existingSharedItem.quantity || 1) + quantity;
+				// Execute both operations in parallel, but use allSettled so one failure doesn't block the other
+				const results = await Promise.allSettled([
+					PackingLists.updateQuantity(
+						packingListId.value,
+						existingSharedItem.id,
+						newQuantity,
+					),
+					PackingLists.deleteItem(packingListId.value, id),
+				]);
+				// Log any failures but continue
+				results.forEach((result, index) => {
+					if (result.status === 'rejected') {
+						console.error(`Operation ${index === 0 ? 'updateQuantity' : 'deleteItem'} failed:`, result.reason);
+					}
+				});
+			} else {
+				// No existing shared item found locally: try to add
+				// If it fails with duplicate, reload and combine
+				try {
+					await PackingLists.addItem(
+						packingListId.value,
+						item.name,
+						undefined,
+						true,
+						quantity,
+					);
+					// Successfully added, now delete the original personal item
+					await PackingLists.deleteItem(packingListId.value, id);
+				} catch (addError: unknown) {
+					// If addItem fails due to duplicate, reload once to get latest state and combine
+					const errorMsg = addError instanceof Error ? addError.message : String(addError);
+					if (errorMsg.includes("already exists")) {
+						// Reload once to get the latest state
+						await loadPackingItems();
+						
+						// Find the existing shared item
+						const foundItem = packingItems.value.find(
+							(i) =>
+								i.isShared &&
+								i.name.toLowerCase().trim() === item.name.toLowerCase().trim()
+						);
+						
+						if (foundItem) {
+							// Combine: update quantity and delete personal item
+							const combinedQuantity = (foundItem.quantity || 1) + quantity;
+							await Promise.allSettled([
+								PackingLists.updateQuantity(
+									packingListId.value,
+									foundItem.id,
+									combinedQuantity,
+								),
+								PackingLists.deleteItem(packingListId.value, id),
+							]);
+						} else {
+							// Item not found after reload, just delete the personal item
+							await PackingLists.deleteItem(packingListId.value, id);
+						}
+					} else {
+						// Some other error occurred, log and continue
+						console.error("Error adding item:", addError);
+					}
+				}
+			}
 		}
 
-		if (ops.length === 0) return;
-		await Promise.allSettled(ops);
-
-		// Reload to reflect changes
+		// Reload once at the end to reflect all changes
 		await loadPackingItems();
-	} catch (error: any) {
+	} catch (error: unknown) {
 		console.error("Failed to move items to shared:", error);
 		const errorMessage =
 			error instanceof Error ? error.message : "Failed to move items to shared";
@@ -1227,7 +1256,9 @@ async function handleMoveItemsToShared(itemIds: string[]) {
 		// Best effort reload
 		try {
 			await loadPackingItems();
-		} catch {}
+		} catch {
+			// Ignore reload errors
+		}
 	}
 }
 
