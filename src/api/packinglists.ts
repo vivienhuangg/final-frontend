@@ -232,3 +232,19 @@ export async function updateQuantity(
   }
   return data as { message: string };
 }
+
+export async function unassignSharedItem(
+  packinglist: string,
+  item: string,
+): Promise<{ message: string }> {
+  const session = getSession();
+  const { data } = await http.post("/PackingList/unassignSharedItem", {
+    session,
+    packinglist,
+    item,
+  });
+  if (data && typeof data === "object" && "error" in (data as any)) {
+    throw new Error((data as any).error);
+  }
+  return data as { message: string };
+}

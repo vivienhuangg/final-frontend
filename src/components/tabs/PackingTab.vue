@@ -172,24 +172,24 @@
                           class="quantity-btn">
                           +
                         </button>
-                        <button
-                          type="button"
-                          class="quantity-btn"
-                          title="Move to shared"
-                          @click.stop="emit('move-items-to-shared', [item.id])"
-                        >
-                          🤝
-                        </button>
-                        <button
-                          type="button"
-                          class="delete-btn"
-                          title="Remove item"
-                          @click.stop="emit('delete-items', [item.id])"
-                        >
-                          <svg class="delete-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
+                    <button
+                      type="button"
+                      class="quantity-btn action-btn"
+                      title="Move to shared"
+                      @click.stop="emit('move-items-to-shared', [item.id])"
+                    >
+                      🤝
+                    </button>
+                    <button
+                      type="button"
+                      class="delete-btn"
+                      title="Remove item"
+                      @click.stop="emit('delete-items', [item.id])"
+                    >
+                      <svg class="delete-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
                       </div>
                     </div>
                   </div>
@@ -285,6 +285,14 @@
                       class="quantity-btn"
                     >
                       +
+                    </button>
+                    <button
+                      type="button"
+                      class="quantity-btn action-btn"
+                      title="Unassign from shared - distribute to all members"
+                      @click.stop="emit('unassign-shared-item', item.id)"
+                    >
+                      👤
                     </button>
                     <button
                       type="button"
@@ -395,6 +403,7 @@ const emit = defineEmits<{
   (e: "assign-item", itemId: string, travelerId: string): void;
   (e: "move-items-to-shared", itemIds: string[]): void;
   (e: "delete-items", itemIds: string[]): void;
+  (e: "unassign-shared-item", itemId: string): void;
 }>();
 
 const { currentUser } = useAuth();
@@ -914,6 +923,10 @@ watch(
 .quantity-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+.quantity-btn.action-btn {
+  font-size: 0.75rem;
 }
 
 .quantity-value {

@@ -101,6 +101,7 @@
 					@assign-item="handleAssignItem" 
 					@move-items-to-shared="handleMoveItemsToShared" 
 					@delete-items="handleDeleteItems"
+					@unassign-shared-item="handleUnassignSharedItem"
 					@regenerate="handleRegeneratePackingList" 
 					@generate="handleGeneratePackingList" />
 			</div>
@@ -452,13 +453,14 @@ async function loadPackingItems() {
 				})
 				.filter((item): item is ChecklistItem => item !== null);
 
-			// Deduplicate by name (keep the first occurrence)
-			const seenNames = new Set<string>();
+			// Deduplicate by unique key: id is unique, but if items somehow have same id+name+assignee+isShared combo, keep first
+			// Use item ID as the primary unique key since each item should have a unique database ID
+			const seenIds = new Set<string>();
 			const deduped = transformedItems.filter((item) => {
-				if (seenNames.has(item.name.toLowerCase())) {
-					return false; // Duplicate, skip it
+				if (seenIds.has(item.id)) {
+					return false; // Duplicate ID, skip it
 				}
-				seenNames.add(item.name.toLowerCase());
+				seenIds.add(item.id);
 				return true;
 			});
 
@@ -1221,6 +1223,55 @@ async function handleMoveItemsToShared(itemIds: string[]) {
 		console.error("Failed to move items to shared:", error);
 		const errorMessage =
 			error instanceof Error ? error.message : "Failed to move items to shared";
+		alert(errorMessage);
+		// Best effort reload
+		try {
+			await loadPackingItems();
+		} catch {}
+	}
+}
+
+// Unassign shared item and distribute to all trip members
+async function handleUnassignSharedItem(itemId: string) {
+	console.log("[handleUnassignSharedItem] Called with itemId:", itemId);
+	const session = getSession();
+	if (!session || !packingListId.value) {
+		console.log("[handleUnassignSharedItem] Missing session or packingListId");
+		return;
+	}
+
+	const item = packingItems.value.find((i) => i.id === itemId);
+	console.log("[handleUnassignSharedItem] Found item:", item);
+	if (!item) {
+		console.log("[handleUnassignSharedItem] Item not found");
+		return;
+	}
+
+	if (!item.isShared) {
+		console.log("[handleUnassignSharedItem] Item is not shared");
+		alert("Only shared items can be unassigned to all members.");
+		return;
+	}
+
+	try {
+		console.log("[handleUnassignSharedItem] Calling API with:", {
+			packingListId: packingListId.value,
+			itemId,
+		});
+		await PackingLists.unassignSharedItem(packingListId.value, itemId);
+		console.log("[handleUnassignSharedItem] API call successful");
+		
+		// Reload packing items to show the newly created individual items
+		await loadPackingItems();
+		console.log("[handleUnassignSharedItem] Reloaded packing items");
+		console.log("[handleUnassignSharedItem] Current user ID:", currentUser.value?.id);
+		console.log("[handleUnassignSharedItem] All items:", packingItems.value.length);
+		console.log("[handleUnassignSharedItem] Personal items:", packingItems.value.filter(i => !i.isShared && i.assignee === currentUser.value?.id));
+		console.log("[handleUnassignSharedItem] Shared items:", packingItems.value.filter(i => i.isShared));
+	} catch (error: any) {
+		console.error("Failed to unassign shared item:", error);
+		const errorMessage =
+			error instanceof Error ? error.message : "Failed to unassign shared item";
 		alert(errorMessage);
 		// Best effort reload
 		try {

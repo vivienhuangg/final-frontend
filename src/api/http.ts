@@ -52,6 +52,7 @@ const EXCLUDED_ROUTES = new Set<string>([
   "PackingList/toggleCompletion",
   "PackingList/requestPackingListSuggestions",
   "PackingList/addGeneratedItems",
+  "PackingList/unassignSharedItem",
   "PackingList/_getPackingListByTrip",
   "PackingList/_getPackingListByTripAndUser",
   "PackingList/_getTripForPackingList",
