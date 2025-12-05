@@ -205,6 +205,8 @@ const activities = ref<ActivityWithDetails[]>([]);
 const expenses = ref<Expense[]>([]);
 const packingItems = ref<ChecklistItem[]>([]);
 const packingListId = ref<string | null>(null);
+// Track which activities the current user has opted into
+const optedInActivities = ref<Set<string>>(new Set());
 const loading = ref(false);
 const generatingPackingList = ref(false);
 const generationStage = ref("");
@@ -344,8 +346,43 @@ async function loadActivities() {
 			transformed.event = props.trip.id;
 			return transformed;
 		});
+		
+		// Load invitations to determine which activities user has opted into
+		await loadActivityInvitations();
 	} catch (error: any) {
 		console.error("Failed to load activities:", error);
+	}
+}
+
+async function loadActivityInvitations() {
+	const session = getSession();
+	if (!session || !props.trip.id || !currentUser.value?.id) return;
+
+	try {
+		// Get all invitations for the current user
+		const invitationsResponse = await Invitations.getMyInvitations();
+		const invitations = invitationsResponse.results || [];
+		
+		// Reset opted-in activities
+		optedInActivities.value.clear();
+		
+		// Filter to only activity invitations (not trip invitations)
+		// Activity invitations have event IDs that match activity IDs
+		const activityIds = new Set(activities.value.map(a => a.id));
+		
+		for (const inv of invitations) {
+			const eventId = (inv as any).event || (inv as any).eventId;
+			if (eventId && activityIds.has(eventId)) {
+				// Check if user has accepted this activity invitation
+				// Map acceptedStatus to accepted for consistency (matching AttractionsTab logic)
+				const accepted = (inv as any).acceptedStatus || (inv as any).accepted;
+				if (accepted === "Yes") {
+					optedInActivities.value.add(eventId);
+				}
+			}
+		}
+	} catch (error: any) {
+		console.error("Failed to load activity invitations:", error);
 	}
 }
 
@@ -905,11 +942,17 @@ async function generatePackingList(
 		const nights = Math.ceil(
 			(endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
 		);
+		
+		// Only include activities the user has opted into
+		const optedInActivityTitles = activities.value
+			.filter((a) => optedInActivities.value.has(a.id))
+			.map((a) => a.title);
+		
 		// Prompt compression: minimal inputs to reduce generation time
 		const tripInfo = `Nights:${nights};`;
 		const activitiesInfo =
-			activities.value.length > 0
-				? `Activities:${activities.value.map((a) => a.title).join("|")};`
+			optedInActivityTitles.length > 0
+				? `Activities:${optedInActivityTitles.join("|")};`
 				: "Activities:;";
 		const quantityHint = `Rules: return explicit numeric quantities (no 'x1'); infer quantities from nights and activities; set shared=true for communal items; avoid duplicates.`;
 		const capHint = `Limit: max 20 suggestions.`;
@@ -917,12 +960,19 @@ async function generatePackingList(
 		const exampleHint = `Example:[{"name":"Underwear","quantity":${nights},"shared":false},{"name":"First aid kit","quantity":1,"shared":true}]`;
 		const additionalInput = `${tripInfo} ${activitiesInfo} ${quantityHint} ${capHint} ${formatHint} ${exampleHint}`;
 
+		// Prepare existing items to pass to backend (both personal and shared)
+		const existingItems = packingItems.value.map((item) => ({
+			name: item.name,
+			quantity: item.quantity,
+		}));
+
 		// New flow: fetch raw JSON suggestions from backend without creating items
 		generationStage.value = "Requesting AI suggestions...";
 		generationProgress.value = regenerate ? 40 : 30;
 		const raw = await PackingLists.getRawSuggestions(
 			packingListId.value,
 			additionalInput,
+			existingItems,
 		);
 		const arr = Array.isArray(raw?.suggestions) ? raw.suggestions : [];
 		rawSuggestionsJson.value = JSON.stringify(arr);

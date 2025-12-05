@@ -161,9 +161,13 @@ export async function requestSuggestions(
 export async function getRawSuggestions(
   packinglist: string,
   additionalInput: string,
+  existingItems?: Array<{ name: string; quantity?: number }>,
 ): Promise<{ suggestions: Array<{ name: string; quantity?: number; shared?: boolean }> }> {
   const session = getSession();
   const payload: any = { session, packinglist, additionalInput };
+  if (existingItems && existingItems.length > 0) {
+    payload.existingItems = existingItems;
+  }
   const { data } = await http.post("/packinglists/suggestRaw", payload);
   if (
     data &&
