@@ -332,10 +332,10 @@
             <span>Add as shared item</span>
           </label>
           <div class="manual-modal-actions">
-            <button type="button" class="btn-secondary" @click="closeManualModal" :disabled="isSubmitting || props.addingItem">Cancel</button>
-            <button type="submit" class="btn-primary" :disabled="isSubmitting || props.addingItem || !newItemName.trim()">
-              <span v-if="isSubmitting || props.addingItem" class="modal-spinner"></span>
-              <span>{{ (isSubmitting || props.addingItem) ? "Adding..." : "Add item" }}</span>
+            <button type="button" class="btn-secondary" @click="closeManualModal" :disabled="props.addingItem">Cancel</button>
+            <button type="submit" class="btn-primary" :disabled="props.addingItem || !newItemName.trim()">
+              <span v-if="props.addingItem" class="modal-spinner"></span>
+              <span>{{ props.addingItem ? "Adding..." : "Add item" }}</span>
             </button>
           </div>
         </form>
@@ -345,7 +345,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import { useAuth } from "../../stores/useAuth";
 import type { ChecklistItem, Traveler } from "../../types/trip";
 
@@ -367,31 +367,58 @@ const newItemName = ref("");
 const newItemShared = ref(false);
 const newItemQty = ref(1);
 const showManualModal = ref(false);
-const isSubmitting = ref(false);
+const submittedName = ref("");
+const itemCountBeforeSubmit = ref(0);
 
 function closeManualModal() {
   showManualModal.value = false;
   newItemName.value = "";
   newItemShared.value = false;
   newItemQty.value = 1;
-  isSubmitting.value = false;
+  submittedName.value = "";
+  itemCountBeforeSubmit.value = 0;
 }
 
 function submitNewItem() {
   const name = newItemName.value.trim();
-  if (!name || props.generating || props.addingItem || isSubmitting.value) return;
+  // Only prevent submission if already adding or generating
+  if (!name || props.generating || props.addingItem) return;
   const qty = Math.max(1, Number(newItemQty.value) || 1);
-  isSubmitting.value = true;
+  submittedName.value = name;
+  // Track item count before submission to detect if a new item was added
+  itemCountBeforeSubmit.value = props.items.length;
   emit("add-item", name, newItemShared.value, qty);
   console.log("Submitting new item:", name, "Shared:", newItemShared.value);
 }
 
 // Watch for when addingItem becomes false to close the modal
-watch(() => props.addingItem, (newVal, oldVal) => {
+watch(() => props.addingItem, async (newVal, oldVal) => {
   // If it was true and now false, the operation completed
-  if (oldVal === true && newVal === false && isSubmitting.value) {
-    isSubmitting.value = false;
-    closeManualModal();
+  if (oldVal === true && newVal === false) {
+    // Wait for Vue reactivity to update the items prop
+    await nextTick();
+    
+    // Only proceed with success detection if we were actually submitting
+    if (!submittedName.value) return;
+    
+    // Check if a new item was added by comparing item counts
+    // If count increased, it was likely successful (though not 100% reliable due to race conditions)
+    const itemCountIncreased = props.items.length > itemCountBeforeSubmit.value;
+    
+    // Also check if the submitted item exists with matching properties
+    const itemExists = props.items.some(item => 
+      item.name.toLowerCase().trim() === submittedName.value.toLowerCase().trim() &&
+      item.isShared === newItemShared.value
+    );
+    
+    // Only close modal if count increased (new item added) AND item exists
+    // This helps avoid false positives when item already existed (error case)
+    if (itemCountIncreased && itemExists) {
+      // Success: clear form and close modal
+      closeManualModal();
+    }
+    // Otherwise (error case): keep form open with text so user can edit
+    // Button state is controlled by props.addingItem, which is now false, so button will be enabled
   }
 });
 const emit = defineEmits<{
