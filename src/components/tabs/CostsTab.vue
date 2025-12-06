@@ -38,18 +38,31 @@
                 </div>
                 <div class="balance-info">
                   <p class="balance-name">{{ getTravelerDisplayName(balance.travelerId) }}</p>
+                  <p class="balance-status">
+                    <span v-if="Math.abs(balance.balance) < 0.01" class="status-settled">All settled up</span>
+                    <span v-else-if="balance.balance > 0" class="status-owed">is owed money</span>
+                    <span v-else class="status-owes">owes money</span>
+                  </p>
                 </div>
                 <div class="balance-amount-wrapper">
-                  <span v-if="Math.abs(balance.balance) < 0.01" class="badge-settled">Settled</span>
+                  <span v-if="Math.abs(balance.balance) < 0.01" class="badge-settled">✓</span>
                   <div v-else class="balance-amount" :class="{ positive: balance.balance > 0, negative: balance.balance < 0 }">
-                    <svg v-if="balance.balance > 0" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                    </svg>
-                    <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
-                    </svg>
-                    <span>{{ formatBalance(Math.abs(balance.balance)) }}</span>
+                    <span class="amount-label">{{ balance.balance > 0 ? 'gets back' : 'owes' }}</span>
+                    <span class="amount-value">{{ formatBalance(Math.abs(balance.balance)) }}</span>
                   </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Settlement Suggestions -->
+            <div v-if="settlementSuggestions.length > 0" class="settlement-section">
+              <h3 class="settlement-title">How to Settle Up</h3>
+              <div class="settlement-list">
+                <div v-for="(suggestion, idx) in settlementSuggestions" :key="idx" class="settlement-item">
+                  <span class="settlement-from">{{ getTravelerDisplayName(suggestion.from) }}</span>
+                  <span class="settlement-arrow">→</span>
+                  <span class="settlement-to">{{ getTravelerDisplayName(suggestion.to) }}</span>
+                  <span class="settlement-amount">{{ formatBalance(suggestion.amount) }}</span>
                 </div>
               </div>
             </div>
@@ -83,7 +96,7 @@
                     Paid by {{ getTravelerDisplayName(expense.paidBy) }} · Split {{ expense.splitBetween?.length || 1 }} ways
                   </p>
                   <p class="expense-per-person">
-                    {{ formatCurrency(getPerPersonAmount(expense)) }} per person
+                    {{ getSplitDescription(expense) }}
                   </p>
                 </div>
                 <div class="expense-amount-wrapper">
@@ -274,15 +287,58 @@ const memberBalances = computed<MemberBalance[]>(() => {
   }));
 });
 
+// Calculate simplified settlement suggestions (who should pay who)
+const settlementSuggestions = computed(() => {
+  const suggestions: Array<{ from: string; to: string; amount: number }> = [];
+
+  // Get people who owe (negative balance) and people who are owed (positive balance)
+  const debtors = memberBalances.value
+    .filter(b => b.balance < -0.01)
+    .map(b => ({ id: b.travelerId, amount: Math.abs(b.balance) }))
+    .sort((a, b) => b.amount - a.amount); // Sort by amount descending
+
+  const creditors = memberBalances.value
+    .filter(b => b.balance > 0.01)
+    .map(b => ({ id: b.travelerId, amount: b.balance }))
+    .sort((a, b) => b.amount - a.amount); // Sort by amount descending
+
+  // Simple greedy algorithm to minimize transactions
+  let debtorIdx = 0;
+  let creditorIdx = 0;
+
+  while (debtorIdx < debtors.length && creditorIdx < creditors.length) {
+    const debtor = debtors[debtorIdx];
+    const creditor = creditors[creditorIdx];
+
+    const amount = Math.min(debtor.amount, creditor.amount);
+
+    if (amount > 0.01) {
+      suggestions.push({
+        from: debtor.id,
+        to: creditor.id,
+        amount: Math.round(amount * 100) / 100,
+      });
+    }
+
+    debtor.amount -= amount;
+    creditor.amount -= amount;
+
+    if (debtor.amount < 0.01) debtorIdx++;
+    if (creditor.amount < 0.01) creditorIdx++;
+  }
+
+  return suggestions;
+});
+
 function getTravelerDisplayName(travelerId: string): string {
   const t = props.travelers.find(t => t.id === travelerId);
   if (!t) return 'Unknown';
-  
+
   // Prefer first and last name if available
   if (t.firstName && t.lastName) {
     return `${t.firstName} ${t.lastName}`;
   }
-  
+
   // Fallback to username or id
   return t.username || t.id || 'Unknown';
 }
@@ -295,12 +351,12 @@ function getTravelerUsername(travelerId: string): string {
 function getTravelerInitial(travelerId: string): string {
   const t = props.travelers.find(t => t.id === travelerId);
   if (!t) return '?';
-  
+
   // Prefer first letter of first name if available
   if (t.firstName) {
     return t.firstName.charAt(0).toUpperCase();
   }
-  
+
   // Fallback to first letter of display name
   const displayName = getTravelerDisplayName(travelerId);
   return displayName.charAt(0).toUpperCase();
@@ -329,6 +385,56 @@ function getAvatarColor(index: number): string {
 
 function handleDeleteExpense(expenseId: string) {
   emit('delete-expense', expenseId);
+}
+
+function hasCustomSplit(expense: Expense): boolean {
+  if (!Array.isArray(expense.splitBetween) || expense.splitBetween.length <= 1) {
+    return false;
+  }
+
+  if (expense.splitType === "money") {
+    const costs = (expense.splitBetween as any[])
+      .map((s) => typeof s.cost === "number" ? s.cost : Number(s.cost))
+      .filter((c) => typeof c === "number" && !isNaN(c));
+
+    if (costs.length > 1) {
+      // Check if all costs are equal (within small tolerance)
+      const first = costs[0];
+      return costs.some((c) => Math.abs(c - first) > 0.01);
+    }
+  } else if (expense.splitType === "percentage") {
+    const percentages = (expense.splitBetween as any[])
+      .map((s) => typeof s.percentage === "number" ? s.percentage : Number(s.percentage))
+      .filter((p) => typeof p === "number" && !isNaN(p));
+
+    if (percentages.length > 1) {
+      const first = percentages[0];
+      return percentages.some((p) => Math.abs(p - first) > 0.1);
+    }
+  }
+
+  return false;
+}
+
+function getSplitDescription(expense: Expense): string {
+  if (!hasCustomSplit(expense)) {
+    return `${formatCurrency(getPerPersonAmount(expense))} per person`;
+  }
+
+  // Custom split - show range or "varies"
+  if (expense.splitType === "money" && Array.isArray(expense.splitBetween)) {
+    const costs = (expense.splitBetween as any[])
+      .map((s) => typeof s.cost === "number" ? s.cost : Number(s.cost))
+      .filter((c) => typeof c === "number" && !isNaN(c));
+
+    if (costs.length > 0) {
+      const min = Math.min(...costs);
+      const max = Math.max(...costs);
+      return `${formatCurrency(min)} - ${formatCurrency(max)} (custom split)`;
+    }
+  }
+
+  return "Custom split";
 }
 
 function getPerPersonAmount(expense: Expense): number {
@@ -608,6 +714,24 @@ function addExpense() {
 .balance-name {
   font-weight: 500;
   color: #1e3a5f;
+  margin-bottom: 0.125rem;
+}
+
+.balance-status {
+  font-size: 0.75rem;
+  margin: 0;
+}
+
+.status-settled {
+  color: #64748b;
+}
+
+.status-owed {
+  color: #16a34a;
+}
+
+.status-owes {
+  color: #dc2626;
 }
 
 .balance-amount-wrapper {
@@ -618,8 +742,19 @@ function addExpense() {
 
 .balance-amount {
   display: flex;
-  align-items: center;
-  gap: 0.25rem;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.125rem;
+}
+
+.amount-label {
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.7;
+}
+
+.amount-value {
   font-size: 1rem;
   font-weight: 600;
 }
@@ -633,11 +768,69 @@ function addExpense() {
 }
 
 .badge-settled {
-  font-size: 0.75rem;
-  background: #f1f5f9;
+  font-size: 1rem;
+  background: #dcfce7;
+  color: #16a34a;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Settlement Suggestions */
+.settlement-section {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.settlement-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1e3a5f;
+  margin-bottom: 0.75rem;
+}
+
+.settlement-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.settlement-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.settlement-from {
+  font-weight: 500;
+  color: #dc2626;
+}
+
+.settlement-arrow {
   color: #64748b;
-  padding: 0.25rem 0.75rem;
-  border-radius: 9999px;
+  font-weight: bold;
+}
+
+.settlement-to {
+  font-weight: 500;
+  color: #16a34a;
+}
+
+.settlement-amount {
+  margin-left: auto;
+  font-weight: 600;
+  color: #1e3a5f;
+  background: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
 }
 
 .expenses-list {
