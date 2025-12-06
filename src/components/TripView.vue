@@ -611,6 +611,38 @@ async function handleInvite(username: string) {
 	const session = getSession();
 	if (!session || !props.trip.id) return;
 
+	// Frontend validation: Check if user is trying to invite themselves
+	if (currentUser.value?.username && username.toLowerCase().trim() === currentUser.value.username.toLowerCase().trim()) {
+		showNotificationModal("Cannot Invite Yourself", "You cannot invite yourself to a trip.", "error");
+		return;
+	}
+
+	// Frontend validation: Check if user is already in the trip
+	// Check by username (if available in travelers array)
+	const isAlreadyTraveler = props.trip.travelers.some(
+		(traveler) => traveler.username?.toLowerCase().trim() === username.toLowerCase().trim()
+	);
+	
+	// Also check if the current user's ID matches any traveler (to catch cases where username might not be set)
+	// This is a secondary check for self-invite by ID
+	if (currentUser.value?.id) {
+		const isCurrentUserInTrip = props.trip.travelers.some(
+			(traveler) => traveler.id === currentUser.value?.id
+		) || props.trip.organizer === currentUser.value.id;
+		
+		// If the username being invited matches current user's username, we already caught it above
+		// But if somehow the ID matches, we should also prevent it
+		if (isCurrentUserInTrip && currentUser.value.username?.toLowerCase().trim() === username.toLowerCase().trim()) {
+			showNotificationModal("Cannot Invite Yourself", "You cannot invite yourself to a trip.", "error");
+			return;
+		}
+	}
+
+	if (isAlreadyTraveler) {
+		showNotificationModal("Already in Trip", "This user is already a traveler in this trip.", "error");
+		return;
+	}
+
 	try {
 		loading.value = true;
 		await Invitations.inviteUserToTrip(props.trip.id, username);
