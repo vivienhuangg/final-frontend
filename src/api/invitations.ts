@@ -143,3 +143,60 @@ export async function createInvitation(
 		throw new Error((data as any).error);
 	return data as { invitation: string };
 }
+
+export async function getInvitationsByEvent(
+	event: string,
+): Promise<{
+	results: Array<{
+		invitation: string;
+		invitee: string;
+		accepted: "Yes" | "No" | "Maybe";
+	}>;
+}> {
+	const session = getSession();
+	const { data } = await http.post("/Invitation/_getInvitationsByEvent", {
+		session,
+		event,
+	});
+	if (
+		data &&
+		typeof data === "object" &&
+		"error" in data &&
+		(data as any).error
+	)
+		throw new Error((data as any).error);
+	
+	// Passthrough routes return arrays directly, not wrapped in results
+	// Handle both cases for compatibility
+	const results = Array.isArray(data) ? data : (data as any).results || [];
+	
+	return {
+		results: results as Array<{
+			invitation: string;
+			invitee: string;
+			accepted: "Yes" | "No" | "Maybe";
+		}>,
+	};
+}
+
+export async function getAllActivityInvitationsForTrip(
+	trip: string,
+): Promise<Record<string, Array<{
+	invitee: string;
+	accepted: "Yes" | "No" | "Maybe";
+}>>> {
+	const session = getSession();
+	const { data } = await http.post("/activities/allInvitations", {
+		session,
+		trip,
+	});
+	if (
+		data &&
+		typeof data === "object" &&
+		"error" in data &&
+		(data as any).error
+	)
+		throw new Error((data as any).error);
+	
+	return (data as any).results || {};
+}

@@ -118,7 +118,7 @@
                   <span class="stat-value">{{ getVoteCount(activity.id) }}</span>
                   <span class="stat-label">Votes</span>
                 </div>
-                <div class="stat">
+                <div class="stat clickable-stat" @click="openAttendingModal(activity.id)">
                   <span class="stat-value">{{ getOptedInCount(activity.id) }}</span>
                   <span class="stat-label">Attending</span>
                 </div>
@@ -236,7 +236,7 @@
                   <span class="stat-value">{{ getVoteCount(activity.id) }}</span>
                   <span class="stat-label">Votes</span>
                 </div>
-                <div class="stat">
+                <div class="stat clickable-stat" @click="openAttendingModal(activity.id)">
                   <span class="stat-value">{{ getOptedInCount(activity.id) }}</span>
                   <span class="stat-label">Attending</span>
                 </div>
@@ -578,6 +578,49 @@
         </div>
       </div>
     </div>
+
+    <!-- Attending Modal -->
+    <div v-if="showAttendingModal" class="modal-overlay" @click="closeAttendingModal">
+      <div class="modal-content attending-modal" @click.stop>
+        <div class="modal-header">
+          <h3 class="modal-title">Who's Attending</h3>
+          <button class="modal-close" @click="closeAttendingModal">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="attending-sections">
+            <!-- Coming Section -->
+            <div class="attending-section">
+              <h4 class="section-title">Coming</h4>
+              <div v-if="comingNames.length > 0" class="names-list">
+                <div v-for="name in comingNames" :key="name" class="name-item">
+                  {{ name }}
+                </div>
+              </div>
+              <div v-else class="empty-section">
+                <p>No one is coming yet.</p>
+              </div>
+            </div>
+
+            <!-- Not Coming Section -->
+            <div class="attending-section">
+              <h4 class="section-title">Not Coming</h4>
+              <div v-if="notComingNames.length > 0" class="names-list">
+                <div v-for="name in notComingNames" :key="name" class="name-item">
+                  {{ name }}
+                </div>
+              </div>
+              <div v-else class="empty-section">
+                <p>Everyone is coming!</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -650,6 +693,10 @@ const editForm = ref({
   end: '',
   cost: 0,
 });
+const showAttendingModal = ref(false);
+const selectedActivityId = ref<string | null>(null);
+const comingNames = ref<string[]>([]);
+const notComingNames = ref<string[]>([]);
 
 // Helper to get date from activity (in local timezone to avoid date shifts)
 function getActivityDate(activity: ActivityWithDetails): string {
@@ -972,35 +1019,28 @@ async function loadInvitations() {
   if (!session) return;
 
   try {
-    const response = await Invitations.getMyInvitations();
-    const myInvitations = response.results || [];
-    console.log('Fetched invitations:', myInvitations);
-    // Reset all activity invitations
+    // Get current user's invitations to update their personal status
+    const myInvitationsResponse = await Invitations.getMyInvitations();
+    const myInvitations = myInvitationsResponse.results || [];
+    console.log('Fetched my invitations:', myInvitations);
+    
+    // Reset all activity invitations - we'll build this from travelers
     allActivityInvitations.value = {};
+    activityInvitations.value = {};
 
-    // Filter to only activity invitations (not trip invitations)
-    // and map by activity ID
+    // Process current user's invitations first
     myInvitations.forEach((inv: { invitation: string; event: string; acceptedStatus: "Yes" | "No" | "Maybe" }) => {
       // Map acceptedStatus to accepted for consistency
       const accepted = inv.acceptedStatus || (inv as any).accepted;
       // Check if this event is an activity (not a trip)
       const isActivity = props.activities.some(a => a.id === inv.event);
       if (isActivity) {
-        console.log('Processing invitation for activity:', inv.event, 'Accepted:', accepted);
+        console.log('Processing my invitation for activity:', inv.event, 'Accepted:', accepted);
         // Store current user's invitation
         activityInvitations.value[inv.event] = {
           invitation: inv.invitation,
           accepted: accepted,
         };
-
-        // Store in all invitations (we only have current user's for now)
-        if (!allActivityInvitations.value[inv.event]) {
-          allActivityInvitations.value[inv.event] = [];
-        }
-        allActivityInvitations.value[inv.event].push({
-          invitee: currentUserId.value,
-          accepted: accepted,
-        });
 
         // Update opted-in status based on invitation
         if (accepted === "Yes") {
@@ -1008,9 +1048,89 @@ async function loadInvitations() {
         } else {
           optedInAttractions.value.delete(inv.event);
         }
+
+        // Initialize allActivityInvitations for this activity with current user's status
+        if (!allActivityInvitations.value[inv.event]) {
+          allActivityInvitations.value[inv.event] = [];
+        }
+        // Add/update current user's invitation in allActivityInvitations
+        const userId = currentUserId.value;
+        if (userId) {
+          const existingIndex = allActivityInvitations.value[inv.event].findIndex(
+            (inv) => inv.invitee === userId
+          );
+          const invitationEntry = {
+            invitee: userId,
+            accepted: accepted,
+          };
+          if (existingIndex >= 0) {
+            allActivityInvitations.value[inv.event][existingIndex] = invitationEntry;
+          } else {
+            allActivityInvitations.value[inv.event].push(invitationEntry);
+          }
+        }
       }
-      console.log('all activity:', props.activities);
     });
+
+    // Try to fetch all activity invitations for the trip at once (more efficient)
+    try {
+      console.log('Attempting to fetch all activity invitations for trip:', props.tripId);
+      const allInvitationsResponse = await Invitations.getAllActivityInvitationsForTrip(props.tripId);
+      console.log('Fetched all activity invitations for trip:', allInvitationsResponse);
+      console.log('Number of activities with invitations:', Object.keys(allInvitationsResponse).length);
+      
+      // Replace all invitations with the fetched ones (they should be complete)
+      // This ensures we have all travelers' invitations, not just the current user's
+      Object.keys(allInvitationsResponse).forEach((activityId) => {
+        const fetchedInvitations = allInvitationsResponse[activityId] || [];
+        console.log(`Activity ${activityId} has ${fetchedInvitations.length} invitations:`, fetchedInvitations);
+        
+        // Replace all invitations for this activity with the fetched ones
+        // (since we're getting all invitations from the backend)
+        allActivityInvitations.value[activityId] = fetchedInvitations.map((inv) => ({
+          invitee: inv.invitee,
+          accepted: inv.accepted || "No",
+        }));
+      });
+      
+      console.log('Final allActivityInvitations after getAllActivityInvitationsForTrip:', allActivityInvitations.value);
+    } catch (error) {
+      console.warn('Failed to load all activity invitations for trip:', error);
+      // Fallback: try to fetch invitations for each activity individually
+      // Use Promise.all to wait for all async operations
+      const activityPromises = props.activities
+        .filter(activity => !activity.solo && !activity.proposal)
+        .map(async (activity) => {
+          if (!allActivityInvitations.value[activity.id]) {
+            allActivityInvitations.value[activity.id] = [];
+          }
+          
+          try {
+            const response = await Invitations.getInvitationsByEvent(activity.id);
+            const allInvitations = response.results || [];
+            console.log(`Fetched ${allInvitations.length} invitations for activity ${activity.id}:`, allInvitations);
+            
+            const existing = allActivityInvitations.value[activity.id];
+            allInvitations.forEach((inv: any) => {
+              const newInv = {
+                invitee: inv.invitee,
+                accepted: inv.accepted || inv.acceptedStatus || "No",
+              };
+              const existingIndex = existing.findIndex((e) => e.invitee === newInv.invitee);
+              if (existingIndex >= 0) {
+                existing[existingIndex] = newInv;
+              } else {
+                existing.push(newInv);
+              }
+            });
+          } catch (err) {
+            console.warn(`Failed to load invitations for activity ${activity.id}:`, err);
+          }
+        });
+      
+      await Promise.all(activityPromises);
+      console.log('Final allActivityInvitations after fallback:', allActivityInvitations.value);
+    }
   } catch (error) {
     console.error('Error loading invitations:', error);
   }
@@ -1108,16 +1228,17 @@ function getVoteCount(activityId: string): number {
 
 function getOptedInCount(activityId: string): number {
   const activity = props.activities.find(a => a.id === activityId);
-  if (!activity) return 0;
+  if (!activity || activity.solo) return 0;
 
-  // Only count invitations with accepted === "Yes"
-  // Don't count the creator automatically - they must opt in like everyone else
+  // Get invitations we have for this activity
   const invitations = allActivityInvitations.value[activityId] || [];
-  const acceptedCount = invitations.filter(inv => inv.accepted === "Yes").length;
-
-  // Return the count of people who have actually opted in
-  // If we don't have invitation data yet, return 0 (not a fallback count)
-  return acceptedCount;
+  
+  // Count how many invitations have accepted === "Yes"
+  // This counts all users who have opted in, not just travelers
+  // (in case there are invitations for users not in the travelers list)
+  const count = invitations.filter((inv) => inv.accepted === "Yes").length;
+  
+  return count;
 }
 
 function hasUserRating(activityId: string): boolean {
@@ -1139,6 +1260,56 @@ function getUserRating(activityId: string): number {
 
 function isOptedIn(activityId: string): boolean {
   return optedInAttractions.value.has(activityId);
+}
+
+function openAttendingModal(activityId: string) {
+  selectedActivityId.value = activityId;
+  
+  // Get all invitations for this activity
+  const invitations = allActivityInvitations.value[activityId] || [];
+  console.log(`[openAttendingModal] Activity ${activityId} invitations:`, invitations);
+  console.log(`[openAttendingModal] Total travelers:`, props.travelers.length);
+  
+  // Create a map of invitee ID to invitation status
+  const invitationMap = new Map<string, "Yes" | "No" | "Maybe">();
+  for (const invitation of invitations) {
+    invitationMap.set(invitation.invitee, invitation.accepted);
+    console.log(`[openAttendingModal] Mapped invitee ${invitation.invitee} to status ${invitation.accepted}`);
+  }
+  
+  // Separate into "Coming" (accepted = "Yes") and "Not Coming" (accepted = "No" or "Maybe", or no invitation)
+  const coming: string[] = [];
+  const notComing: string[] = [];
+  
+  // Process ALL travelers in the trip, not just those with invitations
+  for (const traveler of props.travelers) {
+    const displayName = traveler.firstName && traveler.lastName
+      ? `${traveler.firstName} ${traveler.lastName}`
+      : traveler.name || traveler.username || traveler.id;
+    
+    // Check if this traveler has an invitation and if they accepted
+    const invitationStatus = invitationMap.get(traveler.id);
+    console.log(`[openAttendingModal] Traveler ${traveler.id} (${displayName}) has status:`, invitationStatus);
+    
+    if (invitationStatus === "Yes") {
+      coming.push(displayName);
+    } else {
+      // Not coming: either no invitation, or accepted = "No" or "Maybe"
+      notComing.push(displayName);
+    }
+  }
+  
+  console.log(`[openAttendingModal] Coming:`, coming);
+  console.log(`[openAttendingModal] Not Coming:`, notComing);
+  
+  comingNames.value = coming;
+  notComingNames.value = notComing;
+  showAttendingModal.value = true;
+}
+
+function closeAttendingModal() {
+  showAttendingModal.value = false;
+  selectedActivityId.value = null;
 }
 
 function formatDate(dateString: string): string {
@@ -3037,6 +3208,118 @@ input:checked+.slider:before {
 
 .fill-yellow-500 {
   fill: #eab308;
+}
+
+.clickable-stat {
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.clickable-stat:hover {
+  opacity: 0.8;
+  transform: translateY(-1px);
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.attending-modal {
+  background: white;
+  border-radius: 1rem;
+  width: 100%;
+  max-width: 600px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.modal-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1e3a5f;
+  margin: 0;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #64748b;
+  padding: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+}
+
+.modal-close:hover {
+  color: #1e3a5f;
+}
+
+.modal-body {
+  padding: 1.5rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.attending-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.attending-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.section-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e3a5f;
+  margin: 0;
+}
+
+.names-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.name-item {
+  padding: 0.5rem 0.75rem;
+  background: #f8fafc;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  color: #1e3a5f;
+}
+
+.empty-section {
+  padding: 1.5rem;
+  text-align: center;
+  color: #64748b;
+  font-size: 0.875rem;
 }
 </style>
 

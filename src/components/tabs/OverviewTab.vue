@@ -23,6 +23,7 @@
         </div>
         <div class="card-content">
           <div class="members-list">
+            <!-- Show travelers (people who have accepted) -->
             <div
               v-for="(traveler, index) in trip.travelers"
               :key="traveler.id"
@@ -40,6 +41,24 @@
               </div>
               <!-- traveler.role doesn't exist in Trip/Traveler types; derive ownership from trip.organizer -->
               <span v-if="traveler.id === trip.organizer" class="owner-badge">Owner</span>
+            </div>
+            <!-- Show invited people who haven't responded yet -->
+            <div
+              v-for="(invited, index) in pendingInvitations"
+              :key="invited.invitee"
+              class="member-item"
+            >
+              <div
+                class="member-avatar"
+                :style="{ backgroundColor: getAvatarColor(trip.travelers.length + index) }"
+              >
+                {{ getInvitedInitial(invited) }}
+              </div>
+              <div class="member-info">
+                <p class="member-name">{{ getInvitedDisplayName(invited) }}</p>
+                <p class="member-username">{{ invited.username || invited.invitee }}</p>
+              </div>
+              <span class="invited-badge">Invited</span>
             </div>
           </div>
         </div>
@@ -74,8 +93,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import type { Trip, Traveler } from '../../types/trip';
+import * as Invitations from '../../api/invitations';
+import * as Users from '../../api/users';
+import { useAuth } from '../../stores/useAuth';
 
 const props = defineProps<{
   trip: Trip;
@@ -85,12 +107,66 @@ const emit = defineEmits<{
   (e: 'invite', username: string): void;
 }>();
 
+const { getSession } = useAuth();
 const showInviteDialog = ref(false);
 const inviteUsername = ref('');
+const tripInvitations = ref<Array<{
+  invitation: string;
+  invitee: string;
+  accepted: "Yes" | "No" | "Maybe";
+}>>([]);
+const invitedUserNames = ref<Map<string, { firstName?: string; lastName?: string; username: string }>>(new Map());
+
 const settings = ref({
   anonymousVoting: false,
   hiddenGemsBoost: false,
 });
+
+// Get pending invitations (people invited but haven't accepted)
+const pendingInvitations = computed(() => {
+  // Get all invitations that are not accepted (accepted = "No" or "Maybe")
+  // and where the invitee is not already a traveler
+  const travelerIds = new Set(props.trip.travelers.map(t => t.id));
+  return tripInvitations.value
+    .filter(inv => (inv.accepted === "No" || inv.accepted === "Maybe") && !travelerIds.has(inv.invitee))
+    .map(inv => {
+      const nameInfo = invitedUserNames.value.get(inv.invitee) || { username: inv.invitee };
+      return {
+        ...inv,
+        ...nameInfo,
+      };
+    });
+});
+
+async function loadTripInvitations() {
+  const session = getSession();
+  if (!session || !props.trip.id) return;
+
+  try {
+    const response = await Invitations.getTripInvitations(props.trip.id);
+    tripInvitations.value = response.results || [];
+
+    // Fetch names for all invited users
+    const inviteeIds = new Set(tripInvitations.value.map(inv => inv.invitee));
+    for (const userId of inviteeIds) {
+      try {
+        const [usernameResponse, nameResponse] = await Promise.all([
+          Users.getUsername(userId).catch(() => ({ username: userId })),
+          Users.getUserName(userId).catch(() => ({ firstName: undefined, lastName: undefined } as any)),
+        ]);
+        invitedUserNames.value.set(userId, {
+          firstName: (nameResponse as any).firstName,
+          lastName: (nameResponse as any).lastName,
+          username: usernameResponse.username || userId,
+        });
+      } catch (e) {
+        invitedUserNames.value.set(userId, { username: userId });
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load trip invitations:', error);
+  }
+}
 
 function sendInvite() {
   emit('invite', inviteUsername.value.trim());
@@ -123,6 +199,25 @@ function getTravelerInitial(traveler: Traveler): string {
   const displayName = getTravelerDisplayName(traveler);
   return displayName.charAt(0).toUpperCase();
 }
+
+function getInvitedDisplayName(invited: { firstName?: string; lastName?: string; username?: string; invitee: string }): string {
+  if (invited.firstName && invited.lastName) {
+    return `${invited.firstName} ${invited.lastName}`;
+  }
+  return invited.username || invited.invitee || 'Unknown';
+}
+
+function getInvitedInitial(invited: { firstName?: string; lastName?: string; username?: string; invitee: string }): string {
+  if (invited.firstName) {
+    return invited.firstName.charAt(0).toUpperCase();
+  }
+  const displayName = getInvitedDisplayName(invited);
+  return displayName.charAt(0).toUpperCase();
+}
+
+onMounted(() => {
+  loadTripInvitations();
+});
 </script>
 
 <style scoped>
@@ -276,6 +371,15 @@ function getTravelerInitial(traveler: Traveler): string {
   padding: 0.25rem 0.75rem;
   border-radius: 9999px;
   border: 1px solid rgba(20, 184, 166, 0.2);
+}
+
+.invited-badge {
+  font-size: 0.75rem;
+  background: rgba(255, 123, 107, 0.1);
+  color: #ff7b6b;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 123, 107, 0.2);
 }
 
 .settings-list {
