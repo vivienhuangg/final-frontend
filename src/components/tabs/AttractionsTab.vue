@@ -507,13 +507,39 @@
           <div class="form-row">
             <div class="form-group">
               <label for="time">Start Time</label>
-              <input id="time" v-model="newAttraction.time" type="time"
-                @input="(e: Event) => { const input = e.target as HTMLInputElement; input.setCustomValidity(''); }" />
+              <div class="time-picker">
+                <select v-model="startTimeHour" class="time-select">
+                  <option value="">--</option>
+                  <option v-for="h in hours12" :key="h" :value="h">{{ h }}</option>
+                </select>
+                <span class="time-separator">:</span>
+                <select v-model="startTimeMinute" class="time-select">
+                  <option value="">--</option>
+                  <option v-for="m in minutes" :key="m" :value="m">{{ m }}</option>
+                </select>
+                <select v-model="startTimePeriod" class="time-select period-select">
+                  <option value="AM">AM</option>
+                  <option value="PM">PM</option>
+                </select>
+              </div>
             </div>
             <div class="form-group">
               <label for="endTime">End Time</label>
-              <input id="endTime" v-model="newAttraction.endTime" type="time"
-                @input="(e: Event) => { const input = e.target as HTMLInputElement; input.setCustomValidity(''); }" />
+              <div class="time-picker">
+                <select v-model="endTimeHour" class="time-select">
+                  <option value="">--</option>
+                  <option v-for="h in hours12" :key="h" :value="h">{{ h }}</option>
+                </select>
+                <span class="time-separator">:</span>
+                <select v-model="endTimeMinute" class="time-select">
+                  <option value="">--</option>
+                  <option v-for="m in minutes" :key="m" :value="m">{{ m }}</option>
+                </select>
+                <select v-model="endTimePeriod" class="time-select period-select">
+                  <option value="AM">AM</option>
+                  <option value="PM">PM</option>
+                </select>
+              </div>
             </div>
           </div>
           <div class="form-group">
@@ -562,16 +588,52 @@
           </div>
           <div class="form-row">
             <div class="form-group">
-              <label for="edit-start">Start Date & Time</label>
-              <input id="edit-start" v-model="editForm.start" type="datetime-local" required
-                :min="minDateTime" :max="maxDateTime"
-                @input="(e: Event) => { const input = e.target as HTMLInputElement; input.setCustomValidity(''); }" />
+              <label for="edit-start-date">Start Date</label>
+              <input id="edit-start-date" v-model="editForm.startDate" type="date" required
+                :min="props.tripStartDate" :max="props.tripEndDate" />
             </div>
             <div class="form-group">
-              <label for="edit-end">End Date & Time</label>
-              <input id="edit-end" v-model="editForm.end" type="datetime-local" required
-                :min="minDateTime" :max="maxDateTime"
-                @input="(e: Event) => { const input = e.target as HTMLInputElement; input.setCustomValidity(''); }" />
+              <label for="edit-start-time">Start Time</label>
+              <div class="time-picker">
+                <select v-model="editStartTimeHour" class="time-select">
+                  <option value="">--</option>
+                  <option v-for="h in hours12" :key="h" :value="h">{{ h }}</option>
+                </select>
+                <span class="time-separator">:</span>
+                <select v-model="editStartTimeMinute" class="time-select">
+                  <option value="">--</option>
+                  <option v-for="m in minutes" :key="m" :value="m">{{ m }}</option>
+                </select>
+                <select v-model="editStartTimePeriod" class="time-select period-select">
+                  <option value="AM">AM</option>
+                  <option value="PM">PM</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="edit-end-date">End Date</label>
+              <input id="edit-end-date" v-model="editForm.endDate" type="date" required
+                :min="editForm.startDate || props.tripStartDate" :max="props.tripEndDate" />
+            </div>
+            <div class="form-group">
+              <label for="edit-end-time">End Time</label>
+              <div class="time-picker">
+                <select v-model="editEndTimeHour" class="time-select">
+                  <option value="">--</option>
+                  <option v-for="h in hours12" :key="h" :value="h">{{ h }}</option>
+                </select>
+                <span class="time-separator">:</span>
+                <select v-model="editEndTimeMinute" class="time-select">
+                  <option value="">--</option>
+                  <option v-for="m in minutes" :key="m" :value="m">{{ m }}</option>
+                </select>
+                <select v-model="editEndTimePeriod" class="time-select period-select">
+                  <option value="AM">AM</option>
+                  <option value="PM">PM</option>
+                </select>
+              </div>
             </div>
           </div>
           <div class="form-group">
@@ -715,9 +777,83 @@ const editForm = ref({
   title: '',
   description: '',
   location: '',
-  start: '',
-  end: '',
+  startDate: '',
+  startTime: '',
+  endDate: '',
+  endTime: '',
   cost: 0,
+});
+
+// Time picker helper functions
+const hours12 = ['12', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11'];
+const minutes = ['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'];
+
+function parseTimeTo12h(timeStr: string): { hour: string; minute: string; period: string } {
+  if (!timeStr) return { hour: '', minute: '', period: 'AM' };
+  const [h, m] = timeStr.split(':');
+  const hour24 = parseInt(h, 10);
+  const period = hour24 >= 12 ? 'PM' : 'AM';
+  let hour12 = hour24 % 12;
+  if (hour12 === 0) hour12 = 12;
+  // Round minute to nearest 5 to match dropdown options
+  const minuteNum = parseInt(m, 10) || 0;
+  const roundedMinute = Math.round(minuteNum / 5) * 5;
+  const minuteStr = String(roundedMinute % 60).padStart(2, '0');
+  return { hour: String(hour12), minute: minuteStr, period };
+}
+
+function format12hTo24h(hour: string, minute: string, period: string): string {
+  if (!hour || !minute) return '';
+  let hour24 = parseInt(hour, 10);
+  if (period === 'PM' && hour24 !== 12) hour24 += 12;
+  if (period === 'AM' && hour24 === 12) hour24 = 0;
+  return `${String(hour24).padStart(2, '0')}:${minute}`;
+}
+
+// Computed for edit form start time picker
+const editStartTimeHour = computed({
+  get: () => parseTimeTo12h(editForm.value.startTime).hour,
+  set: (val: string) => {
+    const parsed = parseTimeTo12h(editForm.value.startTime);
+    editForm.value.startTime = format12hTo24h(val, parsed.minute || '00', parsed.period);
+  }
+});
+const editStartTimeMinute = computed({
+  get: () => parseTimeTo12h(editForm.value.startTime).minute,
+  set: (val: string) => {
+    const parsed = parseTimeTo12h(editForm.value.startTime);
+    editForm.value.startTime = format12hTo24h(parsed.hour, val, parsed.period);
+  }
+});
+const editStartTimePeriod = computed({
+  get: () => parseTimeTo12h(editForm.value.startTime).period,
+  set: (val: string) => {
+    const parsed = parseTimeTo12h(editForm.value.startTime);
+    editForm.value.startTime = format12hTo24h(parsed.hour, parsed.minute, val);
+  }
+});
+
+// Computed for edit form end time picker
+const editEndTimeHour = computed({
+  get: () => parseTimeTo12h(editForm.value.endTime).hour,
+  set: (val: string) => {
+    const parsed = parseTimeTo12h(editForm.value.endTime);
+    editForm.value.endTime = format12hTo24h(val, parsed.minute || '00', parsed.period);
+  }
+});
+const editEndTimeMinute = computed({
+  get: () => parseTimeTo12h(editForm.value.endTime).minute,
+  set: (val: string) => {
+    const parsed = parseTimeTo12h(editForm.value.endTime);
+    editForm.value.endTime = format12hTo24h(parsed.hour, val, parsed.period);
+  }
+});
+const editEndTimePeriod = computed({
+  get: () => parseTimeTo12h(editForm.value.endTime).period,
+  set: (val: string) => {
+    const parsed = parseTimeTo12h(editForm.value.endTime);
+    editForm.value.endTime = format12hTo24h(parsed.hour, parsed.minute, val);
+  }
 });
 const showAttendingModal = ref(false);
 const selectedActivityId = ref<string | null>(null);
@@ -1864,26 +2000,29 @@ function openEditDialog(activity: ActivityWithDetails) {
     }
   });
 
-  // Helper function to convert ISO string to local datetime format for input fields
-  // Returns format: YYYY-MM-DDTHH:mm (local time, not UTC)
-  const toLocalDatetimeString = (isoString: string): string => {
-    if (!isoString) return '';
-    const date = new Date(isoString);
-    // Use local date/time components to preserve the user's timezone
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  // Helper function to extract date and time from ISO string
+  const extractDateAndTime = (isoString: string): { date: string; time: string } => {
+    if (!isoString) return { date: '', time: '' };
+    const d = new Date(isoString);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const hours = String(d.getHours()).padStart(2, '0');
+    const mins = String(d.getMinutes()).padStart(2, '0');
+    return { date: `${year}-${month}-${day}`, time: `${hours}:${mins}` };
   };
+
+  const startParsed = extractDateAndTime(activity.start);
+  const endParsed = extractDateAndTime(activity.end);
 
   editForm.value = {
     title: activity.title || '',
     description: activity.description || '',
     location: activity.location || '',
-    start: activity.start ? toLocalDatetimeString(activity.start) : '',
-    end: activity.end ? toLocalDatetimeString(activity.end) : '',
+    startDate: startParsed.date,
+    startTime: startParsed.time,
+    endDate: endParsed.date,
+    endTime: endParsed.time,
     cost: activity.cost || 0,
   };
   showEditDialog.value = true;
@@ -1915,24 +2054,24 @@ async function handleSaveEdit() {
     }
 
     // Update duration if changed
-    // Helper to convert local datetime to ISO string
-    const toISOString = (localDatetimeString: string): string | null => {
-      if (!localDatetimeString) return null;
-      // localDatetimeString is in format "YYYY-MM-DDTHH:mm"
-      // Parse it as local time and convert to ISO
-      // JavaScript's Date constructor interprets this as local time
-      const date = new Date(localDatetimeString + ':00'); // Add seconds
+    // Helper to combine date and time into ISO string
+    const combineToISOString = (dateStr: string, timeStr: string): string | null => {
+      if (!dateStr) return null;
+      // If no time provided, default to start of day
+      const time = timeStr || '00:00';
+      const localDatetime = `${dateStr}T${time}:00`;
+      const date = new Date(localDatetime);
       return date.toISOString();
     };
 
-    const newStart = toISOString(editForm.value.start);
-    const newEnd = toISOString(editForm.value.end);
+    const newStart = combineToISOString(editForm.value.startDate, editForm.value.startTime);
+    const newEnd = combineToISOString(editForm.value.endDate, editForm.value.endTime);
 
     // Validate end time is not before start time
     if (newStart && newEnd && new Date(newEnd) < new Date(newStart)) {
-      const endInput = editFormRef.value?.querySelector('#edit-end') as HTMLInputElement;
+      const endInput = editFormRef.value?.querySelector('#edit-end-date') as HTMLInputElement;
       if (endInput) {
-        endInput.setCustomValidity('End time cannot be before start time. Please adjust the times.');
+        endInput.setCustomValidity('End date/time cannot be before start date/time. Please adjust.');
         endInput.reportValidity();
       }
       return;
@@ -1942,7 +2081,7 @@ async function handleSaveEdit() {
     if (newStart && newEnd) {
       const validation = isActivityDateWithinTrip(newStart, newEnd);
       if (!validation.valid) {
-        const startInput = editFormRef.value?.querySelector('#edit-start') as HTMLInputElement;
+        const startInput = editFormRef.value?.querySelector('#edit-start-date') as HTMLInputElement;
         if (startInput) {
           startInput.setCustomValidity(validation.error || 'Activity dates must be within the trip date range.');
           startInput.reportValidity();
@@ -2401,6 +2540,52 @@ const newAttraction = ref({
   multiday: false,
   solo: false,
   proposal: true,
+});
+
+// Computed for start time picker (add new activity)
+const startTimeHour = computed({
+  get: () => parseTimeTo12h(newAttraction.value.time).hour,
+  set: (val: string) => {
+    const parsed = parseTimeTo12h(newAttraction.value.time);
+    newAttraction.value.time = format12hTo24h(val, parsed.minute || '00', parsed.period);
+  }
+});
+const startTimeMinute = computed({
+  get: () => parseTimeTo12h(newAttraction.value.time).minute,
+  set: (val: string) => {
+    const parsed = parseTimeTo12h(newAttraction.value.time);
+    newAttraction.value.time = format12hTo24h(parsed.hour, val, parsed.period);
+  }
+});
+const startTimePeriod = computed({
+  get: () => parseTimeTo12h(newAttraction.value.time).period,
+  set: (val: string) => {
+    const parsed = parseTimeTo12h(newAttraction.value.time);
+    newAttraction.value.time = format12hTo24h(parsed.hour, parsed.minute, val);
+  }
+});
+
+// Computed for end time picker (add new activity)
+const endTimeHour = computed({
+  get: () => parseTimeTo12h(newAttraction.value.endTime).hour,
+  set: (val: string) => {
+    const parsed = parseTimeTo12h(newAttraction.value.endTime);
+    newAttraction.value.endTime = format12hTo24h(val, parsed.minute || '00', parsed.period);
+  }
+});
+const endTimeMinute = computed({
+  get: () => parseTimeTo12h(newAttraction.value.endTime).minute,
+  set: (val: string) => {
+    const parsed = parseTimeTo12h(newAttraction.value.endTime);
+    newAttraction.value.endTime = format12hTo24h(parsed.hour, val, parsed.period);
+  }
+});
+const endTimePeriod = computed({
+  get: () => parseTimeTo12h(newAttraction.value.endTime).period,
+  set: (val: string) => {
+    const parsed = parseTimeTo12h(newAttraction.value.endTime);
+    newAttraction.value.endTime = format12hTo24h(parsed.hour, parsed.minute, val);
+  }
 });
 </script>
 
@@ -3276,6 +3461,40 @@ input:checked+.slider:before {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
+}
+
+.time-picker {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.time-select {
+  padding: 0.5rem 0.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  background: #faf8f6;
+  font-family: inherit;
+  cursor: pointer;
+  min-width: 55px;
+}
+
+.time-select:focus {
+  outline: none;
+  border-color: #14b8a6;
+  box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.1);
+}
+
+.time-separator {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.period-select {
+  min-width: 55px;
+  margin-left: 0.25rem;
 }
 
 .checkbox-label {
