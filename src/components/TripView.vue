@@ -133,6 +133,26 @@
 					</div>
 				</div>
 			</div>
+
+			<!-- Notification Modal -->
+			<div v-if="showNotification" class="dialog-overlay" @click="closeNotification">
+				<div class="notification-dialog" @click.stop>
+					<div class="notification-icon" :class="notificationType">
+						<svg v-if="notificationType === 'success'" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+						</svg>
+						<svg v-else-if="notificationType === 'error'" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+						</svg>
+						<svg v-else class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+						</svg>
+					</div>
+					<h3 class="notification-title">{{ notificationTitle }}</h3>
+					<p class="notification-message">{{ notificationMessage }}</p>
+					<button class="btn-primary" @click="closeNotification">OK</button>
+				</div>
+			</div>
 		</div>
 	</div>
 </template>
@@ -227,6 +247,28 @@ const selectedSuggestionIds = ref<string[]>([]);
 const showAllSuggestions = ref(false);
 // Snapshot existing items to guard against backend side-effects
 const existingItemsSnapshot = ref<ChecklistItem[]>([]);
+// Notification modal state
+const showNotification = ref(false);
+const notificationTitle = ref("");
+const notificationMessage = ref("");
+const notificationType = ref<"success" | "error" | "info">("info");
+
+function showNotificationModal(title: string, message: string, type: "success" | "error" | "info" = "info") {
+	notificationTitle.value = title;
+	notificationMessage.value = message;
+	notificationType.value = type;
+	showNotification.value = true;
+}
+
+function closeNotification() {
+	showNotification.value = false;
+	// Clear after animation
+	setTimeout(() => {
+		notificationTitle.value = "";
+		notificationMessage.value = "";
+		notificationType.value = "info";
+	}, 300);
+}
 // Defer heavy JSON parsing to confirmation to avoid timeouts
 const rawSuggestionsJson = ref<string | null>(null);
 
@@ -572,18 +614,11 @@ async function handleInvite(username: string) {
 	try {
 		loading.value = true;
 		await Invitations.inviteUserToTrip(props.trip.id, username);
-		alert(`Invitation sent to ${username}`);
+		showNotificationModal("Invitation Sent", `An invitation has been sent to ${username}`, "success");
 	} catch (error: any) {
 		console.error("Failed to send invitation:", error);
-		// Show a clear, user-friendly message instead of a generic failure
-		const rawMsg = (error?.message || "").toString();
-		if (/already\s*invited/i.test(rawMsg)) {
-			alert("This user is already invited to the trip.");
-		} else {
-			alert(
-				"Username not found. Ask them to create an account, then try again.",
-			);
-		}
+		// Show a simple, user-friendly message for any invitation error
+		showNotificationModal("Error", "Could not find username", "error");
 	} finally {
 		loading.value = false;
 	}
@@ -615,7 +650,7 @@ async function handleAddActivity(activity: ActivityWithDetails) {
 		console.error("Failed to add activity:", error);
 		const errorMessage =
 			error instanceof Error ? error.message : "Failed to add activity";
-		alert(errorMessage);
+		showNotificationModal("Error", errorMessage, "error");
 	} finally {
 		loading.value = false;
 	}
@@ -693,7 +728,7 @@ async function handleAddExpense(expense: Expense) {
 		console.error("Failed to add expense:", error);
 		const errorMessage =
 			error instanceof Error ? error.message : "Failed to add expense";
-		alert(errorMessage);
+		showNotificationModal("Error", errorMessage, "error");
 	} finally {
 		loading.value = false;
 	}
@@ -711,7 +746,7 @@ async function handleDeleteExpense(expenseId: string) {
 		console.error("Failed to delete expense:", error);
 		const errorMessage =
 			error instanceof Error ? error.message : "Failed to delete expense";
-		alert(errorMessage);
+		showNotificationModal("Error", errorMessage, "error");
 	} finally {
 		loading.value = false;
 	}
@@ -731,7 +766,7 @@ async function handleToggleItem(itemId: string) {
 		item.assignee &&
 		String(item.assignee) !== String(currentUser.value?.id ?? "")
 	) {
-		alert("Only the assignee can check off this shared item.");
+		showNotificationModal("Permission Denied", "Only the assignee can check off this shared item.", "error");
 		return;
 	}
 
@@ -748,7 +783,7 @@ async function handleToggleItem(itemId: string) {
 		console.error("Failed to toggle item:", error);
 		const errorMessage =
 			error instanceof Error ? error.message : "Failed to toggle item";
-		alert(errorMessage);
+		showNotificationModal("Error", errorMessage, "error");
 	}
 }
 
@@ -778,7 +813,7 @@ async function handleAddItem(
 	});
 
 	if (existingInIntendedList) {
-		alert(`Item "${trimmedName}" already exists in the packing list.`);
+		showNotificationModal("Duplicate Item", `Item "${trimmedName}" already exists in the packing list.`, "error");
 		return;
 	}
 
@@ -814,8 +849,8 @@ async function handleAddItem(
 		console.error("Failed to add packing item:", error);
 		const errorMessage =
 			error instanceof Error ? error.message : "Failed to add packing item";
-		// Show alert with the error message (which will include duplicate detection message from backend)
-		alert(errorMessage);
+		// Show notification with the error message (which will include duplicate detection message from backend)
+		showNotificationModal("Error", errorMessage, "error");
 	} finally {
 		addingPackingItem.value = false;
 	}
@@ -924,13 +959,13 @@ async function generatePackingList(
 				// Keep existing items separate from suggestions
 			} catch (e: any) {
 				console.error("Failed to get or create packing list:", e);
-				alert("Failed to get or create packing list. Please try again.");
+				showNotificationModal("Error", "Failed to get or create packing list. Please try again.", "error");
 				return;
 			}
 		}
 
 		if (!packingListId.value) {
-			alert("Failed to get or create packing list");
+			showNotificationModal("Error", "Failed to get or create packing list", "error");
 			return;
 		}
 
@@ -1006,7 +1041,7 @@ async function generatePackingList(
 			error instanceof Error
 				? error.message
 				: `Failed to ${regenerate ? "regenerate" : "generate"} packing list`;
-		alert(errorMessage);
+		showNotificationModal("Error", errorMessage, "error");
 		generationStage.value = "Error occurred";
 	} finally {
 		await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -1118,7 +1153,7 @@ async function confirmSelectedSuggestions() {
 		}
 	} catch (e) {
 		console.error("Failed to add selected suggestions:", e);
-		alert("Failed to add some suggestions. Please try again.");
+		showNotificationModal("Error", "Failed to add some suggestions. Please try again.", "error");
 	} finally {
 		showSuggestionsModal.value = false;
 		selectedSuggestionIds.value = [];
@@ -1156,7 +1191,7 @@ async function handleDeleteActivity(activityId: string) {
 		console.error("Failed to delete activity:", error);
 		const errorMessage =
 			error instanceof Error ? error.message : "Failed to delete activity";
-		alert(errorMessage);
+		showNotificationModal("Error", errorMessage, "error");
 	} finally {
 		loading.value = false;
 	}
@@ -1191,7 +1226,7 @@ async function handleAssignItem(
 		console.error("Failed to assign item:", error);
 		const errorMessage =
 			error instanceof Error ? error.message : "Failed to assign item";
-		alert(errorMessage);
+		showNotificationModal("Error", errorMessage, "error");
 		// Reload to discard optimistic local change if persistence failed
 		try {
 			await loadPackingItems();
@@ -1302,7 +1337,7 @@ async function handleMoveItemsToShared(itemIds: string[]) {
 		console.error("Failed to move items to shared:", error);
 		const errorMessage =
 			error instanceof Error ? error.message : "Failed to move items to shared";
-		alert(errorMessage);
+		showNotificationModal("Error", errorMessage, "error");
 		// Best effort reload
 		try {
 			await loadPackingItems();
@@ -1330,7 +1365,7 @@ async function handleUnassignSharedItem(itemId: string) {
 
 	if (!item.isShared) {
 		console.log("[handleUnassignSharedItem] Item is not shared");
-		alert("Only shared items can be unassigned to all members.");
+		showNotificationModal("Permission Denied", "Only shared items can be unassigned to all members.", "error");
 		return;
 	}
 
@@ -1353,7 +1388,7 @@ async function handleUnassignSharedItem(itemId: string) {
 		console.error("Failed to unassign shared item:", error);
 		const errorMessage =
 			error instanceof Error ? error.message : "Failed to unassign shared item";
-		alert(errorMessage);
+		showNotificationModal("Error", errorMessage, "error");
 		// Best effort reload
 		try {
 			await loadPackingItems();
@@ -1384,7 +1419,7 @@ async function handleDeleteItems(itemIds: string[]) {
 		console.error("Failed to delete items:", error);
 		const errorMessage =
 			error instanceof Error ? error.message : "Failed to delete items";
-		alert(errorMessage);
+		showNotificationModal("Error", errorMessage, "error");
 		try {
 			await loadPackingItems();
 		} catch {}
@@ -1655,4 +1690,72 @@ async function handleDeleteItems(itemIds: string[]) {
 .dialog-actions { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1rem; }
 .btn-primary { background: #42b983; color: white; border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; }
 .btn-secondary { background: #f0f0f0; color: #333; border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; }
+
+/* Notification Modal */
+.notification-dialog {
+	background: white;
+	border-radius: 1rem;
+	padding: 2rem;
+	width: 90%;
+	max-width: 400px;
+	box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+	text-align: center;
+	animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+	from {
+		opacity: 0;
+		transform: translateY(-20px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+.notification-icon {
+	width: 64px;
+	height: 64px;
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin: 0 auto 1rem;
+}
+
+.notification-icon.success {
+	background: #d1fae5;
+	color: #059669;
+}
+
+.notification-icon.error {
+	background: #fee2e2;
+	color: #dc2626;
+}
+
+.notification-icon.info {
+	background: #dbeafe;
+	color: #2563eb;
+}
+
+.notification-title {
+	font-size: 1.25rem;
+	font-weight: 600;
+	color: #1e3a5f;
+	margin-bottom: 0.75rem;
+}
+
+.notification-message {
+	font-size: 0.875rem;
+	color: #64748b;
+	margin-bottom: 1.5rem;
+	line-height: 1.6;
+}
+
+.notification-dialog .btn-primary {
+	width: 100%;
+	padding: 0.75rem;
+	font-weight: 500;
+}
 </style>
