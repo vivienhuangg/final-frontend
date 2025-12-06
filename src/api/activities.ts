@@ -260,3 +260,67 @@ export async function modifyLocation(
     throw new Error((data as any).error);
   return data as { status: string };
 }
+
+// Export single activity as ICS
+export async function exportActivityIcs(activity: string): Promise<string> {
+  const session = getSession();
+  const { data } = await http.post(
+    "/activities/exportActivityIcs",
+    { session, activity },
+  );
+
+  // Handle JSON response with ics field
+  if (data && typeof data === "object" && "ics" in data && typeof data.ics === "string") {
+    return data.ics;
+  }
+  // Handle raw string response
+  if (typeof data === "string") {
+    // Check if it's a JSON string
+    if (data.startsWith("{")) {
+      try {
+        const parsed = JSON.parse(data);
+        if (parsed.ics) return parsed.ics;
+        if (parsed.error) throw new Error(parsed.error);
+      } catch {
+        // Not valid JSON, return as-is
+      }
+    }
+    return data;
+  }
+  if (data && typeof data === "object" && "error" in data && (data as any).error) {
+    throw new Error((data as any).error);
+  }
+  throw new Error("Failed to export activity");
+}
+
+// Export all my activities for a trip as ICS
+export async function exportAllMyActivitiesIcs(trip: string): Promise<string> {
+  const session = getSession();
+  const { data } = await http.post(
+    "/activities/exportAllMyActivitiesIcs",
+    { session, trip },
+  );
+
+  // Handle JSON response with ics field
+  if (data && typeof data === "object" && "ics" in data && typeof data.ics === "string") {
+    return data.ics;
+  }
+  // Handle raw string response
+  if (typeof data === "string") {
+    // Check if it's a JSON string
+    if (data.startsWith("{")) {
+      try {
+        const parsed = JSON.parse(data);
+        if (parsed.ics) return parsed.ics;
+        if (parsed.error) throw new Error(parsed.error);
+      } catch {
+        // Not valid JSON, return as-is
+      }
+    }
+    return data;
+  }
+  if (data && typeof data === "object" && "error" in data && (data as any).error) {
+    throw new Error((data as any).error);
+  }
+  throw new Error("Failed to export activities");
+}

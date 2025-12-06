@@ -43,14 +43,6 @@
 							</div>
 						</div>
 					</div>
-					<div class="hero-actions">
-						<button class="btn-export">
-							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-									d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-							</svg>
-						</button>
-					</div>
 				</div>
 			</div>
 
@@ -68,41 +60,41 @@
 			<div class="tab-content">
 				<OverviewTab v-if="activeTab === 'overview'" :trip="trip" @invite="handleInvite" />
 				<!-- Discover tab removed per UI request -->
-				<AttractionsTab 
+				<AttractionsTab
 					v-if="activeTab === 'attractions'"
-					:activities="activities" 
+					:activities="activities"
 					:travelers="trip.travelers"
-					:trip-id="trip.id" 
-					:organizer-id="trip.organizer" 
-					:trip-start-date="trip.startDate" 
+					:trip-id="trip.id"
+					:organizer-id="trip.organizer"
+					:trip-start-date="trip.startDate"
 					:trip-end-date="trip.endDate"
-					@rate="handleRate" 
-					@toggle-attendance="handleToggleAttendance" 
+					@rate="handleRate"
+					@toggle-attendance="handleToggleAttendance"
 					@add-activity="handleAddActivity"
-					@delete-activity="handleDeleteActivity" 
+					@delete-activity="handleDeleteActivity"
 					@refresh-activities="loadActivities" />
-				<CostsTab 
+				<CostsTab
 					v-if="activeTab === 'costs'"
-					:expenses="expenses" 
+					:expenses="expenses"
 					:travelers="trip.travelers"
-					@add-expense="handleAddExpense" 
+					@add-expense="handleAddExpense"
 					@delete-expense="handleDeleteExpense" />
-				<PackingTab 
+				<PackingTab
 					v-if="activeTab === 'packing'"
-					:items="packingItems" 
+					:items="packingItems"
 					:travelers="trip.travelers"
-					:generating="generatingPackingList" 
+					:generating="generatingPackingList"
 					:generation-stage="generationStage"
-					:generation-progress="generationProgress" 
-					:adding-item="addingPackingItem" 
+					:generation-progress="generationProgress"
+					:adding-item="addingPackingItem"
 					@add-item="handleAddItem"
-					@toggle-item="handleToggleItem" 
+					@toggle-item="handleToggleItem"
 					@quantity-change="handleQuantityChange"
-					@assign-item="handleAssignItem" 
-					@move-items-to-shared="handleMoveItemsToShared" 
+					@assign-item="handleAssignItem"
+					@move-items-to-shared="handleMoveItemsToShared"
 					@delete-items="handleDeleteItems"
 					@unassign-shared-item="handleUnassignSharedItem"
-					@regenerate="handleRegeneratePackingList" 
+					@regenerate="handleRegeneratePackingList"
 					@generate="handleGeneratePackingList" />
 			</div>
 
@@ -388,7 +380,7 @@ async function loadActivities() {
 			transformed.event = props.trip.id;
 			return transformed;
 		});
-		
+
 		// Load invitations to determine which activities user has opted into
 		await loadActivityInvitations();
 	} catch (error: any) {
@@ -404,14 +396,14 @@ async function loadActivityInvitations() {
 		// Get all invitations for the current user
 		const invitationsResponse = await Invitations.getMyInvitations();
 		const invitations = invitationsResponse.results || [];
-		
+
 		// Reset opted-in activities
 		optedInActivities.value.clear();
-		
+
 		// Filter to only activity invitations (not trip invitations)
 		// Activity invitations have event IDs that match activity IDs
 		const activityIds = new Set(activities.value.map(a => a.id));
-		
+
 		for (const inv of invitations) {
 			const eventId = (inv as any).event || (inv as any).eventId;
 			if (eventId && activityIds.has(eventId)) {
@@ -585,7 +577,7 @@ async function loadPackingItems() {
 
 const tabs = [
 	{ id: "overview", label: "Overview" },
-	{ id: "attractions", label: "Attractions" },
+	{ id: "attractions", label: "Activities" },
 	{ id: "costs", label: "Costs" },
 	{ id: "packing", label: "Packing" },
 ];
@@ -622,14 +614,14 @@ async function handleInvite(username: string) {
 	const isAlreadyTraveler = props.trip.travelers.some(
 		(traveler) => traveler.username?.toLowerCase().trim() === username.toLowerCase().trim()
 	);
-	
+
 	// Also check if the current user's ID matches any traveler (to catch cases where username might not be set)
 	// This is a secondary check for self-invite by ID
 	if (currentUser.value?.id) {
 		const isCurrentUserInTrip = props.trip.travelers.some(
 			(traveler) => traveler.id === currentUser.value?.id
 		) || props.trip.organizer === currentUser.value.id;
-		
+
 		// If the username being invited matches current user's username, we already caught it above
 		// But if somehow the ID matches, we should also prevent it
 		if (isCurrentUserInTrip && currentUser.value.username?.toLowerCase().trim() === username.toLowerCase().trim()) {
@@ -1009,12 +1001,12 @@ async function generatePackingList(
 		const nights = Math.ceil(
 			(endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
 		);
-		
+
 		// Only include activities the user has opted into
 		const optedInActivityTitles = activities.value
 			.filter((a) => optedInActivities.value.has(a.id))
 			.map((a) => a.title);
-		
+
 		// Prompt compression: minimal inputs to reduce generation time
 		const tripInfo = `Nights:${nights};`;
 		const activitiesInfo =
@@ -1332,14 +1324,14 @@ async function handleMoveItemsToShared(itemIds: string[]) {
 					if (errorMsg.includes("already exists")) {
 						// Reload once to get the latest state
 						await loadPackingItems();
-						
+
 						// Find the existing shared item
 						const foundItem = packingItems.value.find(
 							(i) =>
 								i.isShared &&
 								i.name.toLowerCase().trim() === item.name.toLowerCase().trim()
 						);
-						
+
 						if (foundItem) {
 							// Combine: update quantity and delete personal item
 							const combinedQuantity = (foundItem.quantity || 1) + quantity;
@@ -1408,7 +1400,7 @@ async function handleUnassignSharedItem(itemId: string) {
 		});
 		await PackingLists.unassignSharedItem(packingListId.value, itemId);
 		console.log("[handleUnassignSharedItem] API call successful");
-		
+
 		// Reload packing items to show the newly created individual items
 		await loadPackingItems();
 		console.log("[handleUnassignSharedItem] Reloaded packing items");

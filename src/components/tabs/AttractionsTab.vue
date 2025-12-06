@@ -6,14 +6,14 @@
         <div class="card-gradient"></div>
         <div class="card-header">
           <div>
-            <h2 class="card-title">Attractions & Activities</h2>
+            <h2 class="card-title">Activities</h2>
             <p class="card-description">Submit ideas and vote on what to do</p>
           </div>
           <button class="btn-add-attraction" @click="openAddDialog">
             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
             </svg>
-            Add Attraction
+            Add Activity
           </button>
         </div>
       </div>
@@ -22,10 +22,10 @@
       <div class="tab-toggles-card">
         <div class="tab-toggles">
           <button :class="['toggle', { active: activeView === 'mine' }]" @click="activeView = 'mine'">
-            My Events
+            My Activities
           </button>
           <button :class="['toggle', { active: activeView === 'group' }]" @click="activeView = 'group'">
-            Group Events
+            Group Activities
           </button>
           <button :class="['toggle', { active: activeView === 'proposals' }]" @click="activeView = 'proposals'">
             Proposals
@@ -33,9 +33,18 @@
         </div>
       </div>
 
-      <!-- My Events Tab -->
+      <!-- My Activities Tab -->
       <div v-if="activeView === 'mine'">
         <div v-if="myEvents.length > 0" class="attractions-list">
+          <!-- Download All Button -->
+          <div class="download-all-header">
+            <button class="btn-download-all" @click="handleExportAllMyActivities" title="Download all my activities as calendar file">
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Download All (.ics)
+            </button>
+          </div>
           <div v-for="activity in myEvents" :key="activity.id" class="card attraction-card">
             <div class="card-gradient"></div>
             <div class="card-header">
@@ -69,6 +78,11 @@
                 </div>
               </div>
               <div class="card-actions">
+                <button class="btn-export-small" @click="handleExportActivity(activity)" title="Download as calendar file (.ics)">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                </button>
                 <button class="btn-settings-small" @click="openEditDialog(activity)" title="Edit activity">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -141,14 +155,14 @@
         <div v-else class="card">
           <div class="card-content">
             <div class="empty-state">
-              <p class="empty-title">No personal events yet</p>
+              <p class="empty-title">No personal activities yet</p>
               <p class="empty-subtitle">Add solo activities that only you can see</p>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Group Events Tab -->
+      <!-- Group Activities Tab -->
       <div v-if="activeView === 'group'">
         <div v-if="groupEvents.length > 0" class="attractions-list">
           <div v-for="activity in groupEvents" :key="activity.id" class="card attraction-card"
@@ -186,6 +200,11 @@
                 </div>
               </div>
               <div class="card-actions">
+                <button class="btn-export-small" @click="handleExportActivity(activity)" title="Download as calendar file (.ics)">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                </button>
                 <button class="btn-settings-small" @click="openEditDialog(activity)" title="Edit activity">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -268,7 +287,7 @@
         <div v-else class="card">
           <div class="card-content">
             <div class="empty-state">
-              <p class="empty-title">No group events yet</p>
+              <p class="empty-title">No group activities yet</p>
               <p class="empty-subtitle">Committed activities will appear here</p>
             </div>
           </div>
@@ -439,7 +458,7 @@
           </div>
           <div class="form-group">
             <label for="location">Location</label>
-            <input id="location" v-model="newAttraction.location" type="text" 
+            <input id="location" v-model="newAttraction.location" type="text"
               placeholder="e.g., Miami Beach, FL or specific address" />
           </div>
           <div class="form-group">
@@ -456,8 +475,8 @@
           <div v-if="!newAttraction.multiday" class="form-row">
             <div class="form-group">
               <label for="date">Date</label>
-              <input id="date" v-model="newAttraction.date" type="date" 
-                :min="props.tripStartDate" 
+              <input id="date" v-model="newAttraction.date" type="date"
+                :min="props.tripStartDate"
                 :max="props.tripEndDate"
                 placeholder="Select date" />
             </div>
@@ -465,15 +484,15 @@
           <div v-else class="form-row">
             <div class="form-group">
               <label for="start-date">Start Date</label>
-              <input id="start-date" v-model="newAttraction.startDate" type="date" 
-                :min="props.tripStartDate" 
+              <input id="start-date" v-model="newAttraction.startDate" type="date"
+                :min="props.tripStartDate"
                 :max="props.tripEndDate"
                 placeholder="Select start date" />
             </div>
             <div class="form-group">
               <label for="end-date">End Date</label>
-              <input id="end-date" v-model="newAttraction.endDate" type="date" 
-                :min="newAttraction.startDate || props.tripStartDate" 
+              <input id="end-date" v-model="newAttraction.endDate" type="date"
+                :min="newAttraction.startDate || props.tripStartDate"
                 :max="props.tripEndDate"
                 placeholder="Select end date" />
             </div>
@@ -481,12 +500,12 @@
           <div class="form-row">
             <div class="form-group">
               <label for="time">Start Time</label>
-              <input id="time" v-model="newAttraction.time" type="time" 
+              <input id="time" v-model="newAttraction.time" type="time"
                 @input="(e: Event) => { const input = e.target as HTMLInputElement; input.setCustomValidity(''); }" />
             </div>
             <div class="form-group">
               <label for="endTime">End Time</label>
-              <input id="endTime" v-model="newAttraction.endTime" type="time" 
+              <input id="endTime" v-model="newAttraction.endTime" type="time"
                 @input="(e: Event) => { const input = e.target as HTMLInputElement; input.setCustomValidity(''); }" />
             </div>
           </div>
@@ -531,20 +550,20 @@
           </div>
           <div class="form-group">
             <label for="edit-location">Location</label>
-            <input id="edit-location" v-model="editForm.location" type="text" 
+            <input id="edit-location" v-model="editForm.location" type="text"
               placeholder="e.g., Miami Beach, FL or specific address" />
           </div>
           <div class="form-row">
             <div class="form-group">
               <label for="edit-start">Start Date & Time</label>
               <input id="edit-start" v-model="editForm.start" type="datetime-local" required
-                :min="minDateTime" :max="maxDateTime" 
+                :min="minDateTime" :max="maxDateTime"
                 @input="(e: Event) => { const input = e.target as HTMLInputElement; input.setCustomValidity(''); }" />
             </div>
             <div class="form-group">
               <label for="edit-end">End Date & Time</label>
               <input id="edit-end" v-model="editForm.end" type="datetime-local" required
-                :min="minDateTime" :max="maxDateTime" 
+                :min="minDateTime" :max="maxDateTime"
                 @input="(e: Event) => { const input = e.target as HTMLInputElement; input.setCustomValidity(''); }" />
             </div>
           </div>
@@ -1023,7 +1042,7 @@ async function loadInvitations() {
     const myInvitationsResponse = await Invitations.getMyInvitations();
     const myInvitations = myInvitationsResponse.results || [];
     console.log('Fetched my invitations:', myInvitations);
-    
+
     // Reset all activity invitations - we'll build this from travelers
     allActivityInvitations.value = {};
     activityInvitations.value = {};
@@ -1078,13 +1097,13 @@ async function loadInvitations() {
       const allInvitationsResponse = await Invitations.getAllActivityInvitationsForTrip(props.tripId);
       console.log('Fetched all activity invitations for trip:', allInvitationsResponse);
       console.log('Number of activities with invitations:', Object.keys(allInvitationsResponse).length);
-      
+
       // Replace all invitations with the fetched ones (they should be complete)
       // This ensures we have all travelers' invitations, not just the current user's
       Object.keys(allInvitationsResponse).forEach((activityId) => {
         const fetchedInvitations = allInvitationsResponse[activityId] || [];
         console.log(`Activity ${activityId} has ${fetchedInvitations.length} invitations:`, fetchedInvitations);
-        
+
         // Replace all invitations for this activity with the fetched ones
         // (since we're getting all invitations from the backend)
         allActivityInvitations.value[activityId] = fetchedInvitations.map((inv) => ({
@@ -1092,7 +1111,7 @@ async function loadInvitations() {
           accepted: inv.accepted || "No",
         }));
       });
-      
+
       console.log('Final allActivityInvitations after getAllActivityInvitationsForTrip:', allActivityInvitations.value);
     } catch (error) {
       console.warn('Failed to load all activity invitations for trip:', error);
@@ -1104,12 +1123,12 @@ async function loadInvitations() {
           if (!allActivityInvitations.value[activity.id]) {
             allActivityInvitations.value[activity.id] = [];
           }
-          
+
           try {
             const response = await Invitations.getInvitationsByEvent(activity.id);
             const allInvitations = response.results || [];
             console.log(`Fetched ${allInvitations.length} invitations for activity ${activity.id}:`, allInvitations);
-            
+
             const existing = allActivityInvitations.value[activity.id];
             allInvitations.forEach((inv: any) => {
               const newInv = {
@@ -1127,7 +1146,7 @@ async function loadInvitations() {
             console.warn(`Failed to load invitations for activity ${activity.id}:`, err);
           }
         });
-      
+
       await Promise.all(activityPromises);
       console.log('Final allActivityInvitations after fallback:', allActivityInvitations.value);
     }
@@ -1232,12 +1251,12 @@ function getOptedInCount(activityId: string): number {
 
   // Get invitations we have for this activity
   const invitations = allActivityInvitations.value[activityId] || [];
-  
+
   // Count how many invitations have accepted === "Yes"
   // This counts all users who have opted in, not just travelers
   // (in case there are invitations for users not in the travelers list)
   const count = invitations.filter((inv) => inv.accepted === "Yes").length;
-  
+
   return count;
 }
 
@@ -1264,33 +1283,33 @@ function isOptedIn(activityId: string): boolean {
 
 function openAttendingModal(activityId: string) {
   selectedActivityId.value = activityId;
-  
+
   // Get all invitations for this activity
   const invitations = allActivityInvitations.value[activityId] || [];
   console.log(`[openAttendingModal] Activity ${activityId} invitations:`, invitations);
   console.log(`[openAttendingModal] Total travelers:`, props.travelers.length);
-  
+
   // Create a map of invitee ID to invitation status
   const invitationMap = new Map<string, "Yes" | "No" | "Maybe">();
   for (const invitation of invitations) {
     invitationMap.set(invitation.invitee, invitation.accepted);
     console.log(`[openAttendingModal] Mapped invitee ${invitation.invitee} to status ${invitation.accepted}`);
   }
-  
+
   // Separate into "Coming" (accepted = "Yes") and "Not Coming" (accepted = "No" or "Maybe", or no invitation)
   const coming: string[] = [];
   const notComing: string[] = [];
-  
+
   // Process ALL travelers in the trip, not just those with invitations
   for (const traveler of props.travelers) {
     const displayName = traveler.firstName && traveler.lastName
       ? `${traveler.firstName} ${traveler.lastName}`
       : traveler.name || traveler.username || traveler.id;
-    
+
     // Check if this traveler has an invitation and if they accepted
     const invitationStatus = invitationMap.get(traveler.id);
     console.log(`[openAttendingModal] Traveler ${traveler.id} (${displayName}) has status:`, invitationStatus);
-    
+
     if (invitationStatus === "Yes") {
       coming.push(displayName);
     } else {
@@ -1298,10 +1317,10 @@ function openAttendingModal(activityId: string) {
       notComing.push(displayName);
     }
   }
-  
+
   console.log(`[openAttendingModal] Coming:`, coming);
   console.log(`[openAttendingModal] Not Coming:`, notComing);
-  
+
   comingNames.value = coming;
   notComingNames.value = notComing;
   showAttendingModal.value = true;
@@ -1331,14 +1350,14 @@ function formatDateLabel(dateString: string): string {
   const month = date.toLocaleDateString('en-US', { month: 'long' });
   const day = date.getDate();
   const year = date.getFullYear();
-  
+
   // Add ordinal suffix (1st, 2nd, 3rd, 4th, etc.)
   const getOrdinal = (n: number): string => {
     const s = ['th', 'st', 'nd', 'rd'];
     const v = n % 100;
     return n + (s[(v - 20) % 10] || s[v] || s[0]);
   };
-  
+
   return `${month} ${getOrdinal(day)}, ${year}`;
 }
 
@@ -1449,7 +1468,7 @@ async function handleToggleOptIn(activityId: string) {
         accepted: "Maybe", // New invitations default to "Maybe"
       };
       activityInvitations.value[activityId] = invitation;
-      
+
       // Also add to allActivityInvitations
       if (!allActivityInvitations.value[activityId]) {
         allActivityInvitations.value[activityId] = [];
@@ -1523,7 +1542,7 @@ async function handleToggleOptIn(activityId: string) {
   } catch (error: any) {
     console.error('Error toggling opt-in:', error);
     let message = "There was an issue updating your attendance status. Please try again.";
-    
+
     if (error?.response?.data?.error) {
       message = error.response.data.error;
     } else if (error?.response?.status === 500) {
@@ -1533,7 +1552,7 @@ async function handleToggleOptIn(activityId: string) {
     } else if (error instanceof Error && error.message) {
       message = error.message;
     }
-    
+
     alert(message);
   }
 }
@@ -1548,7 +1567,7 @@ async function handleToggleSolo(activityId: string, solo: boolean) {
   } catch (error: any) {
     console.error('Error toggling solo:', error);
     let message = "There was an issue updating the solo visibility for this event. Please try again.";
-    
+
     if (error?.response?.data?.error) {
       message = error.response.data.error;
     } else if (error?.response?.status === 500) {
@@ -1558,7 +1577,7 @@ async function handleToggleSolo(activityId: string, solo: boolean) {
     } else if (error instanceof Error && error.message) {
       message = error.message;
     }
-    
+
     alert(message);
   }
 }
@@ -1591,7 +1610,7 @@ async function handleToggleProposal(activityId: string, proposal: boolean) {
   } catch (error: any) {
     console.error('Error toggling proposal:', error);
     let message = "There was an issue updating the proposal status. Please try again.";
-    
+
     if (error?.response?.data?.error) {
       message = error.response.data.error;
     } else if (error?.response?.status === 500) {
@@ -1601,7 +1620,7 @@ async function handleToggleProposal(activityId: string, proposal: boolean) {
     } else if (error instanceof Error && error.message) {
       message = error.message;
     }
-    
+
     alert(message);
   }
 }
@@ -1627,7 +1646,7 @@ function handleDeleteProposal(activityId: string) {
       } catch (error: any) {
         console.error('Error deleting proposal:', error);
         let message = "There was an issue deleting this proposal. Please try again.";
-        
+
         if (error?.response?.data?.error) {
           message = error.response.data.error;
         } else if (error?.response?.status === 500) {
@@ -1641,7 +1660,7 @@ function handleDeleteProposal(activityId: string) {
         } else if (error instanceof Error && error.message) {
           message = error.message;
         }
-        
+
         alert(message);
       } finally {
         showConfirmDialog.value = false;
@@ -1662,7 +1681,7 @@ function isActivityDateWithinTrip(activityStart: string, activityEnd: string): {
   // Parse dates - activity dates are ISO strings, trip dates are YYYY-MM-DD
   const activityStartDate = new Date(activityStart);
   const activityEndDate = new Date(activityEnd);
-  
+
   // Get date-only strings (YYYY-MM-DD) in local timezone for comparison
   // This ensures we're comparing calendar dates, not timestamps
   const getLocalDateString = (date: Date): string => {
@@ -1671,10 +1690,10 @@ function isActivityDateWithinTrip(activityStart: string, activityEnd: string): {
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   };
-  
+
   const activityStartDateOnly = getLocalDateString(activityStartDate);
   const activityEndDateOnly = getLocalDateString(activityEndDate);
-  
+
   // Compare date-only parts (this avoids timezone issues)
   if (activityStartDateOnly < props.tripStartDate) {
     return {
@@ -1727,7 +1746,7 @@ function parseUserFriendlyError(error: any): string {
   if (typeof error === 'string') {
     // Check for common backend error patterns and make them friendly
     const errorLower = error.toLowerCase();
-    
+
     // Date/time validation errors
     if (errorLower.includes('startdatetime') && errorLower.includes('enddatetime') && (errorLower.includes('before') || errorLower.includes('after'))) {
       return "End time cannot be before start time. Please adjust the times.";
@@ -1738,7 +1757,7 @@ function parseUserFriendlyError(error: any): string {
     if ((errorLower.includes('start') || errorLower.includes('startdatetime')) && (errorLower.includes('end') || errorLower.includes('enddatetime')) && (errorLower.includes('before') || errorLower.includes('after'))) {
       return "End time cannot be before start time. Please adjust the times.";
     }
-    
+
     // Date range errors
     if (errorLower.includes('before the trip start date')) {
       return error; // Already user-friendly
@@ -1749,22 +1768,22 @@ function parseUserFriendlyError(error: any): string {
     if (errorLower.includes('within the trip date range')) {
       return error; // Already user-friendly
     }
-    
+
     // Not found errors
     if (errorLower.includes('not found')) {
       return error.replace(/Activity with ID [^\s]+ not found\./, "This activity could not be found. It may have already been deleted.");
     }
-    
+
     // Permission errors
     if (errorLower.includes('permission') || errorLower.includes('authorized') || errorLower.includes('unauthorized')) {
       return "You don't have permission to perform this action.";
     }
-    
+
     // Timeout errors
     if (errorLower.includes('timeout') || errorLower.includes('timed out')) {
       return "The request took too long. Please check your connection and try again.";
     }
-    
+
     return error;
   }
 
@@ -1774,17 +1793,17 @@ function parseUserFriendlyError(error: any): string {
     if (error?.response?.data?.error) {
       return parseUserFriendlyError(error.response.data.error);
     }
-    
+
     // Check for error.message
     if (error?.message) {
       return parseUserFriendlyError(error.message);
     }
-    
+
     // Check for error.error
     if (error?.error) {
       return parseUserFriendlyError(error.error);
     }
-    
+
     // HTTP status code errors
     if (error?.response?.status === 500) {
       return "A server error occurred. Please try again later.";
@@ -1971,10 +1990,10 @@ async function handleSaveEdit() {
     const errorMessage = parseUserFriendlyError(error);
     const errorString = typeof error === 'string' ? error : error?.response?.data?.error || error?.message || '';
     const errorLower = errorString.toLowerCase();
-    
+
     // Determine which field to show the error on based on error content
     let targetInput: HTMLInputElement | null = null;
-    
+
     if (errorLower.includes('start') && errorLower.includes('end') && (errorLower.includes('time') || errorLower.includes('date'))) {
       // Time/date validation errors - show on end datetime field
       targetInput = editFormRef.value?.querySelector('#edit-end') as HTMLInputElement;
@@ -1985,7 +2004,7 @@ async function handleSaveEdit() {
       // Fallback to title field
       targetInput = editFormRef.value?.querySelector('#edit-title') as HTMLInputElement;
     }
-    
+
     if (targetInput) {
       targetInput.setCustomValidity(errorMessage);
       targetInput.reportValidity();
@@ -2017,7 +2036,7 @@ function handleRevertToProposal(activityId: string) {
       } catch (error: any) {
         console.error('Error converting to proposal:', error);
         let message = "There was an issue converting this event to a proposal. Please try again.";
-        
+
         if (error?.response?.data?.error) {
           message = error.response.data.error;
         } else if (error?.response?.status === 500) {
@@ -2027,7 +2046,7 @@ function handleRevertToProposal(activityId: string) {
         } else if (error instanceof Error && error.message) {
           message = error.message;
         }
-        
+
         alert(message);
       } finally {
         showConfirmDialog.value = false;
@@ -2058,7 +2077,7 @@ async function handleDeleteActivity(activityId: string) {
       } catch (error: any) {
         console.error('Error deleting activity:', error);
         let message = "There was an issue deleting this event. Please try again.";
-        
+
         if (error?.response?.data?.error) {
           message = error.response.data.error;
         } else if (error?.response?.status === 500) {
@@ -2072,7 +2091,7 @@ async function handleDeleteActivity(activityId: string) {
         } else if (error instanceof Error && error.message) {
           message = error.message;
         }
-        
+
         alert(message);
       } finally {
         showConfirmDialog.value = false;
@@ -2091,6 +2110,58 @@ function confirmAction() {
 function cancelConfirm() {
   showConfirmDialog.value = false;
   confirmDialogConfig.value = null;
+}
+
+// Export single activity as ICS
+async function handleExportActivity(activity: ActivityWithDetails) {
+  try {
+    const icsContent = await Activities.exportActivityIcs(activity.id);
+
+    // Create a blob and trigger download
+    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+
+    // Sanitize the filename
+    const filename = activity.title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '') || 'activity';
+    link.download = `${filename}.ics`;
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  } catch (error: any) {
+    console.error('Error exporting activity:', error);
+    const message = error?.message || 'Failed to export activity. Please try again.';
+    alert(message);
+  }
+}
+
+// Export all my activities as ICS
+async function handleExportAllMyActivities() {
+  try {
+    const icsContent = await Activities.exportAllMyActivitiesIcs(props.tripId);
+
+    // Create a blob and trigger download
+    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'my-trip-activities.ics';
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  } catch (error: any) {
+    console.error('Error exporting all activities:', error);
+    const message = error?.message || 'Failed to export activities. Please try again.';
+    alert(message);
+  }
 }
 
 function handleSoloChange() {
@@ -2159,7 +2230,7 @@ async function handleAddAttraction() {
           endDateTime = localEnd.toISOString();
         }
       }
-      
+
       // Validate end date is not before start date
       if (endDate && startDate && new Date(endDate) < new Date(startDate)) {
         const endDateInput = addFormRef.value?.querySelector('#end-date') as HTMLInputElement;
@@ -2275,10 +2346,10 @@ async function handleAddAttraction() {
     const errorMessage = parseUserFriendlyError(error);
     const errorString = typeof error === 'string' ? error : error?.response?.data?.error || error?.message || '';
     const errorLower = errorString.toLowerCase();
-    
+
     // Determine which field to show the error on based on error content
     let targetInput: HTMLInputElement | null = null;
-    
+
     if (errorLower.includes('start') && errorLower.includes('end') && (errorLower.includes('time') || errorLower.includes('date'))) {
       // Time/date validation errors - show on end time field
       targetInput = addFormRef.value?.querySelector('#endTime') as HTMLInputElement;
@@ -2289,7 +2360,7 @@ async function handleAddAttraction() {
       // Fallback to name field
       targetInput = addFormRef.value?.querySelector('#name') as HTMLInputElement;
     }
-    
+
     if (targetInput) {
       targetInput.setCustomValidity(errorMessage);
       targetInput.reportValidity();
@@ -2646,6 +2717,52 @@ const newAttraction = ref({
 .btn-delete-small:hover {
   background: #fcc;
   transform: scale(1.1);
+}
+
+.btn-export-small {
+  padding: 0.375rem;
+  background: #f0fdf4;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-export-small:hover {
+  background: #bbf7d0;
+  transform: scale(1.1);
+}
+
+.download-all-header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 1rem;
+}
+
+.btn-download-all {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(22, 163, 74, 0.2);
+}
+
+.btn-download-all:hover {
+  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(22, 163, 74, 0.3);
 }
 
 .card-content {
@@ -3322,4 +3439,3 @@ input:checked+.slider:before {
   font-size: 0.875rem;
 }
 </style>
-
