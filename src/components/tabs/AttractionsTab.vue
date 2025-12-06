@@ -408,9 +408,16 @@
                   </div>
                 </div>
                 <div class="activity-controls">
-                  <button class="btn-commit-proposal" @click="handleToggleProposal(activity.id, false)">
+                  <button
+                    class="btn-commit-proposal"
+                    @click="handleToggleProposal(activity.id, false)"
+                    :disabled="!canCommitProposal(activity.id)"
+                    :title="canCommitProposal(activity.id) ? 'Commit this proposal to a group event' : 'All travelers must vote before committing'">
                     Commit to Group Event
                   </button>
+                  <span v-if="!canCommitProposal(activity.id)" class="voting-status">
+                    {{ getVotingStatus(activity.id) }} - all must vote to commit
+                  </span>
                   <div class="activity-controls-secondary">
                     <button class="btn-delete-proposal" @click="handleDeleteProposal(activity.id)">
                       Delete Proposal
@@ -1243,6 +1250,18 @@ function formatRating(score: number): string {
 
 function getVoteCount(activityId: string): number {
   return (ratings.value[activityId] || []).length;
+}
+
+function canCommitProposal(activityId: string): boolean {
+  const voteCount = getVoteCount(activityId);
+  const travelerCount = props.travelers.length;
+  return voteCount >= travelerCount && travelerCount > 0;
+}
+
+function getVotingStatus(activityId: string): string {
+  const voteCount = getVoteCount(activityId);
+  const travelerCount = props.travelers.length;
+  return `${voteCount}/${travelerCount} voted`;
 }
 
 function getOptedInCount(activityId: string): number {
@@ -2993,10 +3012,25 @@ input:checked+.slider:before {
   box-shadow: 0 2px 4px rgba(20, 184, 166, 0.2);
 }
 
-.btn-commit-proposal:hover {
+.btn-commit-proposal:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.btn-commit-proposal:hover:not(:disabled) {
   background: #0d9488;
   box-shadow: 0 4px 8px rgba(20, 184, 166, 0.3);
   transform: translateY(-1px);
+}
+
+.voting-status {
+  display: block;
+  font-size: 0.75rem;
+  color: #6b7280;
+  text-align: center;
+  margin-bottom: 0.5rem;
+  font-style: italic;
 }
 
 .activity-controls-secondary {
