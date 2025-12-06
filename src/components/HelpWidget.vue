@@ -46,6 +46,13 @@
                 <p>Create personal and shared lists, adjust quantities, and assign items.</p>
               </div>
             </div>
+            <div class="feature">
+              <div class="icon" aria-hidden="true">📅</div>
+              <div class="text">
+                <h3>Calendar Export</h3>
+                <p>Click the download icon on any activity to get an .ics file and add it to your calendar.</p>
+              </div>
+            </div>
           </div>
 
         </div>
