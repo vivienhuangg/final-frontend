@@ -1023,7 +1023,7 @@ async function generatePackingList(
 				: "Activities:;";
 		const quantityHint = `Rules: return explicit numeric quantities (no 'x1'); infer quantities from nights and activities; set shared=true for communal items; avoid duplicates.`;
 		const capHint = `Limit: max 20 suggestions.`;
-		const formatHint = `Output: ONLY JSON array of {name,quantity,shared}. If a carrier is needed, insert ONE item named __PACKING_SUGGESTIONS_JSON__ containing that JSON.`;
+		const formatHint = `Output: ONLY JSON array of {name,quantity,shared}. Do not include any wrapper or carrier items.`;
 		const exampleHint = `Example:[{"name":"Underwear","quantity":${nights},"shared":false},{"name":"First aid kit","quantity":1,"shared":true}]`;
 		const additionalInput = `${tripInfo} ${activitiesInfo} ${quantityHint} ${capHint} ${formatHint} ${exampleHint}`;
 
