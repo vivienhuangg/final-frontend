@@ -458,7 +458,8 @@
               <label for="date">Date</label>
               <input id="date" v-model="newAttraction.date" type="date" 
                 :min="props.tripStartDate" 
-                :max="props.tripEndDate" />
+                :max="props.tripEndDate"
+                placeholder="Select date" />
             </div>
           </div>
           <div v-else class="form-row">
@@ -466,13 +467,15 @@
               <label for="start-date">Start Date</label>
               <input id="start-date" v-model="newAttraction.startDate" type="date" 
                 :min="props.tripStartDate" 
-                :max="props.tripEndDate" />
+                :max="props.tripEndDate"
+                placeholder="Select start date" />
             </div>
             <div class="form-group">
               <label for="end-date">End Date</label>
               <input id="end-date" v-model="newAttraction.endDate" type="date" 
                 :min="newAttraction.startDate || props.tripStartDate" 
-                :max="props.tripEndDate" />
+                :max="props.tripEndDate"
+                placeholder="Select end date" />
             </div>
           </div>
           <div class="form-row">
@@ -648,22 +651,33 @@ const editForm = ref({
   cost: 0,
 });
 
-// Helper to get date from activity
+// Helper to get date from activity (in local timezone to avoid date shifts)
 function getActivityDate(activity: ActivityWithDetails): string {
   if (!activity.start) return '';
-  return new Date(activity.start).toISOString().split('T')[0];
+  const date = new Date(activity.start);
+  // Use local timezone methods to avoid date shifts
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
-// Helper to get time from activity
+// Helper to get time from activity (in local timezone)
 function getActivityTime(activity: ActivityWithDetails): string {
   if (!activity.start) return '';
-  return new Date(activity.start).toTimeString().slice(0, 5);
+  const date = new Date(activity.start);
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${hours}:${minutes}`;
 }
 
-// Helper to get end time from activity
+// Helper to get end time from activity (in local timezone)
 function getActivityEndTime(activity: ActivityWithDetails): string {
   if (!activity.end) return '';
-  return new Date(activity.end).toTimeString().slice(0, 5);
+  const date = new Date(activity.end);
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${hours}:${minutes}`;
 }
 
 // Check if two activities have overlapping time ranges
@@ -1129,12 +1143,32 @@ function isOptedIn(activityId: string): boolean {
 
 function formatDate(dateString: string): string {
   if (!dateString) return '';
-  const date = new Date(dateString);
+  // dateString is in format YYYY-MM-DD, parse it in local timezone
+  const [year, month, day] = dateString.split('-');
+  const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
   return date.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric'
   });
+}
+
+// Format date for labels: "December 10th, 2025"
+function formatDateLabel(dateString: string): string {
+  if (!dateString) return '';
+  const date = new Date(dateString + 'T00:00:00'); // Ensure it's treated as a date, not datetime
+  const month = date.toLocaleDateString('en-US', { month: 'long' });
+  const day = date.getDate();
+  const year = date.getFullYear();
+  
+  // Add ordinal suffix (1st, 2nd, 3rd, 4th, etc.)
+  const getOrdinal = (n: number): string => {
+    const s = ['th', 'st', 'nd', 'rd'];
+    const v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+  };
+  
+  return `${month} ${getOrdinal(day)}, ${year}`;
 }
 
 function formatTime(startTime?: string, endTime?: string): string {
@@ -1447,31 +1481,66 @@ function handleDeleteProposal(activityId: string) {
 }
 
 // Validate if activity dates are within trip date range
+// Uses date-only comparison to avoid timezone issues
 function isActivityDateWithinTrip(activityStart: string, activityEnd: string): { valid: boolean; error?: string } {
   if (!props.tripStartDate || !props.tripEndDate) {
     // If trip dates aren't provided, skip validation
     return { valid: true };
   }
 
-  const tripStart = new Date(props.tripStartDate + 'T00:00:00');
-  const tripEnd = new Date(props.tripEndDate + 'T23:59:59');
+  // Parse dates - activity dates are ISO strings, trip dates are YYYY-MM-DD
   const activityStartDate = new Date(activityStart);
   const activityEndDate = new Date(activityEnd);
-
-  // Check if activity start is before trip start
-  if (activityStartDate < tripStart) {
+  
+  // Get date-only strings (YYYY-MM-DD) in local timezone for comparison
+  // This ensures we're comparing calendar dates, not timestamps
+  const getLocalDateString = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+  
+  const activityStartDateOnly = getLocalDateString(activityStartDate);
+  const activityEndDateOnly = getLocalDateString(activityEndDate);
+  
+  // Compare date-only parts (this avoids timezone issues)
+  if (activityStartDateOnly < props.tripStartDate) {
     return {
       valid: false,
-      error: `Activity start date cannot be before the trip start date (${props.tripStartDate}).`,
+      error: `Activity date (${activityStartDateOnly}) cannot be before the trip start date (${props.tripStartDate}).`,
     };
   }
 
-  // Check if activity end is after trip end
-  if (activityEndDate > tripEnd) {
+  if (activityEndDateOnly > props.tripEndDate) {
     return {
       valid: false,
-      error: `Activity end date cannot be after the trip end date (${props.tripEndDate}).`,
+      error: `Activity end date (${activityEndDateOnly}) cannot be after the trip end date (${props.tripEndDate}).`,
     };
+  }
+
+  // If the activity is on the trip start date, ensure it doesn't start before midnight
+  if (activityStartDateOnly === props.tripStartDate) {
+    const tripStartLocal = new Date(props.tripStartDate + 'T00:00:00');
+    // Compare in local timezone - allow same day or later
+    if (activityStartDate < tripStartLocal) {
+      return {
+        valid: false,
+        error: `Activity start time on ${props.tripStartDate} must be at or after 00:00:00.`,
+      };
+    }
+  }
+
+  // If the activity is on the trip end date, ensure it doesn't end after 23:59:59
+  if (activityEndDateOnly === props.tripEndDate) {
+    const tripEndLocal = new Date(props.tripEndDate + 'T23:59:59');
+    // Compare in local timezone - allow same day or earlier
+    if (activityEndDate > tripEndLocal) {
+      return {
+        valid: false,
+        error: `Activity end time on ${props.tripEndDate} must be at or before 23:59:59.`,
+      };
+    }
   }
 
   return { valid: true };
@@ -1586,10 +1655,12 @@ function openEditDialog(activity: ActivityWithDetails) {
     }
   });
 
-  // Helper function to convert ISO string to local datetime format
+  // Helper function to convert ISO string to local datetime format for input fields
+  // Returns format: YYYY-MM-DDTHH:mm (local time, not UTC)
   const toLocalDatetimeString = (isoString: string): string => {
     if (!isoString) return '';
     const date = new Date(isoString);
+    // Use local date/time components to preserve the user's timezone
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
@@ -1640,6 +1711,7 @@ async function handleSaveEdit() {
       if (!localDatetimeString) return null;
       // localDatetimeString is in format "YYYY-MM-DDTHH:mm"
       // Parse it as local time and convert to ISO
+      // JavaScript's Date constructor interprets this as local time
       const date = new Date(localDatetimeString + ':00'); // Add seconds
       return date.toISOString();
     };
@@ -1887,19 +1959,34 @@ async function handleAddAttraction() {
       }
 
       if (startDate) {
-        startDateTime = newAttraction.value.time 
-          ? `${startDate}T${newAttraction.value.time}:00`
-          : `${startDate}T00:00:00`;
+        // Construct datetime in local time, then convert to ISO
+        if (newAttraction.value.time) {
+          const localStart = new Date(`${startDate}T${newAttraction.value.time}`);
+          startDateTime = localStart.toISOString();
+        } else {
+          const localStart = new Date(`${startDate}T00:00:00`);
+          startDateTime = localStart.toISOString();
+        }
       }
 
       if (endDate) {
-        endDateTime = newAttraction.value.endTime
-          ? `${endDate}T${newAttraction.value.endTime}:00`
-          : `${endDate}T23:59:59`;
+        // Construct datetime in local time, then convert to ISO
+        if (newAttraction.value.endTime) {
+          const localEnd = new Date(`${endDate}T${newAttraction.value.endTime}`);
+          endDateTime = localEnd.toISOString();
+        } else {
+          const localEnd = new Date(`${endDate}T23:59:59`);
+          endDateTime = localEnd.toISOString();
+        }
       } else {
-        endDateTime = newAttraction.value.endTime
-          ? `${startDate}T${newAttraction.value.endTime}:00`
-          : `${startDate}T23:59:59`;
+        // No end date specified, use start date
+        if (newAttraction.value.endTime) {
+          const localEnd = new Date(`${startDate}T${newAttraction.value.endTime}`);
+          endDateTime = localEnd.toISOString();
+        } else {
+          const localEnd = new Date(`${startDate}T23:59:59`);
+          endDateTime = localEnd.toISOString();
+        }
       }
       
       // Validate end date is not before start date
@@ -1913,20 +2000,30 @@ async function handleAddAttraction() {
       }
     } else if (newAttraction.value.date) {
       // Handle single-day events
+      // Construct datetime strings in local time, then convert to ISO
       if (newAttraction.value.time) {
-        startDateTime = `${newAttraction.value.date}T${newAttraction.value.time}:00`;
+        // Create a date object from local date/time string
+        const localStart = new Date(`${newAttraction.value.date}T${newAttraction.value.time}`);
+        startDateTime = localStart.toISOString();
       } else {
-        startDateTime = `${newAttraction.value.date}T00:00:00`;
+        // No time specified, default to start of day in local timezone
+        const localStart = new Date(`${newAttraction.value.date}T00:00:00`);
+        startDateTime = localStart.toISOString();
       }
 
       if (newAttraction.value.endTime) {
-        endDateTime = `${newAttraction.value.date}T${newAttraction.value.endTime}:00`;
+        // Create a date object from local date/time string
+        const localEnd = new Date(`${newAttraction.value.date}T${newAttraction.value.endTime}`);
+        endDateTime = localEnd.toISOString();
       } else if (newAttraction.value.time) {
+        // Default to 2 hours after start time
         const start = new Date(startDateTime);
         start.setHours(start.getHours() + 2);
         endDateTime = start.toISOString();
       } else {
-        endDateTime = `${newAttraction.value.date}T23:59:59`;
+        // No times specified, default to end of day in local timezone
+        const localEnd = new Date(`${newAttraction.value.date}T23:59:59`);
+        endDateTime = localEnd.toISOString();
       }
     } else {
       const now = new Date();
@@ -2826,6 +2923,8 @@ input:checked+.slider:before {
   font-size: 0.875rem;
   font-weight: 500;
   color: #1e3a5f;
+  display: block;
+  width: 100%;
 }
 
 .form-group input,
